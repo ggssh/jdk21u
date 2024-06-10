@@ -243,7 +243,11 @@ bool G1ConcurrentMarkThread::subphase_delay_to_keep_mmu_before_remark() {
 bool G1ConcurrentMarkThread::subphase_remark() {
   ConcurrentGCBreakpoints::at("BEFORE MARKING COMPLETED");
   VM_G1PauseRemark op;
-  VMThread::execute(&op);
+  
+  // VMThread::execute(&op);
+  op->doit_prologue();
+  op->doit();
+  op->doit_epilogue();
   return _cm->has_aborted();
 }
 
@@ -262,7 +266,10 @@ bool G1ConcurrentMarkThread::phase_delay_to_keep_mmu_before_cleanup() {
 bool G1ConcurrentMarkThread::phase_cleanup() {
   ConcurrentGCBreakpoints::at("BEFORE REBUILD COMPLETED");
   VM_G1PauseCleanup op;
-  VMThread::execute(&op);
+  // VMThread::execute(&op);
+  op->doit_prologue();
+  op->doit();
+  op->doit_epilogue();
   return _cm->has_aborted();
 }
 

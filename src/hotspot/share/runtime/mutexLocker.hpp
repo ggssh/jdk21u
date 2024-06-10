@@ -68,6 +68,7 @@ extern Mutex*   NonJavaThreadsList_lock;         // a lock on the NonJavaThreads
 extern Mutex*   NonJavaThreadsListSync_lock;     // a lock for NonJavaThreads list synchronization
 extern Monitor* CGC_lock;                        // used for coordination between
                                                  // fore- & background GC threads.
+extern Monitor* G1MarkFinished_lock;
 extern Monitor* STS_lock;                        // used for joining/leaving SuspendibleThreadSet.
 extern Monitor* G1OldGCCount_lock;               // in support of "concurrent" full gc
 extern Mutex*   G1RareEvent_lock;                // Synchronizes (rare) parallel GC operations.

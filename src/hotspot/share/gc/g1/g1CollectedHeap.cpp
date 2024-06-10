@@ -2605,6 +2605,15 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper() {
     // itself is released in SuspendibleThreadSet::desynchronize().
     start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
     ConcurrentGCBreakpoints::notify_idle_to_active();
+
+    {
+      MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+      while(_cm_thread->in_progress()){
+        x.wait();
+      }
+      
+    }
+    
   }
 }
 
