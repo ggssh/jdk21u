@@ -245,9 +245,9 @@ bool G1ConcurrentMarkThread::subphase_remark() {
   VM_G1PauseRemark op;
   
   // VMThread::execute(&op);
-  op->doit_prologue();
-  op->doit();
-  op->doit_epilogue();
+  op.doit_prologue();
+  op.doit();
+  op.doit_epilogue();
   return _cm->has_aborted();
 }
 
@@ -267,9 +267,9 @@ bool G1ConcurrentMarkThread::phase_cleanup() {
   ConcurrentGCBreakpoints::at("BEFORE REBUILD COMPLETED");
   VM_G1PauseCleanup op;
   // VMThread::execute(&op);
-  op->doit_prologue();
-  op->doit();
-  op->doit_epilogue();
+  op.doit_prologue();
+  op.doit();
+  op.doit_epilogue();
   return _cm->has_aborted();
 }
 

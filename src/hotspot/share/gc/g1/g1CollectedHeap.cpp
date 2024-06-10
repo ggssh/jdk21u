@@ -2609,7 +2609,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper() {
     {
       MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
       while(_cm_thread->in_progress()){
-        x.wait();
+        G1MarkFinished_lock->wait();
       }
       
     }

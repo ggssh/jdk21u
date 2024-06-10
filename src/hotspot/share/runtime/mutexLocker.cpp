@@ -215,7 +215,7 @@ void mutex_init() {
 
   if (UseG1GC) {
     MUTEX_DEFN(CGC_lock                      , PaddedMonitor, nosafepoint);
-    MUTEX_DEFN(G1MarkFinished_lock,          , PaddedMonitor, nosafepoint);
+    MUTEX_DEFN(G1MarkFinished_lock           , PaddedMonitor, nosafepoint);
 
     MUTEX_DEFN(G1DetachedRefinementStats_lock, PaddedMutex  , nosafepoint-2);
 
