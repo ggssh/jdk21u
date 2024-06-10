@@ -117,6 +117,7 @@ void G1ConcurrentMarkThread::run_service() {
   _vtime_start = os::elapsedVTime();
 
   while (wait_for_next_cycle()) {
+    log_info(gc)("conc marking cycle begin");
     assert(in_progress(), "must be");
 
     GCIdMark gc_id_mark;
@@ -181,22 +182,28 @@ bool G1ConcurrentMarkThread::phase_mark_loop() {
 
   for (uint iter = 1; true; ++iter) {
     // Subphase 1: Mark From Roots.
+    log_info(gc)("before subphase mark from roots");
     if (subphase_mark_from_roots()) return true;
+    log_info(gc)("after subphase mark from roots");
 
+    log_info(gc)("before subphase preclean");
     // Subphase 2: Preclean (optional)
     if (G1UseReferencePrecleaning) {
       if (subphase_preclean()) return true;
     }
+    log_info(gc)("after subphase preclean");
 
     // Subphase 3: Wait for Remark.
     if (subphase_delay_to_keep_mmu_before_remark()) return true;
 
+    log_info(gc)("before subphase remark");
     // Subphase 4: Remark pause
     // [gc breakdown]
     GCMajfltStats gc_majflt_stats;
     gc_majflt_stats.start();
     if (subphase_remark()) return true;
     gc_majflt_stats.end_and_log("remark");
+    log_info(gc)("after subphase remark");
 
     // Check if we need to restart the marking loop.
     if (!mark_loop_needs_restart()) break;
@@ -296,10 +303,14 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   // reasons mentioned in G1CollectedHeap::abort_concurrent_cycle().
 
   // Phase 1: Scan root regions.
+  log_info(gc)("before phase scan root regions");
   if (phase_scan_root_regions()) return;
+  log_info(gc)("after phase scan root regions");
 
   // Phase 2: Actual mark loop.
+  log_info(gc)("before phase mark loop");
   if (phase_mark_loop()) return;
+  log_info(gc)("after phase mark loop");
 
   // Phase 3: Rebuild remembered sets and scrub dead objects.
   if (phase_rebuild_and_scrub()) return;

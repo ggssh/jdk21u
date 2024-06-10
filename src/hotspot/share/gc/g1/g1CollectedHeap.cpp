@@ -1551,10 +1551,14 @@ void G1CollectedHeap::stop() {
 
 void G1CollectedHeap::safepoint_synchronize_begin() {
   SuspendibleThreadSet::synchronize();
+  Thread* cur = Thread::current();
+  log_info(gc)("Thread %s stop the world enter", cur.name());
 }
 
 void G1CollectedHeap::safepoint_synchronize_end() {
   SuspendibleThreadSet::desynchronize();
+  Thread* cur = Thread::current();
+  log_info(gc)("Thread %s stop the world end", cur.name());
 }
 
 void G1CollectedHeap::post_initialize() {
