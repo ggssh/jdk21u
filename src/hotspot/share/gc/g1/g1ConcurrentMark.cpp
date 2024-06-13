@@ -587,7 +587,7 @@ private:
 
     bool has_aborted() {
       if (suspendible()) {
-        // _cm->do_yield_check();
+        _cm->do_yield_check();
         return _cm->has_aborted();
       }
       return false;
@@ -667,7 +667,7 @@ public:
   { }
 
   void work(uint worker_id) {
-    // SuspendibleThreadSetJoiner sts_join(_suspendible);
+    SuspendibleThreadSetJoiner sts_join(!G1UseSTWMarking && _suspendible);
     G1CollectedHeap::heap()->heap_region_par_iterate_from_worker_offset(&_cl, &_hr_claimer, worker_id);
   }
 
@@ -702,9 +702,7 @@ void G1ConcurrentMark::cleanup_for_next_mark() {
   // is the case.
   guarantee(!_g1h->collector_state()->mark_or_rebuild_in_progress(), "invariant");
 
-  log_info(gc)("before clear bitmap");
   clear_bitmap(_concurrent_workers, true);
-  log_info(gc)("after clear bitmap");
 
   // Repeat the asserts from above.
   guarantee(cm_thread()->in_progress(), "invariant");
@@ -876,7 +874,7 @@ public:
     double start_vtime = os::elapsedVTime();
 
     {
-      // SuspendibleThreadSetJoiner sts_join;
+      SuspendibleThreadSetJoiner sts_join(!G1UseSTWMarking);
 
       assert(worker_id < _cm->active_tasks(), "invariant");
 
@@ -888,7 +886,7 @@ public:
                                 true  /* do_termination */,
                                 false /* is_serial*/);
 
-          // _cm->do_yield_check();
+          _cm->do_yield_check();
         } while (!_cm->has_aborted() && task->has_aborted());
       }
       task->record_end_time();
@@ -1052,7 +1050,6 @@ void G1ConcurrentMark::mark_from_roots() {
   // Parallel task terminator is set in "set_concurrency_and_phase()"
   set_concurrency_and_phase(active_workers, true /* concurrent */);
 
-  log_info(gc)("before marking task");
   G1CMConcurrentMarkingTask marking_task(this);
   _concurrent_workers->run_task(&marking_task);
   print_stats();
@@ -1708,15 +1705,15 @@ public:
   }
 
   virtual bool should_return_fine_grain() {
-    // _cm->do_yield_check();
+    _cm->do_yield_check();
     return _cm->has_aborted();
   }
 };
 
 void G1ConcurrentMark::preclean() {
   assert(G1UseReferencePrecleaning, "Precleaning must be enabled.");
-  log_info(gc)("enter preclean");
-  // SuspendibleThreadSetJoiner joiner;
+
+  SuspendibleThreadSetJoiner joiner(!G1UseSTWMarking);
 
   BarrierEnqueueDiscoveredFieldClosure enqueue;
 
@@ -1727,13 +1724,10 @@ void G1ConcurrentMark::preclean() {
   ReferenceProcessor* rp = _g1h->ref_processor_cm();
   // Precleaning is single threaded. Temporarily disable MT discovery.
   ReferenceProcessorMTDiscoveryMutator rp_mut_discovery(rp, false);
-
-  log_info(gc)("before discovery");
   rp->preclean_discovered_references(rp->is_alive_non_header(),
                                      &enqueue,
                                      &yield_cl,
                                      _gc_timer_cm);
-  log_info(gc)("exit preclean");
 }
 
 // Closure for marking entries in SATB buffers.

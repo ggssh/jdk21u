@@ -174,9 +174,7 @@ void VM_G1PauseConcurrent::doit() {
 }
 
 bool VM_G1PauseConcurrent::doit_prologue() {
-  log_info(gc)("acquiring heap lock");
   Heap_lock->lock();
-  log_info(gc)("heap lock acquired");
   return true;
 }
 

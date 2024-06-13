@@ -1551,14 +1551,10 @@ void G1CollectedHeap::stop() {
 
 void G1CollectedHeap::safepoint_synchronize_begin() {
   SuspendibleThreadSet::synchronize();
-  Thread* cur = Thread::current();
-  log_info(gc)("Thread %s stop the world enter", cur->name());
 }
 
 void G1CollectedHeap::safepoint_synchronize_end() {
   SuspendibleThreadSet::desynchronize();
-  Thread* cur = Thread::current();
-  log_info(gc)("Thread %s stop the world end", cur->name());
 }
 
 void G1CollectedHeap::post_initialize() {
@@ -2606,7 +2602,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper() {
     start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
     ConcurrentGCBreakpoints::notify_idle_to_active();
 
-    {
+    if (UseG1STWMarking) {
       MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
       while(_cm_thread->in_progress()){
         G1MarkFinished_lock->wait();

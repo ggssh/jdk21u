@@ -50,6 +50,8 @@
   product(bool, G1EvacuationFailureALot, false,                             \
           "Force use of evacuation failure handling during certain "        \
           "evacuation pauses")                                              \
+  product(bool, G1UseSTWMarking, false,                                     \
+          "Use stop-the-world-concurrent marking")                          \
                                                                             \
   product(uintx, G1EvacuationFailureALotCount, 1000,                        \
           "Number of successful evacuations between evacuation failures "   \

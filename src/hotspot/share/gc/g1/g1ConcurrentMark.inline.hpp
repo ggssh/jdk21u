@@ -289,7 +289,7 @@ bool G1ConcurrentMark::is_marked_in_bitmap(oop p) const {
 }
 
 inline bool G1ConcurrentMark::do_yield_check() {
-  if (SuspendibleThreadSet::should_yield()) {
+  if (!G1UseSTWMarking && SuspendibleThreadSet::should_yield()) {
     SuspendibleThreadSet::yield();
     return true;
   } else {

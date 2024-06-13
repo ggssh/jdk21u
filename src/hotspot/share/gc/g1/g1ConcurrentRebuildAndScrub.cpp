@@ -90,7 +90,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
     bool yield_if_necessary() {
       if (_processed_words >= ProcessingYieldLimitInWords) {
         reset_processed_words();
-        // _cm->do_yield_check();
+        _cm->do_yield_check();
       }
       return _cm->has_aborted();
     }
@@ -279,7 +279,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
 
     bool do_heap_region(HeapRegion* hr) {
       // Avoid stalling safepoints and stop iteration if mark cycle has been aborted.
-      // _cm->do_yield_check();
+      _cm->do_yield_check();
       if (_cm->has_aborted()) {
         return true;
       }
@@ -317,7 +317,7 @@ public:
     _should_rebuild_remset(should_rebuild_remset) { }
 
   void work(uint worker_id) {
-    // SuspendibleThreadSetJoiner sts_join;
+    SuspendibleThreadSetJoiner sts_join(!G1UseSTWMarking);
 
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     G1RebuildRSAndScrubRegionClosure cl(_cm, _should_rebuild_remset, worker_id);

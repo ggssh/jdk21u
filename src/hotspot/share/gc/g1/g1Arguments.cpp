@@ -115,7 +115,12 @@ void G1Arguments::parse_verification_type(const char* type) {
 // phase.
 static uint scale_concurrent_worker_threads(uint num_gc_workers) {
   // return MAX2((num_gc_workers + 2) / 4, 1U);
-  return num_gc_workers;
+  if (G1UseSTWMarking){
+    return num_gc_workers;
+  } else {
+    return MAX2((num_gc_workers + 2) / 4, 1U);
+  }
+  
 }
 
 void G1Arguments::initialize_mark_stack_size() {
@@ -192,8 +197,6 @@ void G1Arguments::initialize() {
     // Calculate the number of concurrent worker threads by scaling
     // the number of parallel GC threads.
     uint marking_thread_num = scale_concurrent_worker_threads(ParallelGCThreads);
-    // uint marking_thread_num = ParallelGCThreads;
-
     FLAG_SET_ERGO(ConcGCThreads, marking_thread_num);
   }
 
