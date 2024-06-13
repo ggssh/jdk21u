@@ -1426,6 +1426,10 @@ void G1Policy::abort_time_to_mixed_tracking() {
 }
 
 bool G1Policy::next_gc_should_be_mixed(const char* no_candidates_str) const {
+  if (G1DisableMixedGC){
+    return false;
+  }
+  
   if (!candidates()->has_more_marking_candidates()) {
     if (no_candidates_str != nullptr) {
       log_debug(gc, ergo)("%s (candidate old regions not available)", no_candidates_str);
