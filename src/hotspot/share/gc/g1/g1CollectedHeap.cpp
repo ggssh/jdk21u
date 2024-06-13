@@ -74,6 +74,7 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
+#include "gc/g1/g1_globals.hpp"
 #include "gc/shared/concurrentGCBreakpoints.hpp"
 #include "gc/shared/gcBehaviours.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
@@ -2602,7 +2603,7 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper() {
     start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
     ConcurrentGCBreakpoints::notify_idle_to_active();
 
-    if (UseG1STWMarking) {
+    if (G1UseSTWMarking) {
       MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
       while(_cm_thread->in_progress()){
         G1MarkFinished_lock->wait();

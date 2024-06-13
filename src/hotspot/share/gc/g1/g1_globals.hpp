@@ -50,8 +50,6 @@
   product(bool, G1EvacuationFailureALot, false,                             \
           "Force use of evacuation failure handling during certain "        \
           "evacuation pauses")                                              \
-  product(bool, G1UseSTWMarking, false,                                     \
-          "Use stop-the-world-concurrent marking")                          \
                                                                             \
   product(uintx, G1EvacuationFailureALotCount, 1000,                        \
           "Number of successful evacuations between evacuation failures "   \
@@ -108,6 +106,8 @@
           "initial value of InitiatingHeapOccupancyPercent. The policy "    \
           "attempts to start marking in time based on application "         \
           "behavior.")                                                      \
+  product(bool, G1UseSTWMarking, false,                                     \
+          "Use stop-the-world-concurrent marking")                          \
                                                                             \
   product(size_t, G1AdaptiveIHOPNumInitialSamples, 3, EXPERIMENTAL,         \
           "How many completed time periods from concurrent start to first " \
