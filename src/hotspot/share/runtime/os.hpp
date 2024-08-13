@@ -982,6 +982,9 @@ class os: AllStatic {
   static juint cpu_microcode_revision();
 
   static inline jlong rdtsc();
+  static inline jlong rdtsc_amd64();
+
+#define CPU_FREQ 2400000
 
   // Used to register dynamic code cache area with the OS
   // Note: Currently only used in 64 bit Windows implementations

@@ -52,6 +52,23 @@
 
 #include "gc/shared/gcTraceTime.inline.hpp"
 
+/*
+  [yyz:breakdown]
+  pause_time = base_time + copy_time + young_other_time
+  base_time = card_merge_time + card_scan_time + constant_other_time + survivor_evac_time
+  copy_time = predict_eden_copy_time_ms
+  young_other_time_ms = predict_young_other_time_ms
+  card_merge_time -> predict_card_merge_time_ms
+  card_scan_time -> predict_card_scan_time_ms
+  constant_other_time -> predict_constant_other_time_time_ms
+  survivor_evac_time -> predict_survivor_regions_evac_time
+
+  arr[8]: [card_merge_time, card_scan_time, constant_other_time, survivor_evac_time, base_time, copy_time, young_other_time, pause_time]
+*/
+
+// global variables will be initialized to zero
+// double predict_time_arr[8];
+
 G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _predictor(G1ConfidencePercent / 100.0),
   _analytics(new G1Analytics(&_predictor)),
@@ -138,6 +155,12 @@ class G1YoungLengthPredictor {
     const double copy_time_ms = _policy->predict_eden_copy_time_ms(young_length, &bytes_to_copy);
     const double young_other_time_ms = _policy->analytics()->predict_young_other_time_ms(young_length);
     const double pause_time_ms = _base_time_ms + copy_time_ms + young_other_time_ms;
+    // log_info(gc)("copy_time_ms: %.3f, young_other_time_ms: %.3f", copy_time_ms, young_other_time_ms);
+    // [card_merge_time, card_scan_time, constant_other_time, survivor_evac_time, base_time, copy_time, young_other_time, pause_time]
+    // Atomic::store(&predict_time_arr[4], _base_time_ms);
+    // Atomic::store(&predict_time_arr[5], copy_time_ms);
+    // Atomic::store(&predict_time_arr[6], young_other_time_ms);
+    // Atomic::store(&predict_time_arr[7], pause_time_ms);
     if (pause_time_ms > _target_pause_time_ms) {
       // end condition 2: prediction is over the target pause time
       return false;
@@ -199,6 +222,7 @@ void G1Policy::update_young_length_bounds(size_t pending_cards, size_t rs_length
   uint new_young_list_target_length = calculate_young_target_length(new_young_list_desired_length);
   uint new_young_list_max_length = calculate_young_max_length(new_young_list_target_length);
 
+  // yyz
   log_trace(gc, ergo, heap)("Young list length update: pending cards %zu rs_length %zu old target %u desired: %u target: %u max: %u",
                             pending_cards,
                             rs_length,
@@ -273,7 +297,12 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
       calculate_desired_eden_length_by_pause(base_time_ms,
                                              absolute_min_young_length - survivor_length,
                                              absolute_max_young_length - survivor_length);
-
+    
+    // yyz
+    // log_info(gc, ergo, heap)("base time %.3f "
+    //                         "desired_eden_length_by_pause %u "
+    //                         "desired_eden_length_by_mmu %u ",
+                            // base_time_ms, desired_eden_length_by_pause, desired_eden_length_by_mmu);
     // Incorporate MMU concerns; assume that it overrides the pause time
     // goal, as the default value has been chosen to effectively disable it.
     uint desired_eden_length = MAX2(desired_eden_length_by_pause,
@@ -288,6 +317,7 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
   // Clamp to absolute min/max after we determined desired lengths.
   desired_young_length = clamp(desired_young_length, absolute_min_young_length, absolute_max_young_length);
 
+  // yyz
   log_trace(gc, ergo, heap)("Young desired length %u "
                             "survivor length %u "
                             "allocated young length %u "
@@ -423,6 +453,9 @@ uint G1Policy::calculate_desired_eden_length_before_young_only(double base_time_
                            _free_regions_at_end_of_collection,
                            _mmu_tracker->max_gc_time() * 1000.0,
                            this);
+  // yyz
+  // if(!collector_state()->in_young_only_phase()) log_info(gc, ergo, heap)("Is not in young only phase");
+
   if (p.will_fit(min_eden_length)) {
     // The shortest young length will fit into the target pause time;
     // we'll now check whether the absolute maximum number of young
@@ -487,6 +520,8 @@ uint G1Policy::calculate_desired_eden_length_before_mixed(double base_time_ms,
                                                           uint max_eden_length) const {
   uint min_marking_candidates = MIN2(calc_min_old_cset_length(candidates()->last_marking_candidates_length()),
                                      candidates()->marking_regions_length());
+  // yyz
+  // log_info(gc, ergo)("min_marking_candidates %u", min_marking_candidates);
   double predicted_region_evac_time_ms = base_time_ms;
   for (HeapRegion* r : candidates()->marking_regions()) {
     if (min_marking_candidates == 0) {
@@ -495,6 +530,8 @@ uint G1Policy::calculate_desired_eden_length_before_mixed(double base_time_ms,
     predicted_region_evac_time_ms += predict_region_total_time_ms(r, false /* for_young_only_phase */);
     min_marking_candidates--;
   }
+  // yyz
+  // log_info(gc, ergo)("predicted_region_evac_time_ms %.3f", predicted_region_evac_time_ms);
 
   return calculate_desired_eden_length_before_young_only(predicted_region_evac_time_ms,
                                                          min_eden_length,
@@ -748,9 +785,13 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
   double start_time_sec = phase_times()->cur_collection_start_sec();
   double end_time_sec = Ticks::now().seconds();
   double pause_time_ms = (end_time_sec - start_time_sec) * 1000.0;
+  // [card_merge_time, card_scan_time, constant_other_time, survivor_evac_time, base_time, copy_time, young_other_time, pause_time]
+  // double real_time_arr[8];
 
   G1GCPauseType this_pause = collector_state()->young_gc_pause_type(concurrent_operation_is_full_mark);
   bool is_young_only_pause = G1GCPauseTypeHelper::is_young_only_pause(this_pause);
+  // yyz: 
+  // if (!is_young_only_pause) log_info(gc) ("Is not young only pause");
 
   if (G1GCPauseTypeHelper::is_concurrent_start_pause(this_pause)) {
     record_concurrent_mark_init_end();
@@ -819,23 +860,31 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
                                         p->sum_thread_work_items(G1GCPhaseTimes::OptMergeRS, G1GCPhaseTimes::MergeRSCards);
     size_t const total_cards_merged = merged_cards_from_rs +
                                       merged_cards_from_log_buffers;
-
+    
+    log_info(gc)("[yyz:_cost_per_card_merge_ms] predict: %.8f, real: %.8f, time_merge_cards: %.8f, total_cards_merged: %lu", _analytics->predict_zero_bounded(&_analytics->_cost_per_card_merge_ms_seq, is_young_only_pause), 
+    (average_time_ms(G1GCPhaseTimes::MergeER) + average_time_ms(G1GCPhaseTimes::MergeRS) + average_time_ms(G1GCPhaseTimes::MergeLB) + average_time_ms(G1GCPhaseTimes::OptMergeRS)) / total_cards_merged, average_time_ms(G1GCPhaseTimes::MergeER) +
+                                    average_time_ms(G1GCPhaseTimes::MergeRS) +
+                                    average_time_ms(G1GCPhaseTimes::MergeLB) +
+                                    average_time_ms(G1GCPhaseTimes::OptMergeRS), total_cards_merged);
     if (total_cards_merged >= G1NumCardsCostSampleThreshold) {
       double avg_time_merge_cards = average_time_ms(G1GCPhaseTimes::MergeER) +
                                     average_time_ms(G1GCPhaseTimes::MergeRS) +
                                     average_time_ms(G1GCPhaseTimes::MergeLB) +
                                     average_time_ms(G1GCPhaseTimes::OptMergeRS);
+      // [yyz:breakdown] card_merge_time
       _analytics->report_cost_per_card_merge_ms(avg_time_merge_cards / total_cards_merged, is_young_only_pause);
     }
 
     // Update prediction for card scan
     size_t const total_cards_scanned = p->sum_thread_work_items(G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ScanHRScannedCards) +
                                        p->sum_thread_work_items(G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ScanHRScannedCards);
-
+    log_info(gc)("[yyz:_cost_per_card_scan_ms] predict: %.8f, real: %.8f, time_dirty_card_scan: %.8f, total_cards_scanned: %lu", _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause),
+    (average_time_ms(G1GCPhaseTimes::ScanHR) + average_time_ms(G1GCPhaseTimes::OptScanHR)) / total_cards_scanned, average_time_ms(G1GCPhaseTimes::ScanHR) +
+                                        average_time_ms(G1GCPhaseTimes::OptScanHR), total_cards_scanned);
     if (total_cards_scanned >= G1NumCardsCostSampleThreshold) {
       double avg_time_dirty_card_scan = average_time_ms(G1GCPhaseTimes::ScanHR) +
                                         average_time_ms(G1GCPhaseTimes::OptScanHR);
-
+      // [yyz:breakdown] card_scan_time
       _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
     }
 
@@ -851,26 +900,36 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
     _analytics->report_card_scan_to_merge_ratio(scan_to_merge_ratio, is_young_only_pause);
 
     // Update prediction for copy cost per byte
+    // [yyz:breakdown] copied_bytes
     size_t copied_bytes = p->sum_thread_work_items(G1GCPhaseTimes::MergePSS, G1GCPhaseTimes::MergePSSCopiedBytes);
 
     if (copied_bytes > 0) {
+      // [yyz:breakdown] copy_time
       double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+      log_info(gc)("[yyz:_cost_per_byte_ms] predict: %.8f, real: %.8f, copy_time: %.8f, copied_bytes: %lu", _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), cost_per_byte_ms, average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy), copied_bytes);
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
     }
 
     if (_collection_set->young_region_length() > 0) {
+      // [yyz:breakdown] young_other_time
+      log_info(gc)("[yyz:_young_other_cost_per_region_ms] predict: %.8f, real: %.8f, young_other_time: %.8f, young_region_length: %u", _analytics->predict_zero_bounded(&_analytics->_young_other_cost_per_region_ms_seq), young_other_time_ms() / _collection_set->young_region_length(), young_other_time_ms(), _collection_set->young_region_length());
       _analytics->report_young_other_cost_per_region_ms(young_other_time_ms() /
                                                         _collection_set->young_region_length());
     }
 
     if (_collection_set->initial_old_region_length() > 0) {
+      // [yyz:breakdown] non_young_other_time_ms
+      log_info(gc)("[yyz:_non_young_other_cost_per_region_ms] predict: %.8f, real: %.8f, non_young_other_time: %.8f, initial_old_region_length: %u", _analytics->predict_zero_bounded(&_analytics->_non_young_other_cost_per_region_ms_seq), non_young_other_time_ms() / _collection_set->initial_old_region_length(), non_young_other_time_ms(), _collection_set->initial_old_region_length());
       _analytics->report_non_young_other_cost_per_region_ms(non_young_other_time_ms() /
                                                             _collection_set->initial_old_region_length());
     }
 
+    // [yyz:breakdown] constant_other_time
+    log_info(gc)("[yyz:_constant_other_time_ms] predict: %.8f, real: %.8f", _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq), constant_other_time_ms(pause_time_ms));
     _analytics->report_constant_other_time_ms(constant_other_time_ms(pause_time_ms));
-
+    // [yyz:breakdown] pending_cards
     _analytics->report_pending_cards((double)pending_cards_at_gc_start(), is_young_only_pause);
+    // [yyz:breakdown] rs_length
     _analytics->report_rs_length((double)_rs_length, is_young_only_pause);
   }
 
@@ -1006,8 +1065,14 @@ double G1Policy::predict_base_time_ms(size_t pending_cards,
   double constant_other_time = _analytics->predict_constant_other_time_ms();
   double survivor_evac_time = predict_survivor_regions_evac_time();
 
+  // [card_merge_time, card_scan_time, constant_other_time, survivor_evac_time, base_time, copy_time, young_other_time, pause_time]
   double total_time = card_merge_time + card_scan_time + constant_other_time + survivor_evac_time;
+  // Atomic::store(&predict_time_arr[0], card_merge_time);
+  // Atomic::store(&predict_time_arr[1], card_scan_time);
+  // Atomic::store(&predict_time_arr[2], constant_other_time);
+  // Atomic::store(&predict_time_arr[3], survivor_evac_time);
 
+  // yyz
   log_trace(gc, ergo, heap)("Predicted base time: total %f lb_cards %zu rs_length %zu effective_scanned_cards %zu "
                             "card_merge_time %f card_scan_time %f constant_other_time %f survivor_evac_time %f",
                             total_time, pending_cards, rs_length, effective_scanned_cards,
@@ -1428,6 +1493,7 @@ double G1Policy::select_candidates_from_marking(G1CollectionCandidateList* marki
   const uint max_optional_regions = max_old_cset_length - min_old_cset_length;
   bool check_time_remaining = use_adaptive_young_list_length();
 
+  // yyz
   log_debug(gc, ergo, cset)("Start adding marking candidates to collection set. "
                             "Min %u regions, max %u regions, "
                             "time remaining %1.2fms, optional threshold %1.2fms",
@@ -1484,6 +1550,7 @@ double G1Policy::select_candidates_from_marking(G1CollectionCandidateList* marki
                               num_expensive_regions);
   }
 
+  // yyz
   log_debug(gc, ergo, cset)("Finish adding marking candidates to collection set. Initial: %u, optional: %u, "
                             "predicted initial time: %1.2fms, predicted optional time: %1.2fms, time remaining: %1.2fms",
                             num_initial_regions_selected, num_optional_regions_selected,

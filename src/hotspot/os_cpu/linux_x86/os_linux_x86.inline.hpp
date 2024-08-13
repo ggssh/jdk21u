@@ -43,4 +43,13 @@ inline jlong os::rdtsc() {
 #endif // AMD64
 }
 
+inline jlong os::rdtsc_amd64() {
+  // 64 bit result in edx:eax
+  uint64_t res;
+  uint32_t ts1, ts2;
+  __asm__ __volatile__ ("rdtsc" : "=a" (ts1), "=d" (ts2));
+  res = ((uint64_t)ts1 | (uint64_t)ts2 << 32);
+  return (jlong)res;
+}
+
 #endif // OS_CPU_LINUX_X86_OS_LINUX_X86_INLINE_HPP
