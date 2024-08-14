@@ -311,6 +311,8 @@ void G1ConcurrentRefine::adjust_young_list_target_length() {
     G1CollectionSet* cset = G1CollectedHeap::heap()->collection_set();
     RemSetSamplingClosure cl{cset};
     cset->iterate(&cl);
+    // yyz
+    // log_info(gc)("adjust_young_list_target_length");
     _policy->revise_young_list_target_length(cl.sampled_rs_length());
   }
 }

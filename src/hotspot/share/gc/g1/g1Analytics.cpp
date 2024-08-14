@@ -247,6 +247,9 @@ double G1Analytics::predict_card_scan_time_ms(size_t card_num, bool for_young_on
 }
 
 double G1Analytics::predict_object_copy_time_ms(size_t bytes_to_copy, bool for_young_only_phase) const {
+  // yyz
+  // if(!for_young_only_phase) 
+  // log_info(gc)("bytes_to_copy: %lu, predict_cost_per_byte_copied_ms: %.8f", bytes_to_copy, predict_zero_bounded(&_cost_per_byte_copied_ms_seq, for_young_only_phase));
   return bytes_to_copy * predict_zero_bounded(&_cost_per_byte_copied_ms_seq, for_young_only_phase);
 }
 

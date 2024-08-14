@@ -266,7 +266,11 @@ void G1YoungCollector::calculate_collection_set(G1EvacInfo* evacuation_info, dou
   // of the collection set!) before finalizing the collection set.
   allocator()->release_mutator_alloc_regions();
 
+  // yyz
+  // jlong start_t = os::rdtsc_amd64();
   collection_set()->finalize_initial_collection_set(target_pause_time_ms, survivor_regions());
+  // log_info(gc)("[yyz] finalize_initial_collection_set used: %.3fms", (double)(os::rdtsc_amd64() - start_t) / CPU_FREQ);
+
   evacuation_info->set_collection_set_regions(collection_set()->region_length() +
                                               collection_set()->optional_region_length());
 
@@ -1048,10 +1052,16 @@ void G1YoungCollector::collect() {
 
     bool may_do_optional_evacuation = collection_set()->optional_region_length() != 0;
     // Actually do the work...
+    // yyz
+    // jlong start_t = os::rdtsc_amd64();
     evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
+    // log_info(gc)("[yyz] evacuate_initial_collection_set used: %.3fms", (double)(os::rdtsc_amd64() - start_t) / CPU_FREQ);
 
     if (may_do_optional_evacuation) {
+      // yyz
+      // jlong start_t = os::rdtsc_amd64();
       evacuate_optional_collection_set(&per_thread_states);
+      // log_info(gc)("[yyz] evacuate_optional_collection_set used: %.3fms", (double)(os::rdtsc_amd64() - start_t) / CPU_FREQ);
     }
     post_evacuate_collection_set(jtm.evacuation_info(), &per_thread_states);
 

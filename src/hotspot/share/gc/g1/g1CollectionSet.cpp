@@ -296,10 +296,12 @@ double G1CollectionSet::finalize_young_part(double target_pause_time_ms, G1Survi
   double predicted_base_time_ms = _policy->predict_base_time_ms(pending_cards);
   // Base time already includes the whole remembered set related time, so do not add that here
   // again.
+  // yyz: note
   double predicted_eden_time = _policy->predict_young_region_other_time_ms(eden_region_length) +
                                _policy->predict_eden_copy_time_ms(eden_region_length);
   double remaining_time_ms = MAX2(target_pause_time_ms - (predicted_base_time_ms + predicted_eden_time), 0.0);
 
+  // yyz
   log_trace(gc, ergo, cset)("Added young regions to CSet. Eden: %u regions, Survivors: %u regions, "
                             "predicted eden time: %1.2fms, predicted base time: %1.2fms, target pause time: %1.2fms, remaining time: %1.2fms",
                             eden_region_length, survivor_region_length,
@@ -371,6 +373,8 @@ void G1CollectionSet::prepare_optional_regions(G1CollectionCandidateRegionList* 
 
 void G1CollectionSet::finalize_initial_collection_set(double target_pause_time_ms, G1SurvivorRegions* survivor) {
   double time_remaining_ms = finalize_young_part(target_pause_time_ms, survivor);
+  // yyz: just evacuate regions from young gen
+  // log_info(gc)("[yyz] time_remaining_ms: %.3fms", time_remaining_ms);
   finalize_old_part(time_remaining_ms);
 }
 

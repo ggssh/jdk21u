@@ -30,6 +30,8 @@
 
 bool G1PhaseDependentSeq::enough_samples_to_use_mixed_seq() const {
   return G1Analytics::enough_samples_available(&_mixed_seq);
+  // yyz
+  // return false;
 }
 
 G1PhaseDependentSeq::G1PhaseDependentSeq(int length) :
@@ -51,6 +53,8 @@ void G1PhaseDependentSeq::add(double value, bool for_young_only_phase) {
 
 double G1PhaseDependentSeq::predict(const G1Predictions* predictor, bool use_young_only_phase_seq) const {
   if (use_young_only_phase_seq || !enough_samples_to_use_mixed_seq()) {
+    // yyz
+    // if (!use_young_only_phase_seq && !enough_samples_to_use_mixed_seq()) log_info(gc, ergo, heap)("have not enough samples to use mixed seq");
     return predictor->predict(&_young_only_seq);
   } else {
     return predictor->predict(&_mixed_seq);
