@@ -1203,7 +1203,9 @@ void G1Policy::update_survivors_policy() {
   uint const desired_max_survivor_regions = ceil(max_survivor_regions_d);
   size_t const survivor_size = desired_survivor_size(desired_max_survivor_regions);
 
-  _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(survivor_size);
+  // _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(survivor_size);
+  // yyz
+  _tenuring_threshold = MaxTenuringThreshold;
   if (UsePerfData) {
     _policy_counters->tenuring_threshold()->set_value(_tenuring_threshold);
     _policy_counters->desired_survivor_size()->set_value(survivor_size * oopSize);
