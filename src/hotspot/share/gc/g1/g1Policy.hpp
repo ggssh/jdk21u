@@ -238,7 +238,7 @@ private:
 
   // Calculate desired young length based on current situation without taking actually
   // available free regions into account.
-  uint calculate_young_desired_length(size_t pending_cards, size_t rs_length) const;
+  uint calculate_young_desired_length(size_t pending_cards, size_t rs_length);
   // Limit the given desired young length to available free regions.
   uint calculate_young_target_length(uint desired_young_length) const;
   // The GCLocker might cause us to need more regions than the target. Calculate
@@ -448,6 +448,16 @@ public:
   void print_age_table();
 
   void update_survivors_policy();
+
+private:
+  // variables for tuning
+  // uint _local_rate; // local memory ratio(only tuning when memory usage exceeds local cache) 
+  // uint _pre_majflt; // mafjlt of the previous gc(young or mixed)
+  // double _pre_pause_time; // pause time of the previous gc
+  // bool _next_gc_is_first_mixed;
+  uint _previous_young_length;
+  bool _is_last_young;
+  G1GCPauseType _this_pause;
 };
 
 #endif // SHARE_GC_G1_G1POLICY_HPP

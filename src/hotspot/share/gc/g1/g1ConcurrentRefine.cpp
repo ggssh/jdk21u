@@ -307,6 +307,7 @@ public:
 // resizes the young gen. This may do a premature GC or even increase the young
 // gen size to keep pause time length goal.
 void G1ConcurrentRefine::adjust_young_list_target_length() {
+  return;
   if (_policy->use_adaptive_young_list_length()) {
     G1CollectionSet* cset = G1CollectedHeap::heap()->collection_set();
     RemSetSamplingClosure cl{cset};

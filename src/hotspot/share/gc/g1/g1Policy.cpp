@@ -100,6 +100,19 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _max_survivor_regions(0),
   _survivors_age_table(true)
 {
+  if (G1UseLowLatencyTuning){
+    // [yyz:tuning] 
+    // concurrent_mark_threshold = maximum_heap_occupancy * local_rate * alpha = maximum_heap_occupancy * InitiatingHeapOccupancyPercent
+    // InitiatingHeapOccupancyPercent = local_rate * alpha
+    double _alpha = 0.3;
+    InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
+    log_info(gc)("InitiatingHeapOccupancyPercent: %ld", InitiatingHeapOccupancyPercent);
+    G1NewSizePercent = 2;
+    G1MaxNewSizePercent = G1LocalRate;
+    // _next_gc_is_first_mixed = collector_state()->in_young_gc_before_mixed()
+    // _next_gc_is_first_mixed = false;
+    // printf("_previous_young_length: %d", _previous_young_length);
+  }
 }
 
 G1Policy::~G1Policy() {
@@ -220,10 +233,13 @@ void G1Policy::update_young_length_bounds(size_t pending_cards, size_t rs_length
 
   uint new_young_list_desired_length = calculate_young_desired_length(pending_cards, rs_length);
   uint new_young_list_target_length = calculate_young_target_length(new_young_list_desired_length);
+  if (G1UseLowLatencyTuning) {
+    new_young_list_target_length = new_young_list_desired_length;
+  }
   uint new_young_list_max_length = calculate_young_max_length(new_young_list_target_length);
 
   // yyz
-  log_trace(gc, ergo, heap)("Young list length update: pending cards %zu rs_length %zu old target %u desired: %u target: %u max: %u",
+  log_info(gc, ergo, heap)("Young list length update: pending cards %zu rs_length %zu old target %u desired: %u target: %u max: %u",
                             pending_cards,
                             rs_length,
                             old_young_list_target_length,
@@ -258,7 +274,7 @@ void G1Policy::update_young_length_bounds(size_t pending_cards, size_t rs_length
 // value smaller than what is already allocated or what can actually be allocated.
 // This return value is only an expectation.
 //
-uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_length) const {
+uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_length) {
   uint min_young_length_by_sizer = _young_gen_sizer.min_desired_young_length();
   uint max_young_length_by_sizer = _young_gen_sizer.max_desired_young_length();
 
@@ -271,6 +287,8 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
   const uint survivor_length = _g1h->survivor_regions_count();
   // Size of the already allocated young gen.
   const uint allocated_young_length = _g1h->young_regions_count();
+  // Size of the already used regions
+  const uint used_regions = _g1h->num_used_regions();
   // This is the absolute minimum young length that we can return. Ensure that we
   // don't go below any user-defined minimum bound.  Also, we must have at least
   // one eden region, to ensure progress. But when revising during the ensuing
@@ -288,7 +306,7 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
   uint desired_eden_length_by_pause = 0;
 
   uint desired_young_length = 0;
-  if (use_adaptive_young_list_length()) {
+  if (use_adaptive_young_list_length() && !G1UseLowLatencyTuning) {
     desired_eden_length_by_mmu = calculate_desired_eden_length_by_mmu();
 
     double base_time_ms = predict_base_time_ms(pending_cards, rs_length);
@@ -310,26 +328,85 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
 
     desired_young_length = desired_eden_length + survivor_length;
   } else {
-    // The user asked for a fixed young gen so we'll fix the young gen
-    // whether the next GC is young or mixed.
-    desired_young_length = min_young_length_by_sizer;
+    if (G1UseLowLatencyTuning) {
+      if (!_previous_young_length) {
+        _previous_young_length = min_young_length_by_sizer;
+      }
+      // if (collector_state()->in_mixed_phase()){
+      //   log_info(gc)("in_mixed_phase");
+      // } else if(collector_state()->in_concurrent_start_gc()){
+      //   log_info(gc)("in_concurrent_start_gc");
+      // } else if (collector_state()->in_young_gc_before_mixed()){
+      //   log_info(gc)("in_young_gc_before_mixed");
+      // } else if (collector_state()->in_young_only_phase()){
+      //   log_info(gc)("in_young_only_phase");
+      // }
+      // for debug
+      if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
+        log_info(gc) ("is_last_young_pause");
+      } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
+        log_info(gc) ("is_mixed_pause");
+      } else if (G1GCPauseTypeHelper::is_young_only_pause(_this_pause)) {
+        log_info(gc) ("in_young_only_phase");
+      }
+      // log_info(gc) ("G1UseLowLatencyTuning is true");
+      log_info(gc)("used_regions: %d, max_regions: %ld", used_regions, _g1h->max_regions() * InitiatingHeapOccupancyPercent /   100);
+      if (used_regions >= InitiatingHeapOccupancyPercent * _g1h->max_regions() / 100) {
+          // if (collector_state()->in_young_gc_before_mixed()) {
+          if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
+          log_info(gc)("Case 1");
+          // 1.decrease young gen length
+          // 2.divide the mixed gc into multiple executions(increase G1MixedGCCountTarget and decrease    G1OldCSetRegionThresholdPercent)
+          desired_young_length = min_young_length_by_sizer / 2;
+          _previous_young_length = desired_young_length;
+          G1MixedGCCountTarget *= 3;
+          G1OldCSetRegionThresholdPercent = MAX2(G1OldCSetRegionThresholdPercent / 3, (uintx)1);
+        } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)){
+          if (!next_gc_should_be_mixed("This is the last mixed gc")) {
+            // 1.increase young gen length
+            // 2.restore G1MixedGCCountTarget and G1OldCSetRegionThresholdPercent
+            desired_young_length = min_young_length_by_sizer;
+            _previous_young_length = desired_young_length;
+          } else {
+            desired_young_length = _previous_young_length;
+          }
+        } else {
+          // normal young gc
+          log_info(gc)("Case 4");
+          // desired_young_length = MIN2((uint)(_previous_young_length * 1.1), absolute_max_young_length);
+          desired_young_length = min_young_length_by_sizer;
+          _previous_young_length = desired_young_length;
+        }
+      } else {
+          log_info(gc)("Case 3");
+          // desired_young_length = MIN2((uint)(_previous_young_length * 1.1), absolute_max_young_length);
+          desired_young_length = min_young_length_by_sizer;
+          log_info(gc)("_previous_young_length: %d, absolute_max_young_length: %d", _previous_young_length, absolute_max_young_length);
+          _previous_young_length = desired_young_length;
+      }
+      log_info(gc)("desired_young_length: %d, G1MixedGCCountTarget: %ld, G1OldCSetRegionThresholdPercent: %ld",   desired_young_length, G1MixedGCCountTarget, G1OldCSetRegionThresholdPercent);
+    } else {
+      // The user asked for a fixed young gen so we'll fix the young gen
+      // whether the next GC is young or mixed.
+      desired_young_length = min_young_length_by_sizer;
+    }
   }
   // Clamp to absolute min/max after we determined desired lengths.
-  desired_young_length = clamp(desired_young_length, absolute_min_young_length, absolute_max_young_length);
+  // desired_young_length = clamp(desired_young_length, absolute_min_young_length, absolute_max_young_length);
+  desired_young_length = clamp(desired_young_length, MAX2(survivor_length + 1, allocated_young_length), absolute_max_young_length);
 
   // yyz
-  log_trace(gc, ergo, heap)("Young desired length %u "
-                            "survivor length %u "
-                            "allocated young length %u "
-                            "absolute min young length %u "
-                            "absolute max young length %u "
-                            "desired eden length by mmu %u "
-                            "desired eden length by pause %u ",
-                            desired_young_length, survivor_length,
-                            allocated_young_length, absolute_min_young_length,
-                            absolute_max_young_length, desired_eden_length_by_mmu,
-                            desired_eden_length_by_pause);
-
+  // log_trace(gc, ergo, heap)("Young desired length %u "
+  //                           "survivor length %u "
+  //                           "allocated young length %u "
+  //                           "absolute min young length %u "
+  //                           "absolute max young length %u "
+  //                           "desired eden length by mmu %u "
+  //                           "desired eden length by pause %u ",
+  //                           desired_young_length, survivor_length,
+  //                           allocated_young_length, absolute_min_young_length,
+  //                           absolute_max_young_length, desired_eden_length_by_mmu,
+  //                           desired_eden_length_by_pause);
   assert(desired_young_length >= allocated_young_length, "must be");
   return desired_young_length;
 }
@@ -789,6 +866,7 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
   // double real_time_arr[8];
 
   G1GCPauseType this_pause = collector_state()->young_gc_pause_type(concurrent_operation_is_full_mark);
+  _this_pause = this_pause;
   bool is_young_only_pause = G1GCPauseTypeHelper::is_young_only_pause(this_pause);
   // yyz: 
   // if (!is_young_only_pause) log_info(gc) ("Is not young only pause");
@@ -824,7 +902,6 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
     double alloc_rate_ms = (double) regions_allocated / app_time_ms;
     _analytics->report_alloc_rate_ms(alloc_rate_ms);
   }
-
   record_pause(this_pause, start_time_sec, end_time_sec, evacuation_failure);
 
   if (G1GCPauseTypeHelper::is_last_young_pause(this_pause)) {
@@ -835,6 +912,12 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
     // advancing the state.
     collector_state()->set_in_young_only_phase(false);
     collector_state()->set_in_young_gc_before_mixed(false);
+    // if (next_gc_should_be_mixed("Do mixed gc after the last young gc")) {
+    //   _next_gc_is_first_mixed = true;
+    //   // decrease the length of young gen length
+
+    // }
+
   } else if (G1GCPauseTypeHelper::is_mixed_pause(this_pause)) {
     // This is a mixed GC. Here we decide whether to continue doing more
     // mixed GCs or not.
@@ -846,6 +929,12 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
 
       maybe_start_marking();
     }
+
+    // _next_gc_is_first_mixed = false;
+    // [yyz:tuning] adjust G1MixedGCCountTarget and G1OldCSetRegionThresholdPercent
+    // G1MixedGCCountTarget * G1OldCSetRegionThresholdPercent = 80
+    // G1MixedGCCountTarget /= 2
+    // G1OldCSetRegionThresholdPercent *= 2
   } else {
     assert(is_young_only_pause, "must be");
   }
@@ -1203,9 +1292,9 @@ void G1Policy::update_survivors_policy() {
   uint const desired_max_survivor_regions = ceil(max_survivor_regions_d);
   size_t const survivor_size = desired_survivor_size(desired_max_survivor_regions);
 
-  // _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(survivor_size);
+  _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(survivor_size);
   // yyz
-  _tenuring_threshold = MaxTenuringThreshold;
+  // _tenuring_threshold = MaxTenuringThreshold;
   if (UsePerfData) {
     _policy_counters->tenuring_threshold()->set_value(_tenuring_threshold);
     _policy_counters->desired_survivor_size()->set_value(survivor_size * oopSize);
