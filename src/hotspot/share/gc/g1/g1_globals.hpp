@@ -113,7 +113,11 @@
           "Disable mixed GCs")                                              \
   product(bool, G1UseSTWMarking, false,                                     \
           "Use stop-the-world-concurrent marking")                          \
-                                                                            \
+  product(bool, G1UseLowLatencyTuning, false,                               \
+          "Use the low-latency autotuning strategy for far memory")         \
+  product(uint, G1LocalRate, 25,                                           \
+          "Local memory ratio")                                             \
+          range(0, 100)                                                     \
   product(size_t, G1AdaptiveIHOPNumInitialSamples, 3, EXPERIMENTAL,         \
           "How many completed time periods from concurrent start to first " \
           "mixed gc are required to use the input values for prediction "   \
