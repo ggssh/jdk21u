@@ -1513,36 +1513,43 @@ double G1Policy::select_candidates_from_marking(G1CollectionCandidateList* marki
     HeapRegion* hr = *iter;
     double predicted_time_ms = predict_region_total_time_ms(hr, false);
     time_remaining_ms = MAX2(time_remaining_ms - predicted_time_ms, 0.0);
-    // Add regions to old set until we reach the minimum amount
-    if (initial_old_regions->length() < min_old_cset_length) {
-      initial_old_regions->append(hr);
-      num_initial_regions_selected++;
-      predicted_initial_time_ms += predicted_time_ms;
-      // Record the number of regions added with no time remaining
-      if (time_remaining_ms == 0.0) {
-        num_expensive_regions++;
-      }
-    } else if (!check_time_remaining) {
-      // In the non-auto-tuning case, we'll finish adding regions
-      // to the CSet if we reach the minimum.
-      print_finish_message("Region amount reached min", true);
-      break;
-    } else {
-      // Keep adding regions to old set until we reach the optional threshold
-      if (time_remaining_ms > optional_threshold_ms) {
-        predicted_initial_time_ms += predicted_time_ms;
+    if (!G1UseLowLatencyTuning) {
+      // Add regions to old set until we reach the minimum amount
+      if (initial_old_regions->length() < min_old_cset_length) {
         initial_old_regions->append(hr);
         num_initial_regions_selected++;
-      } else if (time_remaining_ms > 0) {
-        // Keep adding optional regions until time is up.
-        assert(optional_old_regions->length() < max_optional_regions, "Should not be possible.");
-        predicted_optional_time_ms += predicted_time_ms;
-        optional_old_regions->append(hr);
-        num_optional_regions_selected++;
-      } else {
-        print_finish_message("Predicted time too high", true);
+        predicted_initial_time_ms += predicted_time_ms;
+        // Record the number of regions added with no time remaining
+        if (time_remaining_ms == 0.0) {
+          num_expensive_regions++;
+        }
+      } else if (!check_time_remaining) {
+        // In the non-auto-tuning case, we'll finish adding regions
+        // to the CSet if we reach the minimum.
+        print_finish_message("Region amount reached min", true);
         break;
+      } else {
+        // Keep adding regions to old set until we reach the optional threshold
+        if (time_remaining_ms > optional_threshold_ms) {
+          predicted_initial_time_ms += predicted_time_ms;
+          initial_old_regions->append(hr);
+          num_initial_regions_selected++;
+        } else if (time_remaining_ms > 0) {
+          // Keep adding optional regions until time is up.
+          assert(optional_old_regions->length() < max_optional_regions, "Should not be possible.");
+          predicted_optional_time_ms += predicted_time_ms;
+          optional_old_regions->append(hr);
+          num_optional_regions_selected++;
+        } else {
+          print_finish_message("Predicted time too high", true);
+          break;
+        }
       }
+    } else {
+      // Keep adding optional regions without considering predicted time.
+      predicted_optional_time_ms += predicted_time_ms;
+      optional_old_regions->append(hr);
+      num_optional_regions_selected++;
     }
   }
   if (iter == marking_list->end()) {
@@ -1587,6 +1594,8 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionCandidateRe
     time_remaining_ms -= prediction_ms;
 
     selected_regions->append(r);
+    // Collect only one optional old region in every optional evacuation.
+    break;
   }
 
   log_debug(gc, ergo, cset)("Prepared %u regions out of %u for optional evacuation. Total predicted time: %.3fms",
