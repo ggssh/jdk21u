@@ -139,7 +139,7 @@ void NumberSeq::add(double val) {
 
 
 TruncatedSeq::TruncatedSeq(int length, double alpha):
-  AbsSeq(alpha), _length(length), _next(0) {
+  AbsSeq(2.0 / (length + 1)), _length(length), _next(0) {
   _sequence = NEW_C_HEAP_ARRAY(double, _length, mtInternal);
   for (int i = 0; i < _length; ++i)
     _sequence[i] = 0.0;
@@ -245,6 +245,37 @@ double TruncatedSeq::predict_next() const {
   return b0 + b1 * num;
 }
 
+double TruncatedSeq::median(double* seq) const {
+  double* temp_data = NEW_C_HEAP_ARRAY(double, _length, mtInternal);
+  for (int i = 0; i < _length; ++i) {
+    temp_data[i] = seq[i];
+  }
+  std::sort(temp_data, temp_data + _length);
+  double ret = 0.0;
+  if (_length % 2 == 0) {
+    ret = (temp_data[_length / 2 -1] + temp_data[_length / 2]) / 2.0;
+  } else {
+    ret = temp_data[_length / 2];
+  }
+  FREE_C_HEAP_ARRAY(double, temp_data);
+  return ret;
+}
+
+double TruncatedSeq::mad() const{
+  double* temp_data = NEW_C_HEAP_ARRAY(double, _length, mtInternal);
+  for (int i = 0; i < _length; ++i) {
+    temp_data[i] = _sequence[i];
+  }
+  double m = median(temp_data);
+  double* abs_deviation = NEW_C_HEAP_ARRAY(double, _length, mtInternal);
+  for (int i = 0; i< _length; ++i) {
+    abs_deviation[i] = std::abs(temp_data[i] - m);
+  }
+  double ret = median(abs_deviation);
+  FREE_C_HEAP_ARRAY(double, abs_deviation);
+  FREE_C_HEAP_ARRAY(double, temp_data);
+  return ret;
+}
 
 // Printing/Debugging Support
 

@@ -26,6 +26,7 @@
 #define SHARE_UTILITIES_NUMBERSEQ_HPP
 
 #include "memory/allocation.hpp"
+#include "algorithm"
 
 /**
  **  This file contains a few classes that represent number sequence,
@@ -126,6 +127,9 @@ public:
 
   double oldest() const; // the oldest valid value in the sequence
   double predict_next() const; // prediction based on linear regression
+
+  double median(double* _sequence) const;
+  double mad() const;
 
   // Debugging/Printing
   virtual void dump_on(outputStream* s);
