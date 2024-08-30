@@ -49,6 +49,10 @@ void G1PhaseDependentSeq::add(double value, bool for_young_only_phase) {
   seq_raw(for_young_only_phase)->add(value);
 }
 
+void G1PhaseDependentSeq::add_diff(double value, bool for_young_only_phase) {
+  seq_raw(for_young_only_phase)->add_diff(value);
+}
+
 double G1PhaseDependentSeq::predict(const G1Predictions* predictor, bool use_young_only_phase_seq) const {
   if (use_young_only_phase_seq || !enough_samples_to_use_mixed_seq()) {
     return predictor->predict(&_young_only_seq);

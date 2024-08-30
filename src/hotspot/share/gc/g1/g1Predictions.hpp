@@ -46,6 +46,17 @@ class G1Predictions {
     }
     return estimate;
   }
+
+  double stddev_estimate_diff(TruncatedSeq const* seq) const {
+    double diff_dvariance = seq->diff_dvariance();
+    guarantee( diff_dvariance >= 0.0, "variance should not be negative" );
+    double estimate = sqrt(diff_dvariance);
+    int const samples = seq->num();
+    if (samples < 5) {
+      estimate = MAX2(seq->davg() * (5 - samples) / 2.0, estimate);
+    }
+    return estimate;
+  }
  public:
   G1Predictions(double sigma) : _sigma(sigma) {
     assert(sigma >= 0.0, "Confidence must be larger than or equal to zero");
@@ -55,7 +66,8 @@ class G1Predictions {
   double sigma() const { return _sigma; }
 
   double predict(TruncatedSeq const* seq) const {
-    return seq->davg() + _sigma * stddev_estimate(seq);
+    // return seq->davg() + _sigma * stddev_estimate(seq);
+    return seq->davg() + _sigma * stddev_estimate(seq) + (seq->diff_davg() + _sigma * stddev_estimate_diff(seq));
   }
 
   double predict_in_unit_interval(TruncatedSeq const* seq) const {

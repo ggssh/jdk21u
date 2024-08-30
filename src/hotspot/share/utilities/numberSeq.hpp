@@ -115,6 +115,9 @@ protected:
   double *_sequence; // buffers the last L elements in the sequence
   int     _length; // this is L
   int     _next;   // oldest slot in the array, i.e. next to be overwritten
+  double *_diff_sequence; // buffers the last L diffs in the sequence
+  double _diff_davg;
+  double _diff_dvariance;
 
 public:
   // accepts a value for L
@@ -130,6 +133,10 @@ public:
 
   double median(double* _sequence) const;
   double mad() const;
+  double diff_davg() const;
+  double diff_dvariance() const;
+
+  void add_diff(double diff);
 
   // Debugging/Printing
   virtual void dump_on(outputStream* s);

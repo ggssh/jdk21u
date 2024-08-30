@@ -48,6 +48,7 @@ public:
 
   void set_initial(double value);
   void add(double value, bool for_young_only_phase);
+  void add_diff(double value, bool for_young_only_phase);
 
   double predict(const G1Predictions* predictor, bool use_young_only_phase_seq) const;
 };

@@ -873,6 +873,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
                                     average_time_ms(G1GCPhaseTimes::OptMergeRS);
       // [yyz:breakdown] card_merge_time
       _analytics->report_cost_per_card_merge_ms(avg_time_merge_cards / total_cards_merged, is_young_only_pause);
+      // [yyz] add diff
+      _analytics->_cost_per_card_merge_ms_seq.add_diff(avg_time_merge_cards / total_cards_merged - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_merge_ms_seq, is_young_only_pause), is_young_only_pause);
     }
 
     // Update prediction for card scan
@@ -886,6 +888,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
                                         average_time_ms(G1GCPhaseTimes::OptScanHR);
       // [yyz:breakdown] card_scan_time
       _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
+      // [yyz] add diff
+      _analytics->_cost_per_card_scan_ms_seq.add_diff(avg_time_dirty_card_scan / total_cards_scanned - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause), is_young_only_pause);
     }
 
     // Update prediction for the ratio between cards from the remembered
@@ -908,6 +912,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
       log_info(gc)("[yyz:_cost_per_byte_ms] predict: %.8f, real: %.8f, copy_time: %.8f, copied_bytes: %lu", _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), cost_per_byte_ms, average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy), copied_bytes);
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
+      // [yyz] add diff
+      _analytics->_cost_per_byte_copied_ms_seq.add_diff(cost_per_byte_ms - _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), is_young_only_pause);
     }
 
     if (_collection_set->young_region_length() > 0) {
@@ -915,6 +921,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       log_info(gc)("[yyz:_young_other_cost_per_region_ms] predict: %.8f, real: %.8f, young_other_time: %.8f, young_region_length: %u", _analytics->predict_zero_bounded(&_analytics->_young_other_cost_per_region_ms_seq), young_other_time_ms() / _collection_set->young_region_length(), young_other_time_ms(), _collection_set->young_region_length());
       _analytics->report_young_other_cost_per_region_ms(young_other_time_ms() /
                                                         _collection_set->young_region_length());
+      // [yyz] add diff
+      _analytics->_young_other_cost_per_region_ms_seq.add_diff(young_other_time_ms() / _collection_set->young_region_length() - _analytics->predict_zero_bounded(&_analytics->_young_other_cost_per_region_ms_seq));
     }
 
     if (_collection_set->initial_old_region_length() > 0) {
@@ -922,11 +930,15 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       log_info(gc)("[yyz:_non_young_other_cost_per_region_ms] predict: %.8f, real: %.8f, non_young_other_time: %.8f, initial_old_region_length: %u", _analytics->predict_zero_bounded(&_analytics->_non_young_other_cost_per_region_ms_seq), non_young_other_time_ms() / _collection_set->initial_old_region_length(), non_young_other_time_ms(), _collection_set->initial_old_region_length());
       _analytics->report_non_young_other_cost_per_region_ms(non_young_other_time_ms() /
                                                             _collection_set->initial_old_region_length());
+      // [yyz] add diff
+      _analytics->_non_young_other_cost_per_region_ms_seq.add_diff(non_young_other_time_ms() / _collection_set->initial_old_region_length() - _analytics->predict_zero_bounded(&_analytics->_non_young_other_cost_per_region_ms_seq));
     }
 
     // [yyz:breakdown] constant_other_time
     log_info(gc)("[yyz:_constant_other_time_ms] predict: %.8f, real: %.8f", _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq), constant_other_time_ms(pause_time_ms));
     _analytics->report_constant_other_time_ms(constant_other_time_ms(pause_time_ms));
+    // [yyz] add diff
+    _analytics->_constant_other_time_ms_seq.add_diff(constant_other_time_ms(pause_time_ms) - _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq));
     // [yyz:breakdown] pending_cards
     _analytics->report_pending_cards((double)pending_cards_at_gc_start(), is_young_only_pause);
     // [yyz:breakdown] rs_length

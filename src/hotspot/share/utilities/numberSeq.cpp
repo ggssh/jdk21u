@@ -27,6 +27,7 @@
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/numberSeq.hpp"
+#include "numberSeq.hpp"
 
 AbsSeq::AbsSeq(double alpha) :
   _num(0), _sum(0.0), _sum_of_squares(0.0),
@@ -139,14 +140,17 @@ void NumberSeq::add(double val) {
 
 
 TruncatedSeq::TruncatedSeq(int length, double alpha):
-  AbsSeq(2.0 / (length + 1)), _length(length), _next(0) {
+  AbsSeq(length), _length(length), _next(0), _diff_davg(0.0), _diff_dvariance(0.0) {
   _sequence = NEW_C_HEAP_ARRAY(double, _length, mtInternal);
   for (int i = 0; i < _length; ++i)
     _sequence[i] = 0.0;
+  for (int i = 0; i < _length; ++i)
+    _diff_sequence[i] = 0.0;
 }
 
 TruncatedSeq::~TruncatedSeq() {
   FREE_C_HEAP_ARRAY(double, _sequence);
+  FREE_C_HEAP_ARRAY(double, _diff_sequence);
 }
 
 void TruncatedSeq::add(double val) {
@@ -277,6 +281,24 @@ double TruncatedSeq::mad() const{
   return ret;
 }
 
+double TruncatedSeq::diff_davg() const { return _diff_davg; }
+
+double TruncatedSeq::diff_dvariance() const { return _diff_dvariance; }
+
+void TruncatedSeq::add_diff(double val) {
+  _diff_sequence[_next] = val;
+
+  if (_num == 0) {
+    _diff_davg = val;
+    _diff_dvariance = 0.0;
+  } else {
+    double diff = val - _diff_davg;
+    double incr = _alpha * diff;
+    _diff_davg += incr;
+    _diff_dvariance = (1.0 - _alpha) * (_diff_dvariance + diff * incr);
+  }
+}  
+
 // Printing/Debugging Support
 
 void AbsSeq::dump() { dump_on(tty); }
@@ -296,12 +318,20 @@ void NumberSeq::dump_on(outputStream* s) {
 void TruncatedSeq::dump_on(outputStream* s) {
   AbsSeq::dump_on(s);
   s->print_cr("\t\t _length = %d, _next = %d", _length, _next);
+  s->print_cr("\t\t _diff_davg = %f, _diff_dvariance = %f", _diff_davg, _diff_dvariance);
   for (int i = 0; i < _length; i++) {
     if (i%5 == 0) {
       s->cr();
       s->print("\t");
     }
     s->print("\t[%d]=%7.3f", i, _sequence[i]);
+  }
+  for (int i = 0; i< _length; i++) {
+    if (i%5 == 0) {
+      s->cr();
+      s->print("\t");
+    }
+    s->print("\t[%d]=%7.3f", i, _diff_sequence[i]);
   }
   s->cr();
 }
