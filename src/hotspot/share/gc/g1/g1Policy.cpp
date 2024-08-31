@@ -1657,7 +1657,7 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionCandidateRe
 
     selected_regions->append(r);
     // Collect only one optional old region in every optional evacuation.
-    break;
+    // break;
   }
 
   log_debug(gc, ergo, cset)("Prepared %u regions out of %u for optional evacuation. Total predicted time: %.3fms",
