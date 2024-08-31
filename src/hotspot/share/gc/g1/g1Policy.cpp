@@ -102,7 +102,7 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
 {
   double _alpha = 0.3;
   InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
-  G1NewSizePercent = 2;
+  G1NewSizePercent = 1;
   G1MaxNewSizePercent = G1LocalRate;
 }
 
@@ -227,7 +227,7 @@ void G1Policy::update_young_length_bounds(size_t pending_cards, size_t rs_length
   uint new_young_list_max_length = calculate_young_max_length(new_young_list_target_length);
 
   // yyz
-  log_trace(gc, ergo, heap)("Young list length update: pending cards %zu rs_length %zu old target %u desired: %u target: %u max: %u",
+  log_info(gc, ergo, heap)("Young list length update: pending cards %zu rs_length %zu old target %u desired: %u target: %u max: %u",
                             pending_cards,
                             rs_length,
                             old_young_list_target_length,
@@ -352,14 +352,14 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
     G1MixedGCCountTarget *= 2;
     G1OldCSetRegionThresholdPercent = MAX2(G1OldCSetRegionThresholdPercent / 2, (uintx)1);
   } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
-    if (!next_gc_should_be_mixed("This is the last mixed gc is one cycle")) {
-      desired_young_length = desired_eden_length + survivor_length;
+    if (!next_gc_should_be_mixed("This is the last mixed gc in one cycle")) {
+      desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
       _previous_young_length = desired_young_length;
     } else {
-      desired_young_length = _previous_young_length;
+      desired_young_length = min_young_length_by_sizer;
     }
   } else {
-    desired_young_length = desired_eden_length + survivor_length;
+    desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
     _previous_young_length = desired_young_length;
   }
 

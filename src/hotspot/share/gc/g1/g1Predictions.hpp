@@ -67,7 +67,7 @@ class G1Predictions {
 
   double predict(TruncatedSeq const* seq) const {
     // return seq->davg() + _sigma * stddev_estimate(seq);
-    return seq->davg() + _sigma * stddev_estimate(seq) + (seq->diff_davg() + _sigma * stddev_estimate_diff(seq));
+    return seq->davg() + seq->diff_davg() + _sigma * (stddev_estimate(seq) + stddev_estimate_diff(seq));
   }
 
   double predict_in_unit_interval(TruncatedSeq const* seq) const {
