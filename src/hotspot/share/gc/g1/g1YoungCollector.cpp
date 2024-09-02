@@ -759,9 +759,13 @@ void G1YoungCollector::evacuate_optional_collection_set(G1ParScanThreadStateSet*
 
     double time_used_ms = os::elapsedTime() * 1000.0 - collection_start_time_ms;
     double time_left_ms = MaxGCPauseMillis - time_used_ms;
+    double remaining_pause_time = time_left_ms;
+    if (!G1UseLowLatencyTuning) {
+      remaining_pause_time = time_left_ms * policy()->optional_evacuation_fraction();
+    }
 
     if (time_left_ms < 0 ||
-        !collection_set()->finalize_optional_for_evacuation(time_left_ms)) {
+        !collection_set()->finalize_optional_for_evacuation(remaining_pause_time)) {
       log_trace(gc, ergo, cset)("Skipping evacuation of %u optional regions, no more regions can be evacuated in %.3fms",
                                 collection_set()->optional_region_length(), time_left_ms);
       break;

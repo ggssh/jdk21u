@@ -100,10 +100,12 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _max_survivor_regions(0),
   _survivors_age_table(true)
 {
-  double _alpha = 0.3;
-  InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
-  G1NewSizePercent = 1;
-  G1MaxNewSizePercent = G1LocalRate;
+  if (G1UseLowLatencyTuning) {
+    double _alpha = 0.3;
+    InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
+    G1NewSizePercent = 1;
+    G1MaxNewSizePercent = MIN2(G1LocalRate, (uint) 60);
+  }
 }
 
 G1Policy::~G1Policy() {
@@ -294,73 +296,75 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
   uint desired_eden_length_by_pause = 0;
 
   uint desired_young_length = 0;
-  // if (use_adaptive_young_list_length()) {
-  //   desired_eden_length_by_mmu = calculate_desired_eden_length_by_mmu();
+  if (use_adaptive_young_list_length() && !G1UseLowLatencyTuning) {
+    desired_eden_length_by_mmu = calculate_desired_eden_length_by_mmu();
 
-  //   double base_time_ms = predict_base_time_ms(pending_cards, rs_length);
+    double base_time_ms = predict_base_time_ms(pending_cards, rs_length);
 
-  //   desired_eden_length_by_pause =
-  //     calculate_desired_eden_length_by_pause(base_time_ms,
-  //                                            absolute_min_young_length - survivor_length,
-  //                                            absolute_max_young_length - survivor_length);
-    
-  //   // yyz
-  //   // log_info(gc, ergo, heap)("base time %.3f "
-  //   //                         "desired_eden_length_by_pause %u "
-  //   //                         "desired_eden_length_by_mmu %u ",
-  //                           // base_time_ms, desired_eden_length_by_pause, desired_eden_length_by_mmu);
-  //   // Incorporate MMU concerns; assume that it overrides the pause time
-  //   // goal, as the default value has been chosen to effectively disable it.
-  //   uint desired_eden_length = MAX2(desired_eden_length_by_pause,
-  //                                   desired_eden_length_by_mmu);
-
-  //   desired_young_length = desired_eden_length + survivor_length;
-  // } else {
-  //   // The user asked for a fixed young gen so we'll fix the young gen
-  //   // whether the next GC is young or mixed.
-  //   desired_young_length = min_young_length_by_sizer;
-  // }
-
-  desired_eden_length_by_mmu = calculate_desired_eden_length_by_mmu();
-
-  double base_time_ms = predict_base_time_ms(pending_cards, rs_length);
-
-  desired_eden_length_by_pause = calculate_desired_eden_length_by_pause(base_time_ms,
+    desired_eden_length_by_pause =
+      calculate_desired_eden_length_by_pause(base_time_ms,
                                              absolute_min_young_length - survivor_length,
                                              absolute_max_young_length - survivor_length);
     
-  uint desired_eden_length = MAX2(desired_eden_length_by_pause, desired_eden_length_by_mmu);
+    // yyz
+    // log_info(gc, ergo, heap)("base time %.3f "
+    //                         "desired_eden_length_by_pause %u "
+    //                         "desired_eden_length_by_mmu %u ",
+                            // base_time_ms, desired_eden_length_by_pause, desired_eden_length_by_mmu);
+    // Incorporate MMU concerns; assume that it overrides the pause time
+    // goal, as the default value has been chosen to effectively disable it.
+    uint desired_eden_length = MAX2(desired_eden_length_by_pause,
+                                    desired_eden_length_by_mmu);
 
-  if (!_previous_young_length) {
-    _previous_young_length = min_young_length_by_sizer;
-  }
-  
-  // for debug
-  if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
-    log_info(gc) ("is_last_young_pause");
-  } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
-    log_info(gc) ("is_mixed_pause");
-  } else if (G1GCPauseTypeHelper::is_young_only_pause(_this_pause)) {
-    log_info(gc) ("in_young_only_phase");
-  }
+    desired_young_length = desired_eden_length + survivor_length;
+  } else {
+    if (G1UseLowLatencyTuning) {
+      desired_eden_length_by_mmu = calculate_desired_eden_length_by_mmu();
 
-  log_info(gc)("used_regions: %d, max_regions: %ld", used_regions, _g1h->max_regions() * InitiatingHeapOccupancyPercent / 100);
+      double base_time_ms = predict_base_time_ms(pending_cards, rs_length);
 
-  if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
-    desired_young_length = min_young_length_by_sizer;
-    _previous_young_length = desired_young_length;
-    G1MixedGCCountTarget *= 2;
-    G1OldCSetRegionThresholdPercent = MAX2(G1OldCSetRegionThresholdPercent / 2, (uintx)1);
-  } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
-    if (!next_gc_should_be_mixed("This is the last mixed gc in one cycle")) {
-      desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
-      _previous_young_length = desired_young_length;
+      desired_eden_length_by_pause = calculate_desired_eden_length_by_pause(base_time_ms,
+                                                 absolute_min_young_length - survivor_length,
+                                                 absolute_max_young_length - survivor_length);
+
+      uint desired_eden_length = MAX2(desired_eden_length_by_pause, desired_eden_length_by_mmu);
+
+      if (!_previous_young_length) {
+        _previous_young_length = min_young_length_by_sizer;
+      }
+
+      // for debug
+      if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
+        log_info(gc) ("is_last_young_pause");
+      } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
+        log_info(gc) ("is_mixed_pause");
+      } else if (G1GCPauseTypeHelper::is_young_only_pause(_this_pause)) {
+        log_info(gc) ("in_young_only_phase");
+      }
+
+      log_info(gc)("used_regions: %d, max_regions: %ld", used_regions, _g1h->max_regions() * InitiatingHeapOccupancyPercent / 100);
+
+      if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
+        desired_young_length = min_young_length_by_sizer;
+        _previous_young_length = desired_young_length;
+        G1MixedGCCountTarget *= 2;
+        G1OldCSetRegionThresholdPercent = MAX2(G1OldCSetRegionThresholdPercent / 2, (uintx)1);
+      } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
+        if (!next_gc_should_be_mixed("This is the last mixed gc in one cycle")) {
+          desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+          _previous_young_length = desired_young_length;
+        } else {
+          desired_young_length = min_young_length_by_sizer;
+        }
+      } else {
+        desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+        _previous_young_length = desired_young_length;
+      }
     } else {
+      // The user asked for a fixed young gen so we'll fix the young gen
+      // whether the next GC is young or mixed.
       desired_young_length = min_young_length_by_sizer;
     }
-  } else {
-    desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
-    _previous_young_length = desired_young_length;
   }
 
   // Clamp to absolute min/max after we determined desired lengths.
@@ -924,7 +928,9 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz:breakdown] card_merge_time
       _analytics->report_cost_per_card_merge_ms(avg_time_merge_cards / total_cards_merged, is_young_only_pause);
       // [yyz] add diff
-      _analytics->_cost_per_card_merge_ms_seq.add_diff(avg_time_merge_cards / total_cards_merged - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_merge_ms_seq, is_young_only_pause), is_young_only_pause);
+      if (G1UseLowLatencyTuning) {
+        _analytics->_cost_per_card_merge_ms_seq.add_diff(avg_time_merge_cards / total_cards_merged - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_merge_ms_seq, is_young_only_pause), is_young_only_pause);
+      }
     }
 
     // Update prediction for card scan
@@ -939,7 +945,9 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz:breakdown] card_scan_time
       _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
       // [yyz] add diff
-      _analytics->_cost_per_card_scan_ms_seq.add_diff(avg_time_dirty_card_scan / total_cards_scanned - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause), is_young_only_pause);
+      if (G1UseLowLatencyTuning) {
+        _analytics->_cost_per_card_scan_ms_seq.add_diff(avg_time_dirty_card_scan / total_cards_scanned - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause), is_young_only_pause);
+      }
     }
 
     // Update prediction for the ratio between cards from the remembered
@@ -963,7 +971,9 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       log_info(gc)("[yyz:_cost_per_byte_ms] predict: %.8f, real: %.8f, copy_time: %.8f, copied_bytes: %lu", _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), cost_per_byte_ms, average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy), copied_bytes);
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
       // [yyz] add diff
-      _analytics->_cost_per_byte_copied_ms_seq.add_diff(cost_per_byte_ms - _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), is_young_only_pause);
+      if (G1UseLowLatencyTuning) {
+        _analytics->_cost_per_byte_copied_ms_seq.add_diff(cost_per_byte_ms - _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), is_young_only_pause);
+      } 
     }
 
     if (_collection_set->young_region_length() > 0) {
@@ -972,7 +982,9 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       _analytics->report_young_other_cost_per_region_ms(young_other_time_ms() /
                                                         _collection_set->young_region_length());
       // [yyz] add diff
-      _analytics->_young_other_cost_per_region_ms_seq.add_diff(young_other_time_ms() / _collection_set->young_region_length() - _analytics->predict_zero_bounded(&_analytics->_young_other_cost_per_region_ms_seq));
+      if (G1UseLowLatencyTuning) {
+        _analytics->_young_other_cost_per_region_ms_seq.add_diff(young_other_time_ms() / _collection_set->young_region_length() - _analytics->predict_zero_bounded(&_analytics->_young_other_cost_per_region_ms_seq));
+      }
     }
 
     if (_collection_set->initial_old_region_length() > 0) {
@@ -981,14 +993,18 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       _analytics->report_non_young_other_cost_per_region_ms(non_young_other_time_ms() /
                                                             _collection_set->initial_old_region_length());
       // [yyz] add diff
-      _analytics->_non_young_other_cost_per_region_ms_seq.add_diff(non_young_other_time_ms() / _collection_set->initial_old_region_length() - _analytics->predict_zero_bounded(&_analytics->_non_young_other_cost_per_region_ms_seq));
+      if (G1UseLowLatencyTuning) {
+        _analytics->_non_young_other_cost_per_region_ms_seq.add_diff(non_young_other_time_ms() / _collection_set->initial_old_region_length() - _analytics->predict_zero_bounded(&_analytics->_non_young_other_cost_per_region_ms_seq));
+      }
     }
 
     // [yyz:breakdown] constant_other_time
     log_info(gc)("[yyz:_constant_other_time_ms] predict: %.8f, real: %.8f", _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq), constant_other_time_ms(pause_time_ms));
     _analytics->report_constant_other_time_ms(constant_other_time_ms(pause_time_ms));
     // [yyz] add diff
-    _analytics->_constant_other_time_ms_seq.add_diff(constant_other_time_ms(pause_time_ms) - _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq));
+    if (G1UseLowLatencyTuning) {
+      _analytics->_constant_other_time_ms_seq.add_diff(constant_other_time_ms(pause_time_ms) - _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq));
+    }
     // [yyz:breakdown] pending_cards
     _analytics->report_pending_cards((double)pending_cards_at_gc_start(), is_young_only_pause);
     // [yyz:breakdown] rs_length

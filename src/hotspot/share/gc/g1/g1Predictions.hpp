@@ -26,6 +26,7 @@
 #define SHARE_GC_G1_G1PREDICTIONS_HPP
 
 #include "utilities/numberSeq.hpp"
+#include "gc/shared/gc_globals.hpp"
 
 // Utility class containing various helper methods for prediction.
 class G1Predictions {
@@ -66,8 +67,10 @@ class G1Predictions {
   double sigma() const { return _sigma; }
 
   double predict(TruncatedSeq const* seq) const {
-    // return seq->davg() + _sigma * stddev_estimate(seq);
-    return seq->davg() + seq->diff_davg() + _sigma * (stddev_estimate(seq) + stddev_estimate_diff(seq));
+    if (G1UseLowLatencyTuning) {
+      return seq->davg() + seq->diff_davg() + _sigma * (stddev_estimate(seq) + stddev_estimate_diff(seq));
+    }
+    return seq->davg() + _sigma * stddev_estimate(seq);
   }
 
   double predict_in_unit_interval(TruncatedSeq const* seq) const {
