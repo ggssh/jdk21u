@@ -101,10 +101,10 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _survivors_age_table(true)
 {
   if (G1UseLowLatencyTuning) {
-    double _alpha = 0.3;
-    InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
+    // double _alpha = 0.3;
+    // InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
     G1NewSizePercent = 1;
-    G1MaxNewSizePercent = MIN2(G1LocalRate, (uint) 60);
+    // G1MaxNewSizePercent = MIN2(G1LocalRate, (uint) 60);
   }
 }
 
@@ -342,24 +342,27 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
         log_info(gc) ("in_young_only_phase");
       }
 
-      log_info(gc)("used_regions: %d, max_regions: %ld", used_regions, _g1h->max_regions() * InitiatingHeapOccupancyPercent / 100);
+      // log_info(gc)("used_regions: %d, max_regions: %ld", used_regions, _g1h->max_regions() * InitiatingHeapOccupancyPercent / 100);
 
-      if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
-        desired_young_length = min_young_length_by_sizer;
-        _previous_young_length = desired_young_length;
-        G1MixedGCCountTarget *= 2;
-        G1OldCSetRegionThresholdPercent = MAX2(G1OldCSetRegionThresholdPercent / 2, (uintx)1);
-      } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
-        if (!next_gc_should_be_mixed("This is the last mixed gc in one cycle")) {
-          desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
-          _previous_young_length = desired_young_length;
-        } else {
-          desired_young_length = min_young_length_by_sizer;
-        }
-      } else {
-        desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
-        _previous_young_length = desired_young_length;
-      }
+      // if (G1GCPauseTypeHelper::is_last_young_pause(_this_pause)) {
+      //   desired_young_length = min_young_length_by_sizer;
+      //   _previous_young_length = desired_young_length;
+      //   // G1MixedGCCountTarget *= 2;
+      //   // G1OldCSetRegionThresholdPercent = MAX2(G1OldCSetRegionThresholdPercent / 2, (uintx)1);
+      // } else if (G1GCPauseTypeHelper::is_mixed_pause(_this_pause)) {
+      //   if (!next_gc_should_be_mixed("This is the last mixed gc in one cycle")) {
+      //     desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+      //     _previous_young_length = desired_young_length;
+      //   } else {
+      //     desired_young_length = min_young_length_by_sizer;
+      //   }
+      // } else {
+      //   desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+      //   _previous_young_length = desired_young_length;
+      // }
+
+      desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+      _previous_young_length = desired_young_length;
     } else {
       // The user asked for a fixed young gen so we'll fix the young gen
       // whether the next GC is young or mixed.
