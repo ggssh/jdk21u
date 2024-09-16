@@ -87,6 +87,7 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
     _young_other_cost_per_region_ms_seq(TruncatedSeqLength),
     _non_young_other_cost_per_region_ms_seq(TruncatedSeqLength),
     _recent_prev_end_times_for_all_gcs_sec(NumPrevPausesForHeuristics),
+    _prediction_errors(TruncatedSeqLength),
     _long_term_pause_time_ratio(0.0),
     _short_term_pause_time_ratio(0.0) {
 
@@ -113,6 +114,8 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
   // start conservatively (around 50ms is about right)
   _concurrent_mark_remark_times_ms.add(0.05);
   _concurrent_mark_cleanup_times_ms.add(0.20);
+
+  _prediction_errors.add(0.0);
 }
 
 bool G1Analytics::enough_samples_available(TruncatedSeq const* seq) {
@@ -212,6 +215,10 @@ void G1Analytics::report_pending_cards(double pending_cards, bool for_young_only
 
 void G1Analytics::report_rs_length(double rs_length, bool for_young_only_phase) {
   _rs_length_seq.add(rs_length, for_young_only_phase);
+}
+
+void G1Analytics::report_prediction_errors(double error) {
+  _prediction_errors.add(error);
 }
 
 double G1Analytics::predict_alloc_rate_ms() const {

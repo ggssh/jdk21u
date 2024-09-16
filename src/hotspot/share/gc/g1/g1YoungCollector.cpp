@@ -194,7 +194,7 @@ G1NewTracer* G1YoungCollector::gc_tracer_stw() const {
   return _g1h->gc_tracer_stw();
 }
 
-G1Policy* G1YoungCollector::policy() const {
+G1Policy* G1YoungCollector::policy() {
   return _g1h->policy();
 }
 
@@ -1053,6 +1053,9 @@ void G1YoungCollector::collect() {
     bool may_do_optional_evacuation = collection_set()->optional_region_length() != 0;
     // Actually do the work...
     evacuate_initial_collection_set(&per_thread_states, may_do_optional_evacuation);
+
+    const double collection_start_time_ms = phase_times()->cur_collection_start_sec() * 1000.0;
+    policy()->_real_pause_time = os::elapsedTime() * 1000.0 - collection_start_time_ms;
 
     if (may_do_optional_evacuation) {
       evacuate_optional_collection_set(&per_thread_states);

@@ -73,6 +73,8 @@ public:
   // Statistics kept per GC stoppage, pause or full.
   TruncatedSeq _recent_prev_end_times_for_all_gcs_sec;
 
+  TruncatedSeq _prediction_errors;
+
   // Cached values for long and short term pause time ratios. See
   // compute_pause_time_ratios() for how they are computed.
   double _long_term_pause_time_ratio;
@@ -136,6 +138,7 @@ public:
   void report_constant_other_time_ms(double constant_other_time_ms);
   void report_pending_cards(double pending_cards, bool for_young_only_phase);
   void report_rs_length(double rs_length, bool for_young_only_phase);
+  void report_prediction_errors(double error);
 
   double predict_alloc_rate_ms() const;
   int num_alloc_rate_ms() const;

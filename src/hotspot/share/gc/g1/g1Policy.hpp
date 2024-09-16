@@ -449,10 +449,12 @@ public:
 
   void update_survivors_policy();
 
-  private:
   // variables for tuning
   uint _previous_young_length;
   G1GCPauseType _this_pause;
+  double _predicted_pause_time;
+  double _real_pause_time;
+  bool _enable_limit_adjustment;
 };
 
 #endif // SHARE_GC_G1_G1POLICY_HPP

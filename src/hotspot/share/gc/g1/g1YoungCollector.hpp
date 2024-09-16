@@ -72,7 +72,7 @@ class G1YoungCollector {
   G1HRPrinter* hr_printer() const;
   G1MonitoringSupport* monitoring_support() const;
   G1GCPhaseTimes* phase_times() const;
-  G1Policy* policy() const;
+  G1Policy* policy();
   G1RemSet* rem_set() const;
   G1ScannerTasksQueueSet* task_queues() const;
   G1SurvivorRegions* survivor_regions() const;

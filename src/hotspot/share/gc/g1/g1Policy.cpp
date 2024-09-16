@@ -22,6 +22,7 @@
  *
  */
 
+#include "gc/shared/gc_globals.hpp"
 #include "precompiled.hpp"
 #include "gc/g1/g1Allocator.hpp"
 #include "gc/g1/g1Analytics.hpp"
@@ -51,6 +52,8 @@
 #include "utilities/pair.hpp"
 
 #include "gc/shared/gcTraceTime.inline.hpp"
+#include <cmath>
+#include <cstdlib>
 
 /*
   [yyz:breakdown]
@@ -98,7 +101,10 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _mark_cleanup_start_sec(0),
   _tenuring_threshold(MaxTenuringThreshold),
   _max_survivor_regions(0),
-  _survivors_age_table(true)
+  _survivors_age_table(true),
+  _predicted_pause_time(0.0),
+  _real_pause_time(0.0),
+  _enable_limit_adjustment(false)
 {
   if (G1UseLowLatencyTuning) {
     // double _alpha = 0.3;
@@ -329,6 +335,8 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
 
       uint desired_eden_length = MAX2(desired_eden_length_by_pause, desired_eden_length_by_mmu);
 
+      _predicted_pause_time = predict_eden_copy_time_ms(desired_eden_length) + _analytics->predict_young_other_time_ms(desired_eden_length) + base_time_ms;
+
       if (!_previous_young_length) {
         _previous_young_length = min_young_length_by_sizer;
       }
@@ -360,8 +368,12 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
       //   desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
       //   _previous_young_length = desired_young_length;
       // }
-
-      desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+      if (_enable_limit_adjustment) {
+        desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
+      } else {
+        desired_young_length = desired_eden_length + survivor_length;
+      }
+      
       _previous_young_length = desired_young_length;
     } else {
       // The user asked for a fixed young gen so we'll fix the young gen
@@ -910,6 +922,17 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
   _eden_surv_rate_group->start_adding_regions();
 
   if (update_stats) {
+    if (!G1GCPauseTypeHelper::is_mixed_pause(this_pause)) {
+      _analytics->report_prediction_errors(abs(_real_pause_time - _predicted_pause_time));
+    }
+
+    log_info(gc)("_real_pause_time: %.8f, _predicted_pause_time: %.8f", _real_pause_time, _predicted_pause_time);
+    log_info(gc)("_prediction_errors: davg: %.8f, dvariance: %.8f", abs(_analytics->_prediction_errors.davg()), _analytics->_prediction_errors.dvariance());
+
+    // _enable_limit_adjustment = (sqrt(_analytics->_prediction_errors.dvariance()) >= MaxGCPauseMillis * 0.1) && (_analytics->_prediction_errors.davg() > MaxGCPauseMillis * 0.1);
+    _enable_limit_adjustment = (abs(_analytics->_prediction_errors.davg()) >= MaxGCPauseMillis * 0.1) || (_analytics->_prediction_errors.variance() >= MaxGCPauseMillis * 0.5);
+    log_info(gc)("_enable_limit_adjustment: %d", _enable_limit_adjustment);
+
     // Update prediction for card merge.
     size_t const merged_cards_from_log_buffers = p->sum_thread_work_items(G1GCPhaseTimes::MergeLB, G1GCPhaseTimes::MergeLBDirtyCards);
     // MergeRSCards includes the cards from the Eager Reclaim phase.
@@ -933,6 +956,7 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
         _analytics->_cost_per_card_merge_ms_seq.add_diff(avg_time_merge_cards / total_cards_merged - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_merge_ms_seq, is_young_only_pause), is_young_only_pause);
+        // log_info(gc)("_cost_per_card_merge_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_cost_per_card_merge_ms_seq.seq_raw(is_young_only_pause)->diff_davg(), _analytics->_cost_per_card_merge_ms_seq.seq_raw(is_young_only_pause)->diff_dvariance());
       }
     }
 
@@ -950,6 +974,7 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
         _analytics->_cost_per_card_scan_ms_seq.add_diff(avg_time_dirty_card_scan / total_cards_scanned - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause), is_young_only_pause);
+        // log_info(gc)("_cost_per_card_scan_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_cost_per_card_scan_ms_seq.seq_raw(is_young_only_pause)->diff_davg(), _analytics->_cost_per_card_scan_ms_seq.seq_raw(is_young_only_pause)->diff_dvariance());
       }
     }
 
@@ -976,6 +1001,7 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
         _analytics->_cost_per_byte_copied_ms_seq.add_diff(cost_per_byte_ms - _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), is_young_only_pause);
+        // log_info(gc)("_cost_per_byte_copied_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_cost_per_byte_copied_ms_seq.seq_raw(is_young_only_pause)->diff_davg(), _analytics->_cost_per_byte_copied_ms_seq.seq_raw(is_young_only_pause)->diff_dvariance());
       } 
     }
 
@@ -987,6 +1013,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
         _analytics->_young_other_cost_per_region_ms_seq.add_diff(young_other_time_ms() / _collection_set->young_region_length() - _analytics->predict_zero_bounded(&_analytics->_young_other_cost_per_region_ms_seq));
+        // log_info(gc)("_young_other_cost_per_region_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_young_other_cost_per_region_ms_seq.diff_davg(), 
+        // _analytics->_young_other_cost_per_region_ms_seq.diff_dvariance());
       }
     }
 
@@ -998,6 +1026,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
         _analytics->_non_young_other_cost_per_region_ms_seq.add_diff(non_young_other_time_ms() / _collection_set->initial_old_region_length() - _analytics->predict_zero_bounded(&_analytics->_non_young_other_cost_per_region_ms_seq));
+        // log_info(gc)("_non_young_other_cost_per_region_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_non_young_other_cost_per_region_ms_seq.diff_davg(), 
+        // _analytics->_non_young_other_cost_per_region_ms_seq.diff_dvariance());
       }
     }
 
@@ -1007,6 +1037,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
     // [yyz] add diff
     if (G1UseLowLatencyTuning) {
       _analytics->_constant_other_time_ms_seq.add_diff(constant_other_time_ms(pause_time_ms) - _analytics->predict_zero_bounded(&_analytics->_constant_other_time_ms_seq));
+      // log_info(gc)("_constant_other_time_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_constant_other_time_ms_seq.diff_davg(), 
+      // _analytics->_constant_other_time_ms_seq.diff_dvariance());
     }
     // [yyz:breakdown] pending_cards
     _analytics->report_pending_cards((double)pending_cards_at_gc_start(), is_young_only_pause);

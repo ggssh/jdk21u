@@ -39,6 +39,7 @@ class G1PhaseDependentSeq {
 
   NONCOPYABLE(G1PhaseDependentSeq);
 
+public:
   TruncatedSeq* seq_raw(bool use_young_only_phase_seq);
 
   bool enough_samples_to_use_mixed_seq() const;
