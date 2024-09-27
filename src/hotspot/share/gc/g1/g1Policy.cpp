@@ -55,23 +55,6 @@
 #include <cmath>
 #include <cstdlib>
 
-/*
-  [yyz:breakdown]
-  pause_time = base_time + copy_time + young_other_time
-  base_time = card_merge_time + card_scan_time + constant_other_time + survivor_evac_time
-  copy_time = predict_eden_copy_time_ms
-  young_other_time_ms = predict_young_other_time_ms
-  card_merge_time -> predict_card_merge_time_ms
-  card_scan_time -> predict_card_scan_time_ms
-  constant_other_time -> predict_constant_other_time_time_ms
-  survivor_evac_time -> predict_survivor_regions_evac_time
-
-  arr[8]: [card_merge_time, card_scan_time, constant_other_time, survivor_evac_time, base_time, copy_time, young_other_time, pause_time]
-*/
-
-// global variables will be initialized to zero
-// double predict_time_arr[8];
-
 G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _predictor(G1ConfidencePercent / 100.0),
   _analytics(new G1Analytics(&_predictor)),
@@ -106,12 +89,7 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _real_pause_time(0.0),
   _enable_limit_adjustment(false)
 {
-  if (G1UseLowLatencyTuning) {
-    // double _alpha = 0.3;
-    // InitiatingHeapOccupancyPercent = ceil(_alpha * G1LocalRate);
-    G1NewSizePercent = 1;
-    // G1MaxNewSizePercent = MIN2(G1LocalRate, (uint) 60);
-  }
+  
 }
 
 G1Policy::~G1Policy() {
