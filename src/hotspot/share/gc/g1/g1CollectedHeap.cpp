@@ -2584,6 +2584,10 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper() {
   G1YoungCollector collector(gc_cause());
   collector.collect();
   gc_majflt_stats.end_and_log("young");
+  long majflt = gc_majflt_stats.get_majflt();
+  if (majflt >= 1000) {
+    policy()->set_high_majflt();
+  }
 
   // It should now be safe to tell the concurrent mark thread to start
   // without its logging output interfering with the logging output

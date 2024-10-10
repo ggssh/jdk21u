@@ -104,6 +104,9 @@ G1Analytics::G1Analytics(const G1Predictions* predictor) :
 
   _card_scan_to_merge_ratio_seq.set_initial(young_card_scan_to_merge_ratio_defaults[index]);
   _cost_per_card_scan_ms_seq.set_initial(young_only_cost_per_card_scan_ms_defaults[index]);
+  // if(G1UseLowLatencyTuning) {
+  //   _cost_per_card_merge_ms_seq.set_initial(0.015);
+  // }
   _rs_length_seq.set_initial(0);
   _cost_per_byte_copied_ms_seq.set_initial(cost_per_byte_ms_defaults[index]);
 

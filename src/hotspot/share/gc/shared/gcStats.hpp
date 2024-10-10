@@ -51,6 +51,7 @@ public:
 
   void start();
   void end_and_log(const char* cause);
+  long get_majflt();
 };
 
 #endif // SHARE_GC_SHARED_GCSTATS_HPP

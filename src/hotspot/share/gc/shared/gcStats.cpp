@@ -45,3 +45,9 @@ void GCMajfltStats::end_and_log(const char* cause) {
   log_info(gc)("Majflt(%s)=%ld (%ld -> %ld)", cause, _end_majflt - _stt_majflt , _stt_majflt, _end_majflt);
   log_info(gc)("PausePhase cputime(%s): user %ldms, sys %ldms", cause, _end_user_ms - _stt_user_ms, _end_sys_ms - _stt_sys_ms);
 }
+
+long GCMajfltStats::get_majflt() {
+  long _end_majflt, _end_user_ms, _end_sys_ms;
+  os::get_accum_majflt_and_cputime(&_end_majflt, &_end_user_ms, &_end_sys_ms);
+  return _end_majflt - _stt_majflt;
+}

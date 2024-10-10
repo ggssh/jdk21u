@@ -53,6 +53,7 @@
 
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 
 G1Policy::G1Policy(STWGCTimer* gc_timer) :
@@ -87,7 +88,9 @@ G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _survivors_age_table(true),
   _predicted_pause_time(0.0),
   _real_pause_time(0.0),
-  _enable_limit_adjustment(false)
+  _enable_limit_adjustment(false),
+  _initial_cost_per_byte_ms(0.0),
+  _high_majflt(false)
 {
   
 }
@@ -346,6 +349,7 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
       //   desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
       //   _previous_young_length = desired_young_length;
       // }
+      log_info(gc)("_enable_limit_adjustment: %d", _enable_limit_adjustment);
       if (_enable_limit_adjustment) {
         desired_young_length = MIN2(desired_eden_length + survivor_length, (uint)(_previous_young_length * 1.1));
       } else {
@@ -353,6 +357,7 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
       }
       
       _previous_young_length = desired_young_length;
+      _enable_limit_adjustment = false;
     } else {
       // The user asked for a fixed young gen so we'll fix the young gen
       // whether the next GC is young or mixed.
@@ -900,16 +905,16 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
   _eden_surv_rate_group->start_adding_regions();
 
   if (update_stats) {
-    if (!G1GCPauseTypeHelper::is_mixed_pause(this_pause)) {
-      _analytics->report_prediction_errors(abs(_real_pause_time - _predicted_pause_time));
-    }
+    // if (!G1GCPauseTypeHelper::is_mixed_pause(this_pause)) {
+    //   _analytics->report_prediction_errors(abs(_real_pause_time - _predicted_pause_time));
+    // }
 
-    log_info(gc)("_real_pause_time: %.8f, _predicted_pause_time: %.8f", _real_pause_time, _predicted_pause_time);
-    log_info(gc)("_prediction_errors: davg: %.8f, dvariance: %.8f", abs(_analytics->_prediction_errors.davg()), _analytics->_prediction_errors.dvariance());
+    // log_info(gc)("_real_pause_time: %.8f, _predicted_pause_time: %.8f", _real_pause_time, _predicted_pause_time);
+    // log_info(gc)("_prediction_errors: davg: %.8f, dvariance: %.8f", abs(_analytics->_prediction_errors.davg()), _analytics->_prediction_errors.dvariance());
 
-    // _enable_limit_adjustment = (sqrt(_analytics->_prediction_errors.dvariance()) >= MaxGCPauseMillis * 0.1) && (_analytics->_prediction_errors.davg() > MaxGCPauseMillis * 0.1);
-    _enable_limit_adjustment = (abs(_analytics->_prediction_errors.davg()) >= MaxGCPauseMillis * 0.1) || (_analytics->_prediction_errors.variance() >= MaxGCPauseMillis * 0.5);
-    log_info(gc)("_enable_limit_adjustment: %d", _enable_limit_adjustment);
+    // // _enable_limit_adjustment = (sqrt(_analytics->_prediction_errors.dvariance()) >= MaxGCPauseMillis * 0.1) && (_analytics->_prediction_errors.davg() > MaxGCPauseMillis * 0.1);
+    // _enable_limit_adjustment = (abs(_analytics->_prediction_errors.davg()) >= MaxGCPauseMillis * 0.1) || (_analytics->_prediction_errors.variance() >= MaxGCPauseMillis * 0.5);
+    // log_info(gc)("_enable_limit_adjustment: %d", _enable_limit_adjustment);
 
     // Update prediction for card merge.
     size_t const merged_cards_from_log_buffers = p->sum_thread_work_items(G1GCPhaseTimes::MergeLB, G1GCPhaseTimes::MergeLBDirtyCards);
@@ -951,6 +956,7 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
+        // _enable_limit_adjustment = _enable_limit_adjustment || ((avg_time_dirty_card_scan / total_cards_scanned) >= _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause));
         _analytics->_cost_per_card_scan_ms_seq.add_diff(avg_time_dirty_card_scan / total_cards_scanned - _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause), is_young_only_pause);
         // log_info(gc)("_cost_per_card_scan_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_cost_per_card_scan_ms_seq.seq_raw(is_young_only_pause)->diff_davg(), _analytics->_cost_per_card_scan_ms_seq.seq_raw(is_young_only_pause)->diff_dvariance());
       }
@@ -978,6 +984,11 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
       // [yyz] add diff
       if (G1UseLowLatencyTuning) {
+        if (_initial_cost_per_byte_ms == 0.0) {
+          _initial_cost_per_byte_ms = cost_per_byte_ms;
+        }
+        // _enable_limit_adjustment = _enable_limit_adjustment || (cost_per_byte_ms > _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause));
+        _enable_limit_adjustment = (cost_per_byte_ms >= _initial_cost_per_byte_ms * 1.5) || _high_majflt;
         _analytics->_cost_per_byte_copied_ms_seq.add_diff(cost_per_byte_ms - _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause), is_young_only_pause);
         // log_info(gc)("_cost_per_byte_copied_ms_seq: diff_davg: %.8f, diff_dvariance: %.8f", _analytics->_cost_per_byte_copied_ms_seq.seq_raw(is_young_only_pause)->diff_davg(), _analytics->_cost_per_byte_copied_ms_seq.seq_raw(is_young_only_pause)->diff_dvariance());
       } 
@@ -1670,7 +1681,7 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionCandidateRe
          "Should only be called when there are optional regions");
 
   double total_prediction_ms = 0.0;
-
+  size_t count = 0;
   for (HeapRegion* r : *optional_regions) {
     double prediction_ms = predict_region_total_time_ms(r, false);
 
@@ -1684,9 +1695,17 @@ void G1Policy::calculate_optional_collection_set_regions(G1CollectionCandidateRe
     total_prediction_ms += prediction_ms;
     time_remaining_ms -= prediction_ms;
 
-    selected_regions->append(r);
-    // Collect only one optional old region in every optional evacuation.
-    // break;
+    if (!_enable_limit_adjustment) {
+      selected_regions->append(r);
+    }
+    count++;
+  }
+
+  if (_enable_limit_adjustment) {
+    for (size_t i = 0; i < ceil((double) count / 2.0); ++i) {
+      selected_regions->append(optional_regions->at(i));
+      log_info(gc) ("selected_regions.length: %u", selected_regions->length());
+    }
   }
 
   log_debug(gc, ergo, cset)("Prepared %u regions out of %u for optional evacuation. Total predicted time: %.3fms",

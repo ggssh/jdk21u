@@ -43,6 +43,8 @@ TruncatedSeq* G1PhaseDependentSeq::seq_raw(bool use_young_only_phase_seq) {
 
 void G1PhaseDependentSeq::set_initial(double value) {
   _young_only_seq.add(value);
+  // todo
+  _mixed_seq.add(value);
 }
 
 void G1PhaseDependentSeq::add(double value, bool for_young_only_phase) {

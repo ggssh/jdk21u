@@ -449,12 +449,18 @@ public:
 
   void update_survivors_policy();
 
+  void set_high_majflt() {
+    _high_majflt = true;
+  }
+
   // variables for tuning
   uint _previous_young_length;
   G1GCPauseType _this_pause;
   double _predicted_pause_time;
   double _real_pause_time;
   bool _enable_limit_adjustment;
+  double _initial_cost_per_byte_ms;
+  bool _high_majflt;
 };
 
 #endif // SHARE_GC_G1_G1POLICY_HPP
