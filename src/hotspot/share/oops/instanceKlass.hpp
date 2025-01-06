@@ -378,7 +378,7 @@ class InstanceKlass: public Klass {
     _transitive_interfaces = a;
   }
 
- private:
+ public:
   friend class fieldDescriptor;
   FieldInfo field(int index) const;
 

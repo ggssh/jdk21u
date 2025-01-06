@@ -22,6 +22,8 @@
  *
  */
 
+#include "runtime/fieldDescriptor.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "precompiled.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/resourceArea.hpp"
@@ -34,6 +36,7 @@
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
+#include "utilities/ostream.hpp"
 
 Symbol* fieldDescriptor::generic_signature() const {
   if (!has_generic_signature()) {
@@ -124,8 +127,24 @@ void fieldDescriptor::print_on(outputStream* st) const {
 
 void fieldDescriptor::print() const { print_on(tty); }
 
+void fieldDescriptor::print_on_obj(outputStream* st, oop obj) {
+  access_flags().print_on(st);
+  if (field_flags().is_injected()) st->print("injected ");
+  name()->print_value_on(st);
+  st->print(" ");
+  signature()->print_value_on(st);
+  if (obj == NULL) {
+    //todo
+  }
+  auto klass = obj->klass();
+  auto klass_name = klass->external_name();
+  auto field_klass_name = signature()->as_C_string();
+  st->print("class: %s -> field class: %s", klass_name, field_klass_name);
+}
+
 void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
-  print_on(st);
+  // print_on(st);
+  print_on_obj(st, obj);
   st->print(" ");
 
   BasicType ft = field_type();

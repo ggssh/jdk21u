@@ -28,6 +28,7 @@
 #include "gc/g1/g1ConcurrentMarkBitMap.hpp"
 #include "gc/g1/g1ConcurrentMarkObjArrayProcessor.hpp"
 #include "gc/g1/g1HeapVerifier.hpp"
+#include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.hpp"
 #include "gc/g1/heapRegionSet.hpp"
 #include "gc/shared/gcCause.hpp"
@@ -37,6 +38,7 @@
 #include "gc/shared/workerThread.hpp"
 #include "gc/shared/workerUtils.hpp"
 #include "memory/allocation.hpp"
+#include "memory/memRegion.hpp"
 #include "utilities/compilerWarnings.hpp"
 #include "utilities/numberSeq.hpp"
 
@@ -50,10 +52,12 @@ class G1OldTracer;
 class G1RegionToSpaceMapper;
 class G1SurvivorRegions;
 class ThreadClosure;
+// class G1CMScanAllTask;
 
 // This is a container class for either an oop or a continuation address for
 // mark stack entries. Both are pushed onto the mark stack.
 class G1TaskQueueEntry {
+friend class G1CMScanAllClosure;
 private:
   void* _holder;
 
@@ -88,6 +92,8 @@ public:
 
 typedef GenericTaskQueue<G1TaskQueueEntry, mtGC> G1CMTaskQueue;
 typedef GenericTaskQueueSet<G1CMTaskQueue, mtGC> G1CMTaskQueueSet;
+typedef GenericTaskQueue<G1TaskQueueEntry, mtGC> G1CMScanAllTaskQueue;
+typedef GenericTaskQueueSet<G1CMScanAllTaskQueue, mtGC> G1CMScanAllTaskQueueSet;
 
 // Closure used by CM during concurrent reference discovery
 // and reference processing (during remarking) to determine
@@ -286,8 +292,11 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   friend class G1CMRefProcProxyTask;
   friend class G1CMRemarkTask;
   friend class G1CMRootRegionScanTask;
+  friend class G1CMScanAllRootsTask;
+  friend class G1CMScanAllTask;
   friend class G1CMTask;
   friend class G1ConcurrentMarkThread;
+  friend class G1CMScanAllClosure;
 
   G1ConcurrentMarkThread* _cm_thread;     // The thread doing the work
   G1CollectedHeap*        _g1h;           // The heap
@@ -310,11 +319,15 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   uint                    _worker_id_offset;
   uint                    _max_num_tasks;    // Maximum number of marking tasks
   uint                    _num_active_tasks; // Number of tasks currently active
+  uint                    _num_gc_workers;
   G1CMTask**              _tasks;            // Task queue array (max_worker_id length)
 
   G1CMTaskQueueSet*       _task_queues; // Task queue set
   TaskTerminator          _terminator;  // For termination
 
+  // scan all objects
+  // G1CMScanAllTask** _sa_tasks;
+  G1CMScanAllTaskQueueSet* _sa_task_queues;
   // Two sync barriers that are used to synchronize tasks when an
   // overflow occurs. The algorithm is the following. All tasks enter
   // the first one to ensure that they have all stopped manipulating
@@ -367,6 +380,12 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
     CleanupBefore,
     CleanupAfter
   };
+public: 
+  volatile bool _in_scan_all;
+
+  bool in_scan_all() { return _in_scan_all; }
+  void set_in_scan_all(bool in_scan_all) { _in_scan_all = in_scan_all; }
+
   static const char* verify_location_string(VerifyLocation location);
   void verify_during_pause(G1HeapVerifier::G1VerifyType type,
                            VerifyLocation location);
@@ -557,11 +576,24 @@ public:
   void add_root_region(HeapRegion* r);
   void root_region_scan_abort_and_wait();
 
+  /**
+   * scan_all_regions:
+        scan_all_root_regions
+        scan_all_from_root_regions
+   */
+  void scan_all_regions();
+  // Based on scan_roots_regions
+  void scan_all_root_regions();
+  // need task wrapper
+  void scan_all_from_root_regions();
+
 private:
   G1CMRootMemRegions* root_regions() { return &_root_regions; }
 
   // Scan a single root MemRegion to mark everything reachable from it.
   void scan_root_region(const MemRegion* region, uint worker_id);
+
+  void scan_root_region_b(const MemRegion* region, uint worker_id);
 
 public:
 
@@ -603,6 +635,8 @@ public:
 
   // Mark the given object on the marking bitmap if it is below TAMS.
   inline bool mark_in_bitmap(uint worker_id, oop const obj);
+
+  inline bool sa_mark_in_bitmap(uint worker_id, oop const obj);
 
   inline bool is_marked_in_bitmap(oop p) const;
 
@@ -752,6 +786,10 @@ public:
   // prematurely, according to some conditions (i.e. SATB buffers are
   // available for processing).
   void do_marking_step(double target_ms,
+                       bool do_termination,
+                       bool is_serial);
+  // based on do_marking_step
+  void do_marking_all_step(double target_ms,
                        bool do_termination,
                        bool is_serial);
 

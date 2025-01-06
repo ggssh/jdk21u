@@ -22,6 +22,8 @@
  *
  */
 
+#include "gc/g1/g1ConcurrentMarkThread.hpp"
+#include "gc/shared/concurrentGCThread.hpp"
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "gc/g1/g1Analytics.hpp"
@@ -258,6 +260,13 @@ bool G1ConcurrentMarkThread::phase_cleanup() {
   return _cm->has_aborted();
 }
 
+bool G1ConcurrentMarkThread::phase_scan_all() {
+  ConcurrentGCBreakpoints::at("BEFORE SCAN SCAN ALL STARTED");
+  VM_G1PauseScanAll op;
+  VMThread::execute(&op);
+  return _cm->has_aborted();
+}
+
 bool G1ConcurrentMarkThread::phase_clear_bitmap_for_next_mark() {
   ConcurrentGCBreakpoints::at("AFTER CLEANUP STARTED");
   G1ConcPhaseTimer p(_cm, "Concurrent Cleanup for Next Mark");
@@ -289,7 +298,12 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   //
   // We can not easily abort before root region scan either because of the
   // reasons mentioned in G1CollectedHeap::abort_concurrent_cycle().
-
+  
+  // stop the world
+  log_info(gc) ("before phase_scan_all");
+  if (phase_scan_all()) return;
+  log_info(gc) ("after phase_scan_all");
+  
   // Phase 1: Scan root regions.
   if (phase_scan_root_regions()) return;
 

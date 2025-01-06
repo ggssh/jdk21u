@@ -29,6 +29,7 @@
 #include "gc/g1/g1HeapRegionAttr.hpp"
 #include "memory/iterator.hpp"
 #include "oops/markWord.hpp"
+#include "oops/oopsHierarchy.hpp"
 
 class HeapRegion;
 class G1CollectedHeap;
@@ -189,6 +190,16 @@ public:
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
 };
 
+class G1CMScanAllOopClosure : public ClaimMetadataVisitingOopIterateClosure {
+  G1CollectedHeap*   _g1h;
+  G1CMTask*          _task;
+public:
+  G1CMScanAllOopClosure(G1CollectedHeap* g1h,G1CMTask* task);
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(      oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+};
+
 // Closure to scan the root regions during concurrent marking
 class G1RootRegionScanClosure : public ClaimMetadataVisitingOopIterateClosure {
   G1CollectedHeap* _g1h;
@@ -198,6 +209,21 @@ public:
   G1RootRegionScanClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id) :
     ClaimMetadataVisitingOopIterateClosure(ClassLoaderData::_claim_strong, nullptr),
     _g1h(g1h), _cm(cm), _worker_id(worker_id) { }
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(      oop* p) { do_oop_work(p); }
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+};
+
+class G1CMScanAllClosure : public BasicOopIterateClosure {
+  G1CollectedHeap* _g1h;
+  G1ConcurrentMark* _cm;
+  uint _worker_id;
+public:
+  oop _obj;
+  // G1CMScanAllClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id, oop obj) : 
+  //   ClaimMetadataVisitingOopIterateClosure(ClassLoaderData::_claim_strong, nullptr), _g1h(g1h), _cm(cm), _worker_id(worker_id), _obj(obj) { }
+  G1CMScanAllClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id, oop obj) : 
+    BasicOopIterateClosure(nullptr), _g1h(g1h), _cm(cm), _worker_id(worker_id), _obj(obj) { }
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(      oop* p) { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }

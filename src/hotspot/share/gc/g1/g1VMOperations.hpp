@@ -27,6 +27,7 @@
 
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcVMOperations.hpp"
+#include "runtime/vmOperation.hpp"
 
 // VM_operations for the G1 collector.
 
@@ -106,6 +107,13 @@ class VM_G1PauseCleanup : public VM_G1PauseConcurrent {
 public:
   VM_G1PauseCleanup() : VM_G1PauseConcurrent("Pause Cleanup") { }
   VMOp_Type type() const override { return VMOp_G1PauseCleanup; }
+  void work() override;
+};
+
+class VM_G1PauseScanAll : public VM_G1PauseConcurrent {
+public:
+  VM_G1PauseScanAll() : VM_G1PauseConcurrent("Pause Scan") { }
+  VMOp_Type type() const override { return VMOp_G1PauseScanAll; }
   void work() override;
 };
 

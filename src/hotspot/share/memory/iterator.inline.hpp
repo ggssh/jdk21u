@@ -76,6 +76,7 @@ inline void ClaimMetadataVisitingOopIterateClosure::do_method(Method* m) {
 // oopDesc::oop_iterate() calls OopOopIterateDispatch::function(klass)(cl, obj, klass),
 //   which dispatches to an optimized version of
 //   [Instance, ObjArry, etc]Klass::oop_oop_iterate(oop, OopClosureType)
+// [yyz]
 //
 // OopClosureType :
 //   If OopClosureType has an implementation of do_oop (and do_metadata et.al.),

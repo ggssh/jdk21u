@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_G1_G1OOPCLOSURES_INLINE_HPP
 #define SHARE_GC_G1_G1OOPCLOSURES_INLINE_HPP
 
+#include "gc/g1/g1ConcurrentMark.hpp"
 #include "gc/g1/g1OopClosures.hpp"
 
 #include "gc/g1/g1CollectedHeap.inline.hpp"
@@ -104,6 +105,11 @@ inline void G1CMOopClosure::do_oop_work(T* p) {
 }
 
 template <class T>
+inline void G1CMScanAllOopClosure::do_oop_work(T* p) {
+  _task->deal_with_reference(p);
+}
+
+template <class T>
 inline void G1RootRegionScanClosure::do_oop_work(T* p) {
   T heap_oop = RawAccess<MO_RELAXED>::oop_load(p);
   if (CompressedOops::is_null(heap_oop)) {
@@ -111,6 +117,35 @@ inline void G1RootRegionScanClosure::do_oop_work(T* p) {
   }
   oop obj = CompressedOops::decode_not_null(heap_oop);
   _cm->mark_in_bitmap(_worker_id, obj);
+}
+
+template <class T>
+inline void G1CMScanAllClosure::do_oop_work(T* p) {
+  // T heap_oop = RawAccess<MO_RELAXED>::oop_load(p);
+  // if (CompressedOops::is_null(heap_oop)) {
+  //   return;
+  // }
+  // oop obj = CompressedOops::decode_not_null(heap_oop);
+
+  T heap_oop = RawAccess<MO_RELAXED>::oop_load(p);
+  if (CompressedOops::is_null(heap_oop)) {
+    return;
+  }
+  oop field_obj = CompressedOops::decode_not_null(heap_oop);
+  auto klass = _obj->klass();
+  auto field_klass = field_obj->klass();
+  auto klass_name = klass->external_name();
+  auto field_klass_name = field_klass->external_name();
+  // log_info(gc) ("%s -> %s", klass_name, field_klass_name);
+  if (!_cm->is_marked_in_bitmap(field_obj)) {
+    _cm->sa_mark_in_bitmap(_worker_id, field_obj);
+
+    G1CMScanAllTaskQueueSet* qs = _cm->_sa_task_queues;
+    G1CMScanAllTaskQueue* q = qs->queue(_worker_id);
+    q->push(G1TaskQueueEntry::from_oop(field_obj));
+  } else {
+    log_info(gc) ("obj is marked in bitmap");
+  }
 }
 
 template <class T>

@@ -322,6 +322,7 @@ void G1GCPhaseTimes::print_thread_work_items(WorkerDataArray<double>* phase, uin
   }
 }
 
+// [yyz]
 void G1GCPhaseTimes::debug_phase_merge_remset() const {
   LogTarget(Debug, gc, phases) lt;
   if (!lt.is_enabled()) {

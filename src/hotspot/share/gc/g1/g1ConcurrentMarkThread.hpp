@@ -68,6 +68,7 @@ class G1ConcurrentMarkThread: public ConcurrentGCThread {
   bool phase_rebuild_and_scrub();
   bool phase_delay_to_keep_mmu_before_cleanup();
   bool phase_cleanup();
+  bool phase_scan_all();
   bool phase_clear_bitmap_for_next_mark();
 
   void concurrent_cycle_start();

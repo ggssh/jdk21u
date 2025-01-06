@@ -3637,9 +3637,9 @@ void FieldPrinter::do_field(fieldDescriptor* fd) {
    }
 }
 
-
+// [yyz]
 void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
-  Klass::oop_print_on(obj, st);
+  // Klass::oop_print_on(obj, st);
 
   if (this == vmClasses::String_klass()) {
     typeArrayOop value  = java_lang_String::value(obj);
@@ -3653,7 +3653,9 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
     }
   }
 
-  st->print_cr(BULLET"---- fields (total size " SIZE_FORMAT " words):", oop_size(obj));
+  // auto klass = obj->klass();
+  // auto klass_name = klass->external_name();
+  // st->print_cr(BULLET"current object's klass: %s ---- fields (total size " SIZE_FORMAT " words):", klass_name, oop_size(obj));
   FieldPrinter print_field(st, obj);
   print_nonstatic_fields(&print_field);
 

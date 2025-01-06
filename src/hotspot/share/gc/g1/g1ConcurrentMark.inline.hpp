@@ -38,6 +38,9 @@
 #include "gc/g1/heapRegion.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "logging/log.hpp"
+#include "oops/instanceKlass.hpp"
+#include "oops/klass.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
@@ -83,6 +86,24 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
   return success;
 }
 
+inline bool G1ConcurrentMark::sa_mark_in_bitmap(uint const worker_id, oop const obj) {
+  HeapRegion* const hr = _g1h->heap_region_containing(obj);
+
+  // if (hr->obj_allocated_since_marking_start(obj)) {
+  //   return false;
+  // }
+
+  // Some callers may have stale objects to mark above TAMS after humongous reclaim.
+  // Can't assert that this is a valid object at this point, since it might be in the process of being copied by another thread.
+  // assert(!hr->is_continues_humongous(), "Should not try to mark object " PTR_FORMAT " in Humongous continues region %u above TAMS " PTR_FORMAT, p2i(obj), hr->hrm_index(), p2i(hr->top_at_mark_start()));
+
+  bool success = _mark_bitmap.par_mark(obj);
+  // if (success) {
+  //   add_to_liveness(worker_id, obj, obj->size());
+  // }
+  return success;
+}
+
 #ifndef PRODUCT
 template<typename Fn>
 inline void G1CMMarkStack::iterate(Fn fn) const {
@@ -109,6 +130,7 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
 // It scans an object and visits its children.
 inline void G1CMTask::scan_task_entry(G1TaskQueueEntry task_entry) { process_grey_task_entry<true>(task_entry); }
 
+// [yyz]
 inline void G1CMTask::push(G1TaskQueueEntry task_entry) {
   assert(task_entry.is_array_slice() || _g1h->is_in_reserved(task_entry.obj()), "invariant");
   assert(task_entry.is_array_slice() || !_g1h->is_on_master_free_list(
@@ -267,6 +289,16 @@ inline bool G1CMTask::deal_with_reference(T* p) {
   if (obj == nullptr) {
     return false;
   }
+  // if (_cm->in_scan_all()) {
+  //   Klass* klass = obj->klass_or_null();
+  //   assert(klass, "klass should not be null");
+
+  //   InstanceKlass* instance_class = InstanceKlass::cast(klass);
+  //   LogTarget(Info, gc) lt;
+  //   LogStream ls(lt);
+
+  //   instance_class->oop_print_on(obj, &ls);
+  // }
   return make_reference_grey(obj);
 }
 

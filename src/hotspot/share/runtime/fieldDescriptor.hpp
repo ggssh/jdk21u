@@ -31,6 +31,7 @@
 #include "oops/symbol.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/constantTag.hpp"
+#include "utilities/ostream.hpp"
 
 // A fieldDescriptor describes the attributes of a single field (instance or class variable).
 // It needs the class constant pool to work (because it only holds indices into the pool
@@ -108,6 +109,7 @@ class fieldDescriptor {
   void print() const;
   void print_on(outputStream* st) const;
   void print_on_for(outputStream* st, oop obj);
+  void print_on_obj(outputStream* st, oop obj);
 };
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_HPP

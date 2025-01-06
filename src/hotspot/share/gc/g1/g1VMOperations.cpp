@@ -22,6 +22,7 @@
  *
  */
 
+#include "gc/g1/g1CollectedHeap.hpp"
 #include "precompiled.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkThread.inline.hpp"
@@ -193,4 +194,9 @@ void VM_G1PauseRemark::work() {
 void VM_G1PauseCleanup::work() {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   g1h->concurrent_mark()->cleanup();
+}
+
+void VM_G1PauseScanAll::work() {
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+  g1h->concurrent_mark()->scan_all_regions();
 }
