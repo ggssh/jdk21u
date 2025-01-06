@@ -58,6 +58,10 @@
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/events.hpp"
+#include <climits>
+#include <cstdint>
+#include "gc/g1/g1CollectedHeap.hpp"
+#include "gc/g1/g1CollectedHeap.inline.hpp"
 
 class ClassLoaderData;
 
@@ -633,4 +637,28 @@ void CollectedHeap::reset_promotion_should_fail() {
 void CollectedHeap::update_capacity_and_used_at_gc() {
   _capacity_at_last_gc = capacity();
   _used_at_last_gc     = used();
+}
+
+bool CollectedHeap::is_region_based() {
+  auto name = this->name();
+  if (strcmp(name, "G1") == 0) {
+    return true;
+  }
+  return false;
+}
+
+jlong CollectedHeap::jvm_region_size() {
+  assert(this->is_region_based(), "must be region-based");
+  // auto heap = (G1CollectedHeap*) (this);
+  // auto heap = static_cast<G1CollectedHeap*>(this);
+  auto size = HeapRegion::GrainWords;
+  // auto index = heap->heap_region_containing(const void *addr)
+  // auto r_index = heap->addr_to_region(const void *addr)
+  return size;
+}
+
+const uint CollectedHeap::region_index(oop obj){
+  assert(this->is_region_based(), "must be region-based");
+  auto index = static_cast<G1CollectedHeap*>(this)->addr_to_region(obj);
+  return index;
 }

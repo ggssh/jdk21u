@@ -62,6 +62,7 @@ class ThreadClosure;
 class VirtualSpaceSummary;
 class WorkerThreads;
 class nmethod;
+class G1CollectedHeap;
 
 class ParallelObjectIteratorImpl : public CHeapObj<mtGC> {
 public:
@@ -532,6 +533,11 @@ class CollectedHeap : public CHeapObj<mtGC> {
   void reset_promotion_should_fail(volatile size_t* count);
   void reset_promotion_should_fail();
 #endif  // #ifndef PRODUCT
+
+public:
+  bool is_region_based();
+  jlong jvm_region_size();
+  const uint region_index(oop obj);
 };
 
 // Class to set and reset the GC cause for a CollectedHeap.

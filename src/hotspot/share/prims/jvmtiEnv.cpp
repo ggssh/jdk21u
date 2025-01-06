@@ -22,6 +22,7 @@
  *
  */
 
+#include "jvmtifiles/jvmti.h"
 #include "precompiled.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/javaClasses.inline.hpp"
@@ -3905,6 +3906,12 @@ JvmtiEnv::GetCurrentThreadCpuTime(jlong* nanos_ptr) {
   return JVMTI_ERROR_NONE;
 } /* end GetCurrentThreadCpuTime */
 
+jvmtiError
+JvmtiEnv::GetRegionIndex(jobject object, jlong* index_ptr) {
+  oop o = JNIHandles::resolve_external_guard(object);
+  *index_ptr = Universe::heap()->region_index(o);
+  return JVMTI_ERROR_NONE;
+}
 
 // info_ptr - pre-checked for null
 jvmtiError
