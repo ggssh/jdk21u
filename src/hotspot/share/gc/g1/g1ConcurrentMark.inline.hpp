@@ -30,6 +30,7 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkObjArrayProcessor.inline.hpp"
+#include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1OopClosures.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
@@ -39,9 +40,16 @@
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
 #include "logging/log.hpp"
+#include "memory/resourceArea.hpp"
+#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.hpp"
+#include "runtime/fieldDescriptor.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "utilities/growableArray.hpp"
+#include "utilities/pair.hpp"
+#include <cstddef>
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
   // Check whether the passed in object is null. During discovery the referent
@@ -286,19 +294,60 @@ template <class T>
 inline bool G1CMTask::deal_with_reference(T* p) {
   increment_refs_reached();
   oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
+  // ScanAllFieldClosure cl(obj, this);
   if (obj == nullptr) {
     return false;
   }
-  // if (_cm->in_scan_all()) {
-  //   Klass* klass = obj->klass_or_null();
-  //   assert(klass, "klass should not be null");
+  if (_cm->in_scan_all() && _cm->is_first_cm()) {
+    G1CMScanAllClosure cl(_g1h, this, NULL);
+    cl._obj = obj;
+    obj->oop_iterate(&cl);
+    // todo
+    // Klass* klass = obj->klass_or_null();
+    // assert(klass, "klass should not be null");
+    // InstanceKlass* instance_class = InstanceKlass::cast(klass);
 
-  //   InstanceKlass* instance_class = InstanceKlass::cast(klass);
-  //   LogTarget(Info, gc) lt;
-  //   LogStream ls(lt);
+    // ResourceMark rm;
+    // fieldDescriptor fd;
+    // GrowableArray<Pair<int, int>> fields_sorted;
+    // int i = 0;
+    // auto a = instance_class->constants();
+    // auto b = instance_class->fieldinfo_stream();
+    // bug_fix
+    // AllFieldStream fs(instance_class);
+    // for (AllFieldStream fs(instance_class); !fs.done(); fs.next()) {
+    //   if (!fs.access_flags().is_static()) {
+    //     fd = fs.field_descriptor();
+    //     Pair<int, int> f(fs.offset(), fs.index());
+    //     fields_sorted.push(f);
+    //     i++;
+    //   }
+    // }
+    // if (i > 0) {
+    //   int length = i;
+    //   assert(length == fields_sorted.length(), "duh");
+    //   for (int i = 0; i < length; i++) {
+    //     fd.reinitialize(instance_class, fields_sorted.at(i).second);
+    //     assert(!fd.is_static() && fd.offset() == fields_sorted.at(i).first, "only nonstatic fields");
+    //     // cl: FieldPrinter
+    //     cl.do_field(&fd);
+    //   }
+    // }
 
-  //   instance_class->oop_print_on(obj, &ls);
-  // }
+    // Klass* klass = obj->klass_or_null();
+    // assert(klass, "klass should not be null");
+
+    // InstanceKlass* instance_class = InstanceKlass::cast(klass);
+
+    // Pair<const char*, const char*> p(klass->external_name(), instance_class->external_name());
+    // linked_list_set()->insert(p);
+
+    // LogTarget(Info, gc) lt;
+    // LogStream ls(lt);
+
+    // instance_class->oop_print_on(obj, &ls);
+    // instance_class->oop_scan_on(obj, this);
+  }
   return make_reference_grey(obj);
 }
 

@@ -25,6 +25,7 @@
 #ifndef SHARE_OOPS_INSTANCEKLASS_HPP
 #define SHARE_OOPS_INSTANCEKLASS_HPP
 
+#include "gc/g1/g1ConcurrentMark.hpp"
 #include "memory/referenceType.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constMethod.hpp"
@@ -32,6 +33,7 @@
 #include "oops/fieldInfo.hpp"
 #include "oops/instanceKlassFlags.hpp"
 #include "oops/instanceOop.hpp"
+#include "oops/oopsHierarchy.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/align.hpp"
@@ -87,6 +89,14 @@ class FieldPrinter: public FieldClosure {
  public:
    FieldPrinter(outputStream* st, oop obj = nullptr) : _obj(obj), _st(st) {}
    void do_field(fieldDescriptor* fd);
+};
+
+class ScanAllFieldClosure: public FieldClosure {
+    oop _obj;
+    G1CMTask* _task;
+  public:
+    ScanAllFieldClosure(oop obj, G1CMTask* task) : _obj(obj), _task(task) {}
+    void do_field(fieldDescriptor* fd);
 };
 
 // Describes where oops are located in instances of this klass.
@@ -905,6 +915,7 @@ public:
   void do_nonstatic_fields(FieldClosure* cl); // including inherited fields
   void do_local_static_fields(void f(fieldDescriptor*, Handle, TRAPS), Handle, TRAPS);
   void print_nonstatic_fields(FieldClosure* cl); // including inherited and injected fields
+  void scan_all_nonstatic_fields(FieldClosure* cl);
 
   void methods_do(void f(Method* method));
 
@@ -1152,6 +1163,8 @@ public:
   void oop_print_value_on(oop obj, outputStream* st);
 
   void oop_print_on      (oop obj, outputStream* st);
+
+  void oop_scan_on       (oop obj, G1CMTask* task);
 
 #ifndef PRODUCT
   void print_dependent_nmethods(bool verbose = false);

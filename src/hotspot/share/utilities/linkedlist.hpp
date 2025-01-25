@@ -361,6 +361,31 @@ template <class E, AnyObj::allocation_type T = AnyObj::C_HEAP,
   }
 };
 
+// Iterates all entries in the list
+template <class E> class LinkedListIterator : public StackObj {
+ private:
+  mutable LinkedListNode<E>* _p;
+
+ public:
+  LinkedListIterator(LinkedListNode<E>* head) : _p(head) {}
+
+  bool is_empty() const { return _p == nullptr; }
+
+  E* next() {
+    if (_p == nullptr) return nullptr;
+    E* e = _p->data();
+    _p = _p->next();
+    return e;
+  }
+
+  const E* next() const {
+    if (_p == nullptr) return nullptr;
+    const E* e = _p->peek();
+    _p = _p->next();
+    return e;
+  }
+};
+
 // Sorted linked list. The linked list maintains sorting order specified by the comparison
 // function
 template <class E, int (*FUNC)(const E&, const E&),
@@ -428,29 +453,92 @@ template <class E, int (*FUNC)(const E&, const E&),
   }
 };
 
-// Iterates all entries in the list
-template <class E> class LinkedListIterator : public StackObj {
- private:
-  mutable LinkedListNode<E>* _p;
+template <class E, AnyObj::allocation_type T = AnyObj::C_HEAP,
+  MEMFLAGS F = mtChunk, AllocFailType alloc_failmode = AllocFailStrategy::RETURN_NULL>
+class LinkedListSet : public LinkedListImpl<E, T, F, alloc_failmode> {
+public:
+    LinkedListSet() : LinkedListImpl<E, T, F, alloc_failmode>() {}
+    LinkedListSet(Arena* a) : LinkedListImpl<E, T, F, alloc_failmode>(a) {}
+    // Insert an element into the set
+    LinkedListNode<E>* insert(const E& e) {
+        if (this->find_node(e) != nullptr) {
+            return nullptr; // Element already exists, do not insert
+        }
+        return this->add(e);
+    }
 
- public:
-  LinkedListIterator(LinkedListNode<E>* head) : _p(head) {}
-
-  bool is_empty() const { return _p == nullptr; }
-
-  E* next() {
-    if (_p == nullptr) return nullptr;
-    E* e = _p->data();
-    _p = _p->next();
-    return e;
-  }
-
-  const E* next() const {
-    if (_p == nullptr) return nullptr;
-    const E* e = _p->peek();
-    _p = _p->next();
-    return e;
-  }
+    void merge(LinkedListSet<E, T, F, alloc_failmode>* other) {
+        if (other == nullptr) return;
+        
+        LinkedListIterator<E> iter(other->head());
+        while (!iter.is_empty()) {
+            E* elem = iter.next();
+            if (elem != nullptr) {
+                this->insert(*elem);
+            }
+        }
+    }
+};
+// Queue based on LinkedList
+// This queue uses the linked list with a head and a tail pointer
+// for efficient enqueue and dequeue operations
+template <class E, AnyObj::allocation_type T = AnyObj::C_HEAP,
+  MEMFLAGS F = mtChunk, AllocFailType alloc_failmode = AllocFailStrategy::RETURN_NULL>
+class LinkedListQueue : public LinkedListImpl<E, T, F, alloc_failmode> {
+private:
+    LinkedListNode<E>* _tail;
+public:
+    LinkedListQueue() : LinkedListImpl<E, T, F, alloc_failmode>(), _tail(nullptr) {}
+    LinkedListQueue(Arena* a) : LinkedListImpl<E, T, F, alloc_failmode>(a), _tail(nullptr) {}
+    // Add an element to the end of the queue (push)
+    LinkedListNode<E>* push(const E& e) {
+        return enqueue(e);
+    }
+    // Add an element to the end of the queue
+    LinkedListNode<E>* enqueue(const E& e) {
+        LinkedListNode<E>* node = this->new_node(e);
+        if (node == nullptr) {
+            return nullptr;
+        }
+        if (this->is_empty()) {
+            this->set_head(node);
+        } else {
+            _tail->set_next(node);
+        }
+        _tail = node;
+        return node;
+    }
+    // Remove an element from the front of the queue (pop)
+    E* pop() {
+        return dequeue();
+    }
+    // Remove an element from the front of the queue
+    E* dequeue() {
+        LinkedListNode<E>* head_node = this->unlink_head();
+        if (head_node == nullptr) {
+            return nullptr;
+        }
+        if (this->head() == nullptr) {
+            _tail = nullptr;
+        }
+        E* data = head_node->data();
+        this->delete_node(head_node);
+        return data;
+    }
+    // Peek the element at the front of the queue without removing it (front)
+    E front() {
+        return *peek();
+    }
+    // Peek the element at the front of the queue without removing it
+    E* peek() {
+        if (this->is_empty()) {
+            return nullptr;
+        }
+        return this->head()->data();
+    }
+    bool empty() {
+      return this->is_empty();
+    }
 };
 
 #endif // SHARE_UTILITIES_LINKEDLIST_HPP

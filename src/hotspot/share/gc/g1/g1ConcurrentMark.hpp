@@ -40,6 +40,7 @@
 #include "memory/allocation.hpp"
 #include "memory/memRegion.hpp"
 #include "utilities/compilerWarnings.hpp"
+#include "utilities/linkedlist.hpp"
 #include "utilities/numberSeq.hpp"
 
 class ConcurrentGCTimer;
@@ -328,6 +329,7 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   // scan all objects
   // G1CMScanAllTask** _sa_tasks;
   G1CMScanAllTaskQueueSet* _sa_task_queues;
+  LinkedListSet<Pair<const char*, const char*>>* _total_lls;
   // Two sync barriers that are used to synchronize tasks when an
   // overflow occurs. The algorithm is the following. All tasks enter
   // the first one to ensure that they have all stopped manipulating
@@ -382,9 +384,12 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   };
 public: 
   volatile bool _in_scan_all;
+  volatile bool _is_first_cm;
 
   bool in_scan_all() { return _in_scan_all; }
   void set_in_scan_all(bool in_scan_all) { _in_scan_all = in_scan_all; }
+  bool is_first_cm() { return _is_first_cm; }
+  void set_is_first_cm(bool is_first_cm) { _is_first_cm = is_first_cm; }
 
   static const char* verify_location_string(VerifyLocation location);
   void verify_during_pause(G1HeapVerifier::G1VerifyType type,
@@ -451,6 +456,10 @@ public:
     // we can only compare against _max_num_tasks.
     assert(id < _max_num_tasks, "Task id %u not within bounds up to %u", id, _max_num_tasks);
     return _tasks[id];
+  }
+
+  LinkedListSet<Pair<const char*, const char*>>* total_linked_list_set() {
+    return _total_lls;
   }
 
   // Access / manipulation of the overflow flag which is set to
@@ -736,6 +745,8 @@ private:
 
   TruncatedSeq                _marking_step_diff_ms;
 
+  LinkedListSet<Pair<const char*, const char*>>* _lls;
+
   // Updates the local fields after this task has claimed
   // a new region to scan
   void setup_for_region(HeapRegion* hr);
@@ -880,6 +891,8 @@ public:
   Pair<size_t, size_t> flush_mark_stats_cache();
   // Prints statistics associated with this task
   void print_stats();
+
+  LinkedListSet<Pair<const char*, const char*>>* linked_list_set();
 };
 
 // Class that's used to to print out per-region liveness

@@ -22,6 +22,7 @@
  *
  */
 
+#include "logging/log.hpp"
 #include "precompiled.hpp"
 
 #include "classfile/classLoaderDataGraph.inline.hpp"
@@ -58,7 +59,9 @@
 #include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/threads.hpp"
+#include "utilities/linkedlist.hpp"
 #include "utilities/ticks.hpp"
+#include <cstddef>
 
 // GCTraceTime wrapper that constructs the message according to GC pause type and
 // GC cause.
@@ -1002,6 +1005,18 @@ G1YoungCollector::G1YoungCollector(GCCause::Cause gc_cause) :
 }
 
 void G1YoungCollector::collect() {
+  // Pair<const char*, const char*> p1("hello", "world");
+  // Pair<const char*, const char*> p2("hello1", "world");
+  // LinkedListSet<Pair<const char*, const char*>> s;
+  // s.insert(p1);
+  // if (p1 == p2) {
+  //   log_info(gc) ("p1 == p2");
+  // } else {
+  //   log_info(gc) ("p1 != p2");
+  // }
+  // if (s.find_node(p2) != nullptr) {
+  //   log_info(gc) ("hello world has been added into s");
+  // }
   // Do timing/tracing/statistics/pre- and post-logging/verification work not
   // directly related to the collection. They should not be accounted for in
   // collection work timing.

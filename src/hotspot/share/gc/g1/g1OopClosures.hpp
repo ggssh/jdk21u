@@ -216,14 +216,17 @@ public:
 
 class G1CMScanAllClosure : public BasicOopIterateClosure {
   G1CollectedHeap* _g1h;
-  G1ConcurrentMark* _cm;
-  uint _worker_id;
+  // G1ConcurrentMark* _cm;
+  // uint _worker_id;
+  G1CMTask* _task;
 public:
   oop _obj;
   // G1CMScanAllClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id, oop obj) : 
   //   ClaimMetadataVisitingOopIterateClosure(ClassLoaderData::_claim_strong, nullptr), _g1h(g1h), _cm(cm), _worker_id(worker_id), _obj(obj) { }
-  G1CMScanAllClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id, oop obj) : 
-    BasicOopIterateClosure(nullptr), _g1h(g1h), _cm(cm), _worker_id(worker_id), _obj(obj) { }
+  // G1CMScanAllClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id, oop obj) : 
+  //   BasicOopIterateClosure(nullptr), _g1h(g1h), _cm(cm), _worker_id(worker_id), _obj(obj) { }
+  G1CMScanAllClosure(G1CollectedHeap* g1h, G1CMTask* task, oop obj) : 
+    BasicOopIterateClosure(nullptr), _g1h(g1h), _task(task), _obj(obj) { }
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(      oop* p) { do_oop_work(p); }
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }

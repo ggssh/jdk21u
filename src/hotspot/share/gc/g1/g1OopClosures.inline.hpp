@@ -43,6 +43,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/align.hpp"
+#include "utilities/pair.hpp"
 
 template <class T>
 inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
@@ -136,16 +137,9 @@ inline void G1CMScanAllClosure::do_oop_work(T* p) {
   auto field_klass = field_obj->klass();
   auto klass_name = klass->external_name();
   auto field_klass_name = field_klass->external_name();
-  // log_info(gc) ("%s -> %s", klass_name, field_klass_name);
-  if (!_cm->is_marked_in_bitmap(field_obj)) {
-    _cm->sa_mark_in_bitmap(_worker_id, field_obj);
-
-    G1CMScanAllTaskQueueSet* qs = _cm->_sa_task_queues;
-    G1CMScanAllTaskQueue* q = qs->queue(_worker_id);
-    q->push(G1TaskQueueEntry::from_oop(field_obj));
-  } else {
-    log_info(gc) ("obj is marked in bitmap");
-  }
+  
+  Pair<const char*, const char*> pair(klass_name, field_klass_name);
+  _task->linked_list_set()->insert(pair);
 }
 
 template <class T>

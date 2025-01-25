@@ -81,6 +81,8 @@
 #include "utilities/align.hpp"
 #include "utilities/formatBuffer.hpp"
 #include "utilities/growableArray.hpp"
+#include "utilities/linkedlist.hpp"
+#include "utilities/pair.hpp"
 
 bool G1CMBitMapClosure::do_addr(HeapWord* const addr) {
   assert(addr < _cm->finger(), "invariant");
@@ -460,15 +462,17 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
 
     _accum_task_vtime[i] = 0.0;
   }
+  _total_lls = new LinkedListSet<Pair<const char*, const char*>>();
 
-  for (uint i = 0; i < _num_gc_workers; ++i) {
-    G1CMScanAllTaskQueue* task_queue = new G1CMScanAllTaskQueue();
-    _sa_task_queues->register_queue(i, task_queue);
+  // for (uint i = 0; i < _num_gc_workers; ++i) {
+  //   G1CMScanAllTaskQueue* task_queue = new G1CMScanAllTaskQueue();
+  //   _sa_task_queues->register_queue(i, task_queue);
 
-    // _sa_tasks[i] = new G1CMScanAllTask(i, this, task_queue, NULL);
-    // _sa_tasks[i] = new G1CMScanAllTask(this);
-  }
+  //   // _sa_tasks[i] = new G1CMScanAllTask(i, this, task_queue, NULL);
+  //   // _sa_tasks[i] = new G1CMScanAllTask(this);
+  // }
   _in_scan_all = false;
+  _is_first_cm = true;
   reset_at_marking_complete();
 }
 
@@ -971,18 +975,18 @@ void G1ConcurrentMark::scan_root_region_b(const MemRegion* region, uint worker_i
          "MemRegion start should be equal to TAMS");
 #endif
   // G1CMScanAllClosure cl(_g1h, this, worker_id, NULL);
-  G1CMScanAllClosure cl(_g1h, this, worker_id, NULL);
-  // G1RootRegionScanClosure cl(_g1h, this, worker_id);
+  // G1CMScanAllClosure cl(_g1h, this, worker_id, NULL);
+  // // G1RootRegionScanClosure cl(_g1h, this, worker_id);
 
-  HeapWord* curr = region->start();
-  const HeapWord* end = region->end();
-  while (curr < end) {
-    oop obj = cast_to_oop(curr);
-    cl._obj = obj;
-    size_t size = obj->oop_iterate_size(&cl);
-    assert(size == obj->size(), "sanity");
-    curr += size;
-  }
+  // HeapWord* curr = region->start();
+  // const HeapWord* end = region->end();
+  // while (curr < end) {
+  //   oop obj = cast_to_oop(curr);
+  //   cl._obj = obj;
+  //   size_t size = obj->oop_iterate_size(&cl);
+  //   assert(size == obj->size(), "sanity");
+  //   curr += size;
+  // }
 }
 
 class G1CMRootRegionScanTask : public WorkerTask {
@@ -1062,6 +1066,7 @@ void G1ConcurrentMark::scan_all_regions() {
   scan_all_from_root_regions();
   log_info(gc) ("after scan_all_from_root_regions");
   set_in_scan_all(false);
+  set_is_first_cm(false);
 }
 
 void G1ConcurrentMark::scan_all_root_regions() {
@@ -1923,6 +1928,9 @@ public:
     } while (task->has_aborted() && !_cm->has_overflown());
     // If we overflow, then we do not want to restart. We instead
     // want to abort remark and do concurrent marking again.
+    log_info(gc) ("worker_id: %u, linked_list_set size: %zu", worker_id, task->linked_list_set()->size());
+    _cm->total_linked_list_set()->merge(task->linked_list_set());
+    task->linked_list_set()->clear();
     task->record_end_time();
   }
 
@@ -1982,6 +1990,18 @@ void G1ConcurrentMark::scan_all_from_root_regions() {
   // active_workers will be fewer. The extra ones will just bail out
   // immediately.
   _g1h->workers()->run_task(&scanAllTask);
+  log_info(gc) ("linked_list_set size: %zu", this->total_linked_list_set()->size());
+
+  LinkedListIterator<Pair<const char*, const char*>> iter(this->total_linked_list_set()->head());
+  while(!iter.is_empty()) {
+    Pair<const char*, const char*>* elem = iter.next();
+    if (elem != nullptr) {
+      log_info(gc) ("[class]%s -> [class]%s", elem->first, elem->second);
+    }
+  }
+
+  this->total_linked_list_set()->clear();
+  log_info(gc) ("linked_list_set size: %zu", this->total_linked_list_set()->size());
   // cleanup_for_next_mark();
   // clear_bitmap(_concurrent_workers, true);
 }
@@ -2581,6 +2601,10 @@ void G1CMTask::print_stats() {
   size_t const misses = _mark_stats_cache.misses();
   log_debug(gc, stats)("  Mark Stats Cache: hits " SIZE_FORMAT " misses " SIZE_FORMAT " ratio %.3f",
                        hits, misses, percent_of(hits, hits + misses));
+}
+
+LinkedListSet<Pair<const char*, const char*>>* G1CMTask::linked_list_set() {
+  return _lls;
 }
 
 bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry) {
@@ -3352,6 +3376,8 @@ G1CMTask::G1CMTask(uint worker_id,
   guarantee(task_queue != nullptr, "invariant");
 
   _marking_step_diff_ms.add(0.5);
+
+  _lls = new LinkedListSet<Pair<const char*, const char*>>();
 }
 
 // These are formatting macros that are used below to ensure

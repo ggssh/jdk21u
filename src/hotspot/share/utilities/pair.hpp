@@ -35,6 +35,45 @@ class Pair : public ALLOC_BASE {
 
   Pair() {}
   Pair(T t, V v) : first(t), second(v) {}
+
+  bool operator==(const Pair<T, V>& other) const {
+    return (this->first == other.first) && (this->second == other.second);
+  }
+};
+
+template<typename ALLOC_BASE>
+class Pair<const char*, const char*, ALLOC_BASE> : public ALLOC_BASE {
+public:
+  const char* first;
+  const char* second;
+
+  Pair() : first(nullptr), second(nullptr) {}
+  Pair(const char* t, const char* v) : first(t), second(v) {}
+
+  bool operator==(const Pair<const char*, const char*, ALLOC_BASE>& other) const {
+    bool firstEq = string_equal(this->first, other.first);
+    bool secondEq = string_equal(this->second, other.second);
+    return firstEq && secondEq;
+  }
+
+  bool operator!=(const Pair<const char*, const char*, ALLOC_BASE>& other) const {
+    return !(*this == other);
+  }
+
+  bool equals(const Pair<const char*, const char*, ALLOC_BASE>& other) const {
+    return (*this == other);
+  }
+
+private:
+  static bool string_equal(const char* s1, const char* s2) {
+    if (s1 == nullptr && s2 == nullptr) {
+      return true;
+    }
+    if (s1 == nullptr || s2 == nullptr) {
+      return false;
+    }
+    return strcmp(s1, s2) == 0;
+  }
 };
 
 

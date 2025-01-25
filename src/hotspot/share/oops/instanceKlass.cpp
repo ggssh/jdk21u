@@ -22,6 +22,8 @@
  *
  */
 
+#include "oops/instanceKlass.hpp"
+#include "gc/g1/g1ConcurrentMark.hpp"
 #include "precompiled.hpp"
 #include "cds/archiveUtils.hpp"
 #include "cds/classListWriter.hpp"
@@ -76,6 +78,7 @@
 #include "runtime/arguments.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/fieldDescriptor.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -1747,10 +1750,37 @@ static int compare_fields_by_offset(Pair<int,int>* a, Pair<int,int>* b) {
 }
 
 void InstanceKlass::print_nonstatic_fields(FieldClosure* cl) {
-  InstanceKlass* super = superklass();
-  if (super != nullptr) {
-    super->print_nonstatic_fields(cl);
+  // InstanceKlass* super = superklass();
+  // if (super != nullptr) {
+  //   super->print_nonstatic_fields(cl);
+  // }
+  ResourceMark rm;
+  fieldDescriptor fd;
+  // In DebugInfo nonstatic fields are sorted by offset.
+  GrowableArray<Pair<int,int> > fields_sorted;
+  int i = 0;
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
+    if (!fs.access_flags().is_static()) {
+      fd = fs.field_descriptor();
+      Pair<int,int> f(fs.offset(), fs.index());
+      fields_sorted.push(f);
+      i++;
+    }
   }
+  if (i > 0) {
+    int length = i;
+    assert(length == fields_sorted.length(), "duh");
+    // _sort_Fn is defined in growableArray.hpp.
+    fields_sorted.sort(compare_fields_by_offset);
+    for (int i = 0; i < length; i++) {
+      fd.reinitialize(this, fields_sorted.at(i).second);
+      assert(!fd.is_static() && fd.offset() == fields_sorted.at(i).first, "only nonstatic fields");
+      cl->do_field(&fd);
+    }
+  }
+}
+
+void InstanceKlass::scan_all_nonstatic_fields(FieldClosure* cl) {
   ResourceMark rm;
   fieldDescriptor fd;
   // In DebugInfo nonstatic fields are sorted by offset.
@@ -3637,21 +3667,33 @@ void FieldPrinter::do_field(fieldDescriptor* fd) {
    }
 }
 
+void ScanAllFieldClosure::do_field(fieldDescriptor* fd) {
+  if (_obj == nullptr) {
+    return;
+  } else {
+    auto klass = _obj->klass();
+    auto klass_name = klass->external_name();
+    auto field_klass_name = fd->signature()->as_C_string();
+    Pair<const char*, const char*> p(klass_name, field_klass_name);
+    _task->linked_list_set()->insert(p);
+  }
+}
+
 // [yyz]
 void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
-  // Klass::oop_print_on(obj, st);
+  Klass::oop_print_on(obj, st);
 
-  if (this == vmClasses::String_klass()) {
-    typeArrayOop value  = java_lang_String::value(obj);
-    juint        length = java_lang_String::length(obj);
-    if (value != nullptr &&
-        value->is_typeArray() &&
-        length <= (juint) value->length()) {
-      st->print(BULLET"string: ");
-      java_lang_String::print(obj, st);
-      st->cr();
-    }
-  }
+  // if (this == vmClasses::String_klass()) {
+  //   typeArrayOop value  = java_lang_String::value(obj);
+  //   juint        length = java_lang_String::length(obj);
+  //   if (value != nullptr &&
+  //       value->is_typeArray() &&
+  //       length <= (juint) value->length()) {
+  //     st->print(BULLET"string: ");
+  //     java_lang_String::print(obj, st);
+  //     st->cr();
+  //   }
+  // }
 
   // auto klass = obj->klass();
   // auto klass_name = klass->external_name();
@@ -3659,20 +3701,25 @@ void InstanceKlass::oop_print_on(oop obj, outputStream* st) {
   FieldPrinter print_field(st, obj);
   print_nonstatic_fields(&print_field);
 
-  if (this == vmClasses::Class_klass()) {
-    st->print(BULLET"signature: ");
-    java_lang_Class::print_signature(obj, st);
-    st->cr();
-    Klass* real_klass = java_lang_Class::as_Klass(obj);
-    if (real_klass != nullptr && real_klass->is_instance_klass()) {
-      st->print_cr(BULLET"---- static fields (%d):", java_lang_Class::static_oop_field_count(obj));
-      InstanceKlass::cast(real_klass)->do_local_static_fields(&print_field);
-    }
-  } else if (this == vmClasses::MethodType_klass()) {
-    st->print(BULLET"signature: ");
-    java_lang_invoke_MethodType::print_signature(obj, st);
-    st->cr();
-  }
+  // if (this == vmClasses::Class_klass()) {
+  //   st->print(BULLET"signature: ");
+  //   java_lang_Class::print_signature(obj, st);
+  //   st->cr();
+  //   Klass* real_klass = java_lang_Class::as_Klass(obj);
+  //   if (real_klass != nullptr && real_klass->is_instance_klass()) {
+  //     st->print_cr(BULLET"---- static fields (%d):", java_lang_Class::static_oop_field_count(obj));
+  //     InstanceKlass::cast(real_klass)->do_local_static_fields(&print_field);
+  //   }
+  // } else if (this == vmClasses::MethodType_klass()) {
+  //   st->print(BULLET"signature: ");
+  //   java_lang_invoke_MethodType::print_signature(obj, st);
+  //   st->cr();
+  // }
+}
+
+void InstanceKlass::oop_scan_on(oop obj, G1CMTask* task) {
+  ScanAllFieldClosure scan_all_field(obj, task);
+  scan_all_nonstatic_fields(&scan_all_field);
 }
 
 #ifndef PRODUCT
