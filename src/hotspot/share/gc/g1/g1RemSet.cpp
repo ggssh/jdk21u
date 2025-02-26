@@ -548,14 +548,6 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
     return scanned_to;
   }
 
-  void atomic_add(std::atomic<double>& atomic_double, double add) {
-    double old_val = atomic_double.load();
-    double new_val = old_val + add;
-    while (!atomic_double.compare_exchange_weak(old_val, new_val)) {
-        new_val = old_val + add;
-    }
-  }
-
   void do_claimed_block(uint const region_idx, CardValue* const dirty_l, CardValue* const dirty_r) {
     _ct->change_dirty_cards_to(dirty_l, dirty_r, _scanned_card_value);
     size_t num_cards = dirty_r - dirty_l;
@@ -572,20 +564,20 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
       return;
     }
     MemRegion mr(MAX2(card_start, _scanned_to), scan_end);
-    const size_t start_user = os::get_cur_thread_usertime();
-    auto stt = Ticks::now();
+    // const size_t start_user = os::get_cur_thread_usertime();
+    // auto stt = Ticks::now();
     _scanned_to = scan_memregion(region_idx, mr);
-    auto used_time = Ticks::now() - stt;
-    auto used_time_user = os::get_cur_thread_usertime() - start_user;
+    // auto used_time = Ticks::now() - stt - _pss->trim_ticks();
+    // auto used_time_user = os::get_cur_thread_usertime() - start_user - _pss->trim_ticks_user();
 
     this->_g1h->scan_cards += num_cards;
-    this->_g1h->scan_regions += 1;
-    atomic_add(this->_g1h->scan_time, used_time.microseconds() * 1.0);
-    atomic_add(this->_g1h->scan_time_user, used_time_user * 1.0);
+    // this->_g1h->scan_regions += 1;
+    // atomic_add(this->_g1h->scan_time, used_time.microseconds() * 1.0);
+    // atomic_add(this->_g1h->scan_time_user, used_time_user * 1.0);
 
-    if (this->_g1h->scan_regions.load() % 5 == 0) {
-      log_info(gc) ("[%u] scanned_regions: %lu, cost_card_scan_user: %lf, cost_per_card_scan_user: %lf; cost_card_scan: %lf, cost_per_card_scan: %lf", _worker_id, this->_g1h->scan_regions.load(), this->_g1h->scan_time_user.load(), this->_g1h->scan_time_user.load() / this->_g1h->scan_cards.load(), this->_g1h->scan_time.load(), this->_g1h->scan_time.load() / this->_g1h->scan_cards.load());
-    }
+    // if (this->_g1h->scan_regions.load() % 10 == 0) {
+    //   log_info(gc) ("[%u] scanned_regions: %lu, scanned_cards: %lu, cost_card_scan_user: %lf, cost_per_card_scan_user: %lf; cost_card_scan: %lf, cost_per_card_scan: %lf", _worker_id, this->_g1h->scan_regions.load(), this->_g1h->scan_cards.load(), this->_g1h->scan_time_user.load(), this->_g1h->scan_time_user.load() / this->_g1h->scan_cards.load(), this->_g1h->scan_time.load(), this->_g1h->scan_time.load() / this->_g1h->scan_cards.load());
+    // }
     _cards_scanned += num_cards;
   }
 
@@ -747,8 +739,17 @@ public:
     uint const region_idx = r->hrm_index();
 
     if (_scan_state->has_cards_to_scan(region_idx)) {
-      G1EvacPhaseWithTrimTimeTracker timer(_pss, _rem_set_root_scan_time, _rem_set_trim_partially_time, _rem_set_root_scan_user_time, _rem_set_trim_partially_user_time);
-      scan_heap_roots(r);
+      {
+        G1EvacPhaseWithTrimTimeTracker timer(_pss, _rem_set_root_scan_time, _rem_set_trim_partially_time, _rem_set_root_scan_user_time, _rem_set_trim_partially_user_time);
+        scan_heap_roots(r);
+      }
+      
+      this->_g1h->scan_regions += 1;
+
+      if (this->_g1h->scan_regions.load() % 2 == 0) {
+        log_info(gc) ("[%u] scanned_regions: %lu, scanned_cards: %lu, cost_card_scan_user: %lf, cost_per_card_scan_user: %lf; cost_card_scan: %lf, cost_per_card_scan: %lf", _worker_id, this->_g1h->scan_regions.load(), this->_g1h->scan_cards.load(), this->_g1h->scan_time_user.load(), this->_g1h->scan_time_user.load() / this->_g1h->scan_cards.load(), this->_g1h->scan_time.load(), this->_g1h->scan_time.load() / this->_g1h->scan_cards.load());
+      }
+
     }
     return false;
   }
@@ -901,11 +902,11 @@ void G1RemSet::scan_collection_set_regions(G1ParScanThreadState* pss,
 
   G1GCPhaseTimes* p = _g1h->phase_times();
 
-  p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_opt_root_scan_time().seconds());
-  p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_opt_trim_partially_time().seconds());
+  // p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_opt_root_scan_time().seconds());
+  // p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_opt_trim_partially_time().seconds());
   
-  p->record_or_add_thread_work_item(scan_phase, worker_id, cl.rem_set_opt_root_scan_user_time(), G1GCPhaseTimes::ScanHRUserTime);
-  p->record_or_add_thread_work_item(scan_phase, worker_id, cl.rem_set_opt_trim_partially_user_time(), G1GCPhaseTimes::ScanHRUserTime);
+  // p->record_or_add_thread_work_item(scan_phase, worker_id, cl.rem_set_opt_root_scan_user_time(), G1GCPhaseTimes::ScanHRUserTime);
+  // p->record_or_add_thread_work_item(scan_phase, worker_id, cl.rem_set_opt_trim_partially_user_time(), G1GCPhaseTimes::ScanHRUserTime);
 
 
   p->record_or_add_time_secs(coderoots_phase, worker_id, cl.code_root_scan_time().seconds());

@@ -844,9 +844,9 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
 
       _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
 
-      size_t total_user_time_card_scan = p->avg_thread_work_items(G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ScanHRUserTime) +
-                                        p->avg_thread_work_items(G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ScanHRUserTime);
-      
+      size_t total_user_time_card_scan = p->sum_thread_work_items(G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ScanHRUserTime) +
+                                        p->sum_thread_work_items(G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ScanHRUserTime);
+      log_info(gc)("total_cards_scanned: %lu", total_cards_scanned);
       log_info(gc)("user_time_dirty_card_scan: %lf", total_user_time_card_scan * 1.0);
       log_info(gc)("time_dirty_card_scan: %lf", avg_time_dirty_card_scan * 1000.0);
       log_info(gc)("cost_per_card_scan_user: %lf", total_user_time_card_scan * 1.0 / total_cards_scanned);
@@ -875,7 +875,7 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
 
-      size_t obj_copy_user_time = p->avg_thread_work_items(G1GCPhaseTimes::ObjCopy, G1GCPhaseTimes::UserTime) + p->avg_thread_work_items(G1GCPhaseTimes::OptObjCopy, G1GCPhaseTimes::UserTime);
+      size_t obj_copy_user_time = p->sum_thread_work_items(G1GCPhaseTimes::ObjCopy, G1GCPhaseTimes::UserTime) + p->sum_thread_work_items(G1GCPhaseTimes::OptObjCopy, G1GCPhaseTimes::UserTime);
       log_info(gc)("cost_time_user: %lfus", obj_copy_user_time * 1.0);
       log_info(gc)("cost_time: %lfus", (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) * 1000.0);
       log_info(gc)("cost_per_copied_byte_user: %lf", obj_copy_user_time * 1.0 / copied_bytes);

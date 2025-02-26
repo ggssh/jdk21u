@@ -609,14 +609,28 @@ G1EvacPhaseWithTrimTimeTracker::~G1EvacPhaseWithTrimTimeTracker() {
     stop();
   }
 }
+void atomic_add(std::atomic<double>& atomic_double, double add) {
+  double old_val = atomic_double.load();
+  double new_val = old_val + add;
+  while (!atomic_double.compare_exchange_weak(old_val, new_val)) {
+      new_val = old_val + add;
+  }
+}
 
 void G1EvacPhaseWithTrimTimeTracker::stop() {
   assert(!_stopped, "Should only be called once");
   _total_time += (Ticks::now() - _start) - _pss->trim_ticks();
   size_t total_time = os::get_cur_thread_usertime() - _start_user;
+  //n [yyz:debug]
+  // _total_time_user += total_time;
   _total_time_user += total_time - _pss->trim_ticks_user();
+  
+  atomic_add(_pss->_g1h->scan_time, ((Ticks::now() - _start) - _pss->trim_ticks()).microseconds() * 1.0);
+  atomic_add(_pss->_g1h->scan_time_user, (total_time - _pss->trim_ticks_user()) * 1.0);
+
   // log_info(gc)("scan time user: %lu, trim time user: %lu", total_time - _pss->trim_ticks_user(), _pss->trim_ticks_user());
   _trim_time += _pss->trim_ticks();
+  // [yyz:debug]
   _trim_time_user += _pss->trim_ticks_user();
   _pss->reset_trim_ticks();
   _stopped = true;

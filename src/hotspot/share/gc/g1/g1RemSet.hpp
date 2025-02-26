@@ -33,6 +33,7 @@
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "utilities/ticks.hpp"
+#include <atomic>
 
 // A G1RemSet provides ways of iterating over pointers into a selected
 // collection set.
