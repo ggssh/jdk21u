@@ -186,6 +186,7 @@ private:
   G1CollectionSetCandidates* candidates() const;
 
   double average_time_ms(G1GCPhaseTimes::GCParPhases phase) const;
+  double sum_time_ms(G1GCPhaseTimes::GCParPhases phase) const;
   double other_time_ms(double pause_time_ms) const;
 
   double young_other_time_ms() const;

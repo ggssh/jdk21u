@@ -268,6 +268,9 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
   // return the average time for a phase in milliseconds
   double average_time_ms(GCParPhases phase) const;
 
+  // return the sum of time for a phase in milliseconds
+  double sum_time_ms(GCParPhases phase) const;
+
   size_t sum_thread_work_items(GCParPhases phase, uint index = 0);
 
   size_t avg_thread_work_items(GCParPhases phase, uint index);

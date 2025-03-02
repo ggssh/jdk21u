@@ -524,6 +524,8 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
   size_t _chunks_claimed;
   size_t _heap_roots_found;
 
+public:
+  Tickspan _prev_rem_set_root_scan_time;
   Tickspan _rem_set_root_scan_time;
   Tickspan _rem_set_trim_partially_time;
 
@@ -723,6 +725,7 @@ public:
     _blocks_scanned(0),
     _chunks_claimed(0),
     _heap_roots_found(0),
+    _prev_rem_set_root_scan_time(),
     _rem_set_root_scan_time(),
     _rem_set_trim_partially_time(),
     _rem_set_root_scan_user_time(0),
@@ -745,9 +748,13 @@ public:
       }
       
       this->_g1h->scan_regions += 1;
+      auto delta_time = _rem_set_root_scan_time - _prev_rem_set_root_scan_time;
+      _prev_rem_set_root_scan_time = _rem_set_root_scan_time;
+      this->_g1h->scan_time += delta_time.microseconds();
 
-      if (this->_g1h->scan_regions.load() % 2 == 0) {
-        log_info(gc) ("[%u] scanned_regions: %lu, scanned_cards: %lu, cost_card_scan_user: %lf, cost_per_card_scan_user: %lf; cost_card_scan: %lf, cost_per_card_scan: %lf", _worker_id, this->_g1h->scan_regions.load(), this->_g1h->scan_cards.load(), this->_g1h->scan_time_user.load(), this->_g1h->scan_time_user.load() / this->_g1h->scan_cards.load(), this->_g1h->scan_time.load(), this->_g1h->scan_time.load() / this->_g1h->scan_cards.load());
+
+      if (this->_g1h->scan_regions.load() % 1 == 0) {
+        log_info(gc) ("[%u] scanned_regions: %lu, scanned_cards: %lu, cost_card_scan: %lu, cost_per_card_scan: %lf", _worker_id, this->_g1h->scan_regions.load(), this->_g1h->scan_cards.load(), this->_g1h->scan_time.load(), this->_g1h->scan_time.load() * 1.0 / this->_g1h->scan_cards.load());
       }
 
     }
@@ -782,8 +789,9 @@ void G1RemSet::scan_heap_roots(G1ParScanThreadState* pss,
   p->record_or_add_time_secs(objcopy_phase, worker_id, cl.rem_set_trim_partially_time().seconds());
   p->record_or_add_thread_work_item(objcopy_phase, worker_id, cl.rem_set_trim_partially_user_time(), G1GCPhaseTimes::UserTime);
 
-
+  log_info(gc) ("[%u] rem_set_root_scan_time: %lu", worker_id,  cl.rem_set_root_scan_time().microseconds());
   p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_root_scan_time().seconds());
+  // log_info(gc) ("rem_set_root_scan_user_time: %lf", cl.rem_set_root_scan_user_time() * 1.0);
   p->record_or_add_thread_work_item(scan_phase, worker_id, cl.rem_set_root_scan_user_time(), G1GCPhaseTimes::ScanHRUserTime);
   p->record_or_add_thread_work_item(scan_phase, worker_id, cl.cards_scanned(), G1GCPhaseTimes::ScanHRScannedCards);
   p->record_or_add_thread_work_item(scan_phase, worker_id, cl.blocks_scanned(), G1GCPhaseTimes::ScanHRScannedBlocks);
@@ -902,6 +910,7 @@ void G1RemSet::scan_collection_set_regions(G1ParScanThreadState* pss,
 
   G1GCPhaseTimes* p = _g1h->phase_times();
 
+  // [yyz:debug]
   // p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_opt_root_scan_time().seconds());
   // p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_opt_trim_partially_time().seconds());
   

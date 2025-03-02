@@ -60,6 +60,7 @@
 #include "runtime/threadSMR.hpp"
 #include "utilities/bitMap.hpp"
 #include <atomic>
+#include <cstdint>
 
 // A "G1CollectedHeap" is an implementation of a java heap for HotSpot.
 // It uses the "Garbage First" heap organization and algorithm, which
@@ -246,8 +247,8 @@ public:
   // the number of cards scanned during gc
   std::atomic<unsigned long> scan_cards;
   // used time
-  std::atomic<double> scan_time;
-  std::atomic<double> scan_time_user;
+  std::atomic<uint64_t> scan_time;
+  std::atomic<uint64_t> scan_time_user;
 private:
   // GC allocation statistics policy for survivors.
   G1EvacStats _survivor_evac_stats;

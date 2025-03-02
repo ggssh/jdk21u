@@ -672,6 +672,10 @@ double G1Policy::average_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
   return phase_times()->average_time_ms(phase);
 }
 
+double G1Policy::sum_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
+  return phase_times()->sum_time_ms(phase);
+}
+
 double G1Policy::young_other_time_ms() const {
   return phase_times()->young_cset_choice_time_ms() +
          phase_times()->average_time_ms(G1GCPhaseTimes::YoungFreeCSet);
@@ -838,24 +842,29 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
     size_t const total_cards_scanned = p->sum_thread_work_items(G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ScanHRScannedCards) +
                                        p->sum_thread_work_items(G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ScanHRScannedCards);
 
-    if (total_cards_scanned >= G1NumCardsCostSampleThreshold) {
+    // if (total_cards_scanned >= G1NumCardsCostSampleThreshold) {
       double avg_time_dirty_card_scan = average_time_ms(G1GCPhaseTimes::ScanHR) +
                                         average_time_ms(G1GCPhaseTimes::OptScanHR);
+      
+      double sum_time_dirty_card_scan = sum_time_ms(G1GCPhaseTimes::ScanHR) +
+                                        sum_time_ms(G1GCPhaseTimes::OptScanHR);
 
-      _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
+      if (total_cards_scanned >= G1NumCardsCostSampleThreshold) {
+        _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
+      }
 
-      size_t total_user_time_card_scan = p->sum_thread_work_items(G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ScanHRUserTime) +
-                                        p->sum_thread_work_items(G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ScanHRUserTime);
+      size_t total_user_time_card_scan = p->avg_thread_work_items(G1GCPhaseTimes::ScanHR, G1GCPhaseTimes::ScanHRUserTime) +
+                                        p->avg_thread_work_items(G1GCPhaseTimes::OptScanHR, G1GCPhaseTimes::ScanHRUserTime);
       log_info(gc)("total_cards_scanned: %lu", total_cards_scanned);
-      log_info(gc)("user_time_dirty_card_scan: %lf", total_user_time_card_scan * 1.0);
-      log_info(gc)("time_dirty_card_scan: %lf", avg_time_dirty_card_scan * 1000.0);
-      log_info(gc)("cost_per_card_scan_user: %lf", total_user_time_card_scan * 1.0 / total_cards_scanned);
-      log_info(gc)("cost_per_card_scan: %lf", avg_time_dirty_card_scan * 1000.0 / total_cards_scanned);
+      // log_info(gc)("user_time_dirty_card_scan: %lf", total_user_time_card_scan * 1.0);
+      log_info(gc)("sum_time_dirty_card_scan: %lf", sum_time_dirty_card_scan * 1000.0);
+      // log_info(gc)("cost_per_card_scan_user: %lf", total_user_time_card_scan * 1.0 / total_cards_scanned);
+      log_info(gc)("cost_per_card_scan: %lf", sum_time_dirty_card_scan * 1000.0 / total_cards_scanned);
 
-    } else {
+    // } else {
       // log_info(gc)("cost_per_card_scan_user: %lf", -1.0);
       // log_info(gc)("cost_per_card_scan: %lf", -1.0);
-    }
+    // }
 
     // Update prediction for the ratio between cards from the remembered
     // sets and actually scanned cards from the remembered sets.

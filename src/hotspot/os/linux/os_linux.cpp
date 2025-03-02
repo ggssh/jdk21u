@@ -1664,7 +1664,6 @@ size_t os::get_cur_thread_usertime() {
   // in microseconds
   njt_user_time = usage.ru_utime.tv_sec * 1000UL * 1000 + usage.ru_utime.tv_usec;
   // log_info(gc)("get_cur_thread_usertime: %lu", njt_user_time);
-  if(njt_user_time == 0) log_info(gc) ("get_cur_thread_usertime: %lu", njt_user_time);
 
   // njt_user_time = (size_t)user_time;
 

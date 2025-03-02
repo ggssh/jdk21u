@@ -300,6 +300,13 @@ double G1GCPhaseTimes::average_time_ms(GCParPhases phase) const {
   return _gc_par_phases[phase]->average() * 1000.0;
 }
 
+double G1GCPhaseTimes::sum_time_ms(GCParPhases phase) const {
+  if (_gc_par_phases[phase] == nullptr) {
+    return 0.0;
+  }
+  return _gc_par_phases[phase]->sum() * 1000.0;
+}
+
 size_t G1GCPhaseTimes::sum_thread_work_items(GCParPhases phase, uint index) {
   if (_gc_par_phases[phase] == nullptr) {
     return 0;
@@ -617,16 +624,15 @@ void atomic_add(std::atomic<double>& atomic_double, double add) {
   }
 }
 
+// per region
 void G1EvacPhaseWithTrimTimeTracker::stop() {
   assert(!_stopped, "Should only be called once");
-  _total_time += (Ticks::now() - _start) - _pss->trim_ticks();
+  auto delta_time = (Ticks::now() - _start) - _pss->trim_ticks();
+  _total_time += delta_time;
   size_t total_time = os::get_cur_thread_usertime() - _start_user;
   //n [yyz:debug]
   // _total_time_user += total_time;
   _total_time_user += total_time - _pss->trim_ticks_user();
-  
-  atomic_add(_pss->_g1h->scan_time, ((Ticks::now() - _start) - _pss->trim_ticks()).microseconds() * 1.0);
-  atomic_add(_pss->_g1h->scan_time_user, (total_time - _pss->trim_ticks_user()) * 1.0);
 
   // log_info(gc)("scan time user: %lu, trim time user: %lu", total_time - _pss->trim_ticks_user(), _pss->trim_ticks_user());
   _trim_time += _pss->trim_ticks();
