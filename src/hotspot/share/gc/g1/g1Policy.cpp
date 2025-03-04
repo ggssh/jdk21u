@@ -849,6 +849,9 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
       double sum_time_dirty_card_scan = sum_time_ms(G1GCPhaseTimes::ScanHR) +
                                         sum_time_ms(G1GCPhaseTimes::OptScanHR);
 
+      // use the average time
+      log_info(gc)("[profile: cost_per_card_scan_ms] predict: %lf, real: %lf, ", _analytics->predict_zero_bounded(&_analytics->_cost_per_card_scan_ms_seq, is_young_only_pause), avg_time_dirty_card_scan / total_cards_scanned);
+
       if (total_cards_scanned >= G1NumCardsCostSampleThreshold) {
         _analytics->report_cost_per_card_scan_ms(avg_time_dirty_card_scan / total_cards_scanned, is_young_only_pause);
       }
