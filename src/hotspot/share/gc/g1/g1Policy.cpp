@@ -743,6 +743,10 @@ double G1Policy::logged_cards_processing_time() const {
 #define MIN_TIMER_GRANULARITY 0.0000001
 
 void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mark, bool evacuation_failure) {
+  _g1h->_copy_time.store(0);
+  _g1h->_total_bytes.store(0);
+  _g1h->_temp_total_bytes.store(0);
+
   G1GCPhaseTimes* p = phase_times();
 
   double start_time_sec = phase_times()->cur_collection_start_sec();
@@ -852,6 +856,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
 
     // Update prediction for copy cost per byte
     size_t copied_bytes = p->sum_thread_work_items(G1GCPhaseTimes::MergePSS, G1GCPhaseTimes::MergePSSCopiedBytes);
+
+    log_info(gc) ("copied_bytes: %lu", copied_bytes);
 
     if (copied_bytes > 0) {
       double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;

@@ -59,6 +59,9 @@
 #include "runtime/mutexLocker.hpp"
 #include "runtime/threadSMR.hpp"
 #include "utilities/bitMap.hpp"
+#include "utilities/ticks.hpp"
+#include <atomic>
+#include <cstdint>
 
 // A "G1CollectedHeap" is an implementation of a java heap for HotSpot.
 // It uses the "Garbage First" heap organization and algorithm, which
@@ -193,6 +196,10 @@ private:
 
   // The block offset table for the G1 heap.
   G1BlockOffsetTable* _bot;
+public:
+  std::atomic<uint64_t> _copy_time;
+  std::atomic<uint64_t> _total_bytes;
+  std::atomic<uint64_t> _temp_total_bytes;
 
 public:
   void rebuild_free_region_list();

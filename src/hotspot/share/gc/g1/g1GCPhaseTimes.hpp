@@ -32,6 +32,7 @@
 #include "memory/allocation.hpp"
 #include "utilities/enumIterator.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ticks.hpp"
 
 class LineBuffer;
 class G1ParScanThreadState;
@@ -414,6 +415,15 @@ public:
   ~G1EvacPhaseWithTrimTimeTracker();
 
   void stop();
+};
+
+class G1CopyTimeTracker : public StackObj {
+  Ticks _start;
+
+public:
+  G1CopyTimeTracker();
+
+  Tickspan elapsed_ticks();
 };
 
 #endif // SHARE_GC_G1_G1GCPHASETIMES_HPP

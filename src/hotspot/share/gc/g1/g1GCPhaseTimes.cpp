@@ -39,6 +39,7 @@
 #include "runtime/os.hpp"
 #include "utilities/enumIterator.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ticks.hpp"
 
 constexpr const char* G1GCPhaseTimes::GCMergeRSWorkItemsStrings[];
 
@@ -638,3 +639,10 @@ G1EvacPhaseTimesTracker::~G1EvacPhaseTimesTracker() {
   }
 }
 
+G1CopyTimeTracker::G1CopyTimeTracker() {
+  _start = Ticks::now();
+}
+
+Tickspan G1CopyTimeTracker::elapsed_ticks() {
+  return Ticks::now() - _start;
+}

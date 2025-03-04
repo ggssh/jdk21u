@@ -22,6 +22,8 @@
  *
  */
 
+#include "gc/g1/g1GCPhaseTimes.hpp"
+#include "logging/log.hpp"
 #include "precompiled.hpp"
 #include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
@@ -42,9 +44,12 @@
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/mutex.hpp"
+#include "runtime/mutexLocker.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/ticks.hpp"
 
 // In fastdebug builds the code size can get out of hand, potentially
 // tripping over compiler limits (which may be bugs, but nevertheless
@@ -53,6 +58,8 @@
 // And the fastdebug compile time for this file is much reduced.
 // Explicit NOINLINE to block ATTRIBUTE_FLATTENing.
 #define MAYBE_INLINE_EVACUATION NOT_DEBUG(inline) DEBUG_ONLY(NOINLINE)
+
+static Mutex my_lock(Mutex::safepoint, "my_lock");
 
 G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
                                            G1RedirtyCardsQueueSet* rdcqs,
@@ -442,6 +449,8 @@ void G1ParScanThreadState::update_bot_after_copying(oop obj, size_t word_sz) {
   region->update_bot_for_obj(obj_start, word_sz);
 }
 
+const uint64_t LOG_THRESHOLD = 20 * 1024 * 1024;  // 20MB
+
 // Private inline function, for direct internal use and providing the
 // implementation of the public not-inline function.
 MAYBE_INLINE_EVACUATION
@@ -450,7 +459,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
                                                     markWord const old_mark) {
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
-
+  
+  G1CopyTimeTracker timer;
   // Get the klass once.  We'll need it again later, and this avoids
   // re-decoding when it's compressed.
   Klass* klass = old->klass();
@@ -495,6 +505,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   // examine its contents without other synchronization, since the contents
   // may not be up to date for them.
   const oop forward_ptr = old->forward_to_atomic(obj, old_mark, memory_order_relaxed);
+  Tickspan _elapsed_time = timer.elapsed_ticks();
+  
   if (forward_ptr == nullptr) {
 
     {
@@ -502,6 +514,32 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       assert((from_region->is_young() && young_index >  0) ||
              (!from_region->is_young() && young_index == 0), "invariant" );
       _surviving_young_words[young_index] += word_sz;
+      
+      MutexLocker ml(&my_lock);
+
+      const uint64_t bytes_added = word_sz * HeapWordSize;
+      _g1h->_copy_time.fetch_add(_elapsed_time.microseconds(), std::memory_order_relaxed);
+      _g1h->_total_bytes.fetch_add(bytes_added, std::memory_order_relaxed);
+      uint64_t prev_temp = _g1h->_temp_total_bytes.fetch_add(bytes_added, std::memory_order_relaxed);
+      uint64_t new_temp = prev_temp + bytes_added;
+
+      if (new_temp >= LOG_THRESHOLD) {
+          uint64_t current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+
+          // Double-check (to prevent other threads from having already handled it)
+          if (current_temp >= LOG_THRESHOLD) {
+              auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
+              auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
+
+              log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
+                          total_copy_time, total_copy_bytes,
+                          total_copy_time * 1.0 / total_copy_bytes);
+
+              uint64_t expected = current_temp;
+              uint64_t desired = current_temp % (LOG_THRESHOLD);
+              _g1h->_temp_total_bytes.compare_exchange_strong(expected, desired, std::memory_order_relaxed);
+          }
+      }
     }
 
     if (dest_attr.is_young()) {

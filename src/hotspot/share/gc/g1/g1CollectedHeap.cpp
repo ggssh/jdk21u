@@ -115,6 +115,7 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/stack.inline.hpp"
+#include <atomic>
 
 size_t G1CollectedHeap::_humongous_object_threshold_in_words = 0;
 
@@ -1298,6 +1299,10 @@ G1CollectedHeap::G1CollectedHeap() :
   }
 
   _gc_tracer_stw->initialize();
+
+  std::atomic_init(&_copy_time, 0);
+  std::atomic_init(&_total_bytes, 0);
+  std::atomic_init(&_temp_total_bytes, 0);
 
   guarantee(_task_queues != nullptr, "task_queues allocation failure.");
 }
