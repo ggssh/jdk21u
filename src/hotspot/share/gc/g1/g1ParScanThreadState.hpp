@@ -39,6 +39,7 @@
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 #include "utilities/ticks.hpp"
+#include <cstdint>
 
 class G1CardTable;
 class G1CollectionSet;
@@ -110,6 +111,10 @@ public:
   PreservedMarks* _preserved_marks;
   EvacuationFailedInfo _evacuation_failed_info;
   G1EvacFailureRegions* _evac_failure_regions;
+
+  uint64_t _thread_local_copy_time;
+  uint64_t _thread_local_copy_bytes;
+  uint64_t _thread_local_temp_bytes;
 
   bool inject_evacuation_failure(uint region_idx) EVAC_FAILURE_INJECTOR_RETURN_( return false; );
 
