@@ -33,6 +33,7 @@ class TruncatedSeq;
 class G1Predictions;
 
 class G1Analytics: public CHeapObj<mtGC> {
+public:
   const static int TruncatedSeqLength = 10;
   const static int NumPrevPausesForHeuristics = 10;
   const G1Predictions* _predictor;

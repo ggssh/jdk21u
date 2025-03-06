@@ -861,6 +861,10 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
 
     if (copied_bytes > 0) {
       double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
+
+      log_info(gc)("[profile: total_copy_time]: %lfus", (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) * 1000.0);
+      log_info(gc)("[profile: cost_per_byte_ms] predict: %lf, real: %lf", _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause) * 1000.0, cost_per_byte_ms * 1000.0);
+
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
     }
 

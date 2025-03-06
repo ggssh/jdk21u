@@ -23,6 +23,7 @@
  */
 
 #include "gc/g1/g1GCPhaseTimes.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "logging/log.hpp"
 #include "precompiled.hpp"
 #include "gc/g1/g1Allocator.inline.hpp"
@@ -515,30 +516,47 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
              (!from_region->is_young() && young_index == 0), "invariant" );
       _surviving_young_words[young_index] += word_sz;
       
-      MutexLocker ml(&my_lock);
+      // MutexLocker ml(&my_lock);
 
       const uint64_t bytes_added = word_sz * HeapWordSize;
+
       _g1h->_copy_time.fetch_add(_elapsed_time.microseconds(), std::memory_order_relaxed);
       _g1h->_total_bytes.fetch_add(bytes_added, std::memory_order_relaxed);
       uint64_t prev_temp = _g1h->_temp_total_bytes.fetch_add(bytes_added, std::memory_order_relaxed);
       uint64_t new_temp = prev_temp + bytes_added;
-
+          
+      // Check if the threshold is reached
+      // if (new_temp >= LOG_THRESHOLD) {
+      //     uint64_t current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+      //     while (current_temp >= LOG_THRESHOLD) {
+      //         uint64_t reset_value = current_temp % LOG_THRESHOLD;
+      //         // Attempt to reset _temp_total_bytes using CAS
+      //         if (_g1h->_temp_total_bytes.compare_exchange_weak(current_temp, reset_value, std::memory_order_relaxed))      {
+      //             // CAS成功，记录日志
+      //             auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
+      //             auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
+      //             log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
+      //                          total_copy_time, total_copy_bytes,
+      //                          total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
+      //             break;
+      //         }
+      //         // CAS failed, reload the current value and retry
+      //         current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+      //     }
+      // }
+      
+      // lower overhead
       if (new_temp >= LOG_THRESHOLD) {
-          uint64_t current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
-
-          // Double-check (to prevent other threads from having already handled it)
-          if (current_temp >= LOG_THRESHOLD) {
-              auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
-              auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
-
-              log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
-                          total_copy_time, total_copy_bytes,
-                          total_copy_time * 1.0 / total_copy_bytes);
-
-              uint64_t expected = current_temp;
-              uint64_t desired = current_temp % (LOG_THRESHOLD);
-              _g1h->_temp_total_bytes.compare_exchange_strong(expected, desired, std::memory_order_relaxed);
-          }
+        if (_worker_id == 0) {
+          // log_info(gc)("ParallelGCThreads: %u", ParallelGCThreads);
+          uint64_t reset_value = new_temp % LOG_THRESHOLD;
+          _g1h->_temp_total_bytes.store(reset_value);
+          auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
+          auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
+          log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
+                                   total_copy_time, total_copy_bytes,
+                                   total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
+        }
       }
     }
 
