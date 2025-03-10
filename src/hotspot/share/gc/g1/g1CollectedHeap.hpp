@@ -96,6 +96,9 @@ typedef GenericTaskQueueSet<G1ScannerTasksQueue, mtGC> G1ScannerTasksQueueSet;
 typedef int RegionIdx_t;   // needs to hold [ 0..max_reserved_regions() )
 typedef int CardIdx_t;     // needs to hold [ 0..CardsPerRegion )
 
+const uint64_t LOG_THRESHOLD = 2 * 1024 * 1024;  // 2MB
+const uint64_t MERGE_THRESHOLD = 512 * 1024; // 512KB
+
 // The G1 STW is alive closure.
 // An instance is embedded into the G1CH and used as the
 // (optional) _is_alive_non_header closure in the STW

@@ -294,6 +294,13 @@ double G1GCPhaseTimes::average_time_ms(GCParPhases phase) const {
   return _gc_par_phases[phase]->average() * 1000.0;
 }
 
+double G1GCPhaseTimes::sum_time_ms(GCParPhases phase) const {
+  if (_gc_par_phases[phase] == nullptr) {
+    return 0.0;
+  }
+  return _gc_par_phases[phase]->sum() * 1000.0;
+}
+
 size_t G1GCPhaseTimes::sum_thread_work_items(GCParPhases phase, uint index) {
   if (_gc_par_phases[phase] == nullptr) {
     return 0;
@@ -626,6 +633,7 @@ G1EvacPhaseTimesTracker::G1EvacPhaseTimesTracker(G1GCPhaseTimes* phase_times,
   G1GCParPhaseTimesTracker(phase_times, phase, worker_id),
   _total_time(),
   _trim_time(),
+  _pss(pss),
   _trim_tracker(pss, _total_time, _trim_time) {
 }
 
@@ -636,6 +644,40 @@ G1EvacPhaseTimesTracker::~G1EvacPhaseTimesTracker() {
     // Exclude trim time by increasing the start time.
     _start_time += _trim_time;
     _phase_times->record_or_add_time_secs(G1GCPhaseTimes::ObjCopy, _worker_id, _trim_time.seconds());
+
+    _pss->_thread_local_copy_time += _trim_time.microseconds();
+
+    if (_pss->_thread_local_temp_bytes >= MERGE_THRESHOLD) {
+      auto prev_total_copy_time = _pss->_g1h->_copy_time.fetch_add(_pss->_thread_local_copy_time, std::memory_order_relaxed);
+      auto total_copy_time = prev_total_copy_time + _pss->_thread_local_copy_time;
+      _pss->_thread_local_copy_time = 0;
+
+      auto prev_total_copy_bytes = _pss->_g1h->_total_bytes.fetch_add(_pss->_thread_local_temp_bytes, std::memory_order_relaxed);
+      auto total_copy_bytes = prev_total_copy_bytes + _pss->_thread_local_temp_bytes;
+
+      uint64_t prev_temp = _pss->_g1h->_temp_total_bytes.fetch_add(_pss->_thread_local_temp_bytes, std::memory_order_relaxed);
+      uint64_t new_temp = prev_temp + _pss->_thread_local_temp_bytes;
+      _pss->_thread_local_temp_bytes = 0;
+
+      if (new_temp >= LOG_THRESHOLD) {
+          uint64_t current_temp = _pss->_g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+          while (current_temp >= LOG_THRESHOLD) {
+              uint64_t reset_value = current_temp % LOG_THRESHOLD;
+              // Attempt to reset _temp_total_bytes using CAS
+              if (_pss->_g1h->_temp_total_bytes.compare_exchange_weak(current_temp, reset_value,   std::memory_order_relaxed))      {
+                  // auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
+                  // auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
+                  log_info(gc)("[%u] total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
+                               _pss->worker_id(),
+                               total_copy_time, total_copy_bytes,
+                               total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
+                  break;
+              }
+              // CAS failed, reload the current value and retry
+              current_temp = _pss->_g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+      }
+    }
+  }
   }
 }
 

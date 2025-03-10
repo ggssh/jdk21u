@@ -51,6 +51,7 @@
 #include "utilities/pair.hpp"
 
 #include "gc/shared/gcTraceTime.inline.hpp"
+#include <atomic>
 
 G1Policy::G1Policy(STWGCTimer* gc_timer) :
   _predictor(G1ConfidencePercent / 100.0),
@@ -672,6 +673,10 @@ double G1Policy::average_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
   return phase_times()->average_time_ms(phase);
 }
 
+double G1Policy::sum_time_ms(G1GCPhaseTimes::GCParPhases phase) const {
+  return phase_times()->sum_time_ms(phase);
+}
+
 double G1Policy::young_other_time_ms() const {
   return phase_times()->young_cset_choice_time_ms() +
          phase_times()->average_time_ms(G1GCPhaseTimes::YoungFreeCSet);
@@ -743,9 +748,6 @@ double G1Policy::logged_cards_processing_time() const {
 #define MIN_TIMER_GRANULARITY 0.0000001
 
 void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mark, bool evacuation_failure) {
-  _g1h->_copy_time.store(0);
-  _g1h->_total_bytes.store(0);
-  _g1h->_temp_total_bytes.store(0);
 
   G1GCPhaseTimes* p = phase_times();
 
@@ -862,7 +864,8 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
     if (copied_bytes > 0) {
       double cost_per_byte_ms = (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) / copied_bytes;
 
-      log_info(gc)("[profile: total_copy_time]: %lfus", (average_time_ms(G1GCPhaseTimes::ObjCopy) + average_time_ms(G1GCPhaseTimes::OptObjCopy)) * 1000.0);
+      log_info(gc)("[profile: _g1h->_copy_time]: %luus", _g1h->_copy_time.load(std::memory_order_relaxed));
+      log_info(gc)("[profile: sum_copy_time]: %lfus", (sum_time_ms(G1GCPhaseTimes::ObjCopy) + sum_time_ms(G1GCPhaseTimes::OptObjCopy)) * 1000.0);
       log_info(gc)("[profile: cost_per_byte_ms] predict: %lf, real: %lf", _analytics->predict_zero_bounded(&_analytics->_cost_per_byte_copied_ms_seq, is_young_only_pause) * 1000.0, cost_per_byte_ms * 1000.0);
 
       _analytics->report_cost_per_byte_ms(cost_per_byte_ms, is_young_only_pause);
@@ -936,6 +939,10 @@ void G1Policy::record_young_collection_end(bool concurrent_operation_is_full_mar
                       logged_cards,
                       predicted_thread_buffer_cards,
                       logged_cards_time_goal_ms);
+  
+  _g1h->_copy_time.store(0);
+  _g1h->_total_bytes.store(0);
+  _g1h->_temp_total_bytes.store(0);
 }
 
 G1IHOPControl* G1Policy::create_ihop_control(const G1OldGenAllocationTracker* old_gen_alloc_tracker,

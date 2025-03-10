@@ -458,9 +458,6 @@ void G1ParScanThreadState::update_bot_after_copying(oop obj, size_t word_sz) {
   region->update_bot_for_obj(obj_start, word_sz);
 }
 
-const uint64_t LOG_THRESHOLD = 10 * 1024 * 1024;  // 10MB
-const uint64_t MERGE_THRESHOLD = 1 * 1024 * 1024; // 1MB
-
 // Private inline function, for direct internal use and providing the
 // implementation of the public not-inline function.
 MAYBE_INLINE_EVACUATION
@@ -515,7 +512,6 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   // examine its contents without other synchronization, since the contents
   // may not be up to date for them.
   const oop forward_ptr = old->forward_to_atomic(obj, old_mark, memory_order_relaxed);
-  Tickspan _elapsed_time = timer.elapsed_ticks();
   
   if (forward_ptr == nullptr) {
 
@@ -536,73 +532,6 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
       _thread_local_temp_bytes += bytes_added;
       // _thread_local_copy_bytes += bytes_added;
-      _thread_local_copy_time += _elapsed_time.microseconds();
-
-      if (_thread_local_temp_bytes >= MERGE_THRESHOLD) {
-        _g1h->_copy_time.fetch_add(_thread_local_copy_time, std::memory_order_relaxed);
-        _thread_local_copy_time = 0;
-        _g1h->_total_bytes.fetch_add(_thread_local_temp_bytes, std::memory_order_relaxed);
-
-        uint64_t prev_temp = _g1h->_temp_total_bytes.fetch_add(_thread_local_temp_bytes, std::memory_order_relaxed);
-        uint64_t new_temp = prev_temp + _thread_local_temp_bytes;
-        _thread_local_temp_bytes = 0;
-
-        if (new_temp >= LOG_THRESHOLD) {
-            uint64_t current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
-            while (current_temp >= LOG_THRESHOLD) {
-                uint64_t reset_value = current_temp % LOG_THRESHOLD;
-                // Attempt to reset _temp_total_bytes using CAS
-                if (_g1h->_temp_total_bytes.compare_exchange_weak(current_temp, reset_value,   std::memory_order_relaxed))      {
-                    auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
-                    auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
-                    log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
-                                 total_copy_time, total_copy_bytes,
-                                 total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
-                    break;
-                }
-                // CAS failed, reload the current value and retry
-                current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
-            }
-        }
-      }
-
-          
-      // Check if the threshold is reached
-      // if (new_temp >= LOG_THRESHOLD) {
-      //     uint64_t current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
-      //     while (current_temp >= LOG_THRESHOLD) {
-      //         uint64_t reset_value = current_temp % LOG_THRESHOLD;
-      //         // Attempt to reset _temp_total_bytes using CAS
-      //         if (_g1h->_temp_total_bytes.compare_exchange_weak(current_temp, reset_value, std::memory_order_relaxed))      {
-      //             auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
-      //             auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
-      //             log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
-      //                          total_copy_time, total_copy_bytes,
-      //                          total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
-      //             break;
-      //         }
-      //         // CAS failed, reload the current value and retry
-      //         current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
-      //     }
-      // }
-      
-      // [yyz: todo]
-      // 1. 为每个thread加一个2m的buffer
-      // 2. 将统计时间的方式修改为和原有的一致
-
-      // lower overhead
-      // if (new_temp >= LOG_THRESHOLD) {
-      //   if (_worker_id == 0) {
-      //     // log_info(gc)("ParallelGCThreads: %u", ParallelGCThreads);
-      //     uint64_t reset_value = new_temp % LOG_THRESHOLD;
-      //     _g1h->_temp_total_bytes.store(reset_value);
-      //     auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
-      //     auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
-      //     log_info(gc)("total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
-      //                              total_copy_time, total_copy_bytes,
-      //                              total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
-      //   }
-      // }
     }
 
     if (dest_attr.is_young()) {

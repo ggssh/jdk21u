@@ -719,10 +719,49 @@ public:
            r->hrm_index());
     uint const region_idx = r->hrm_index();
 
+    // pay attention to _rem_set_trim_partially_time
+    auto _prev_rem_set_trim_partially_time = _rem_set_trim_partially_time;
     if (_scan_state->has_cards_to_scan(region_idx)) {
       G1EvacPhaseWithTrimTimeTracker timer(_pss, _rem_set_root_scan_time, _rem_set_trim_partially_time);
       scan_heap_roots(r);
     }
+    auto delta_trim_time = _rem_set_trim_partially_time - _prev_rem_set_trim_partially_time;
+    _prev_rem_set_trim_partially_time = _rem_set_trim_partially_time;
+
+    // _g1h->_copy_time.fetch_add(delta_trim_time.microseconds());
+    _pss->_thread_local_copy_time += delta_trim_time.microseconds();
+
+    if (_pss->_thread_local_temp_bytes >= MERGE_THRESHOLD) {
+      auto prev_total_copy_time = _g1h->_copy_time.fetch_add(_pss->_thread_local_copy_time, std::memory_order_relaxed);
+      auto total_copy_time = prev_total_copy_time + _pss->_thread_local_copy_time;
+      _pss->_thread_local_copy_time = 0;
+
+      auto prev_total_copy_bytes = _g1h->_total_bytes.fetch_add(_pss->_thread_local_temp_bytes, std::memory_order_relaxed);
+      auto total_copy_bytes = prev_total_copy_bytes + _pss->_thread_local_temp_bytes;
+
+      uint64_t prev_temp = _g1h->_temp_total_bytes.fetch_add(_pss->_thread_local_temp_bytes, std::memory_order_relaxed);
+      uint64_t new_temp = prev_temp + _pss->_thread_local_temp_bytes;
+      _pss->_thread_local_temp_bytes = 0;
+
+      if (new_temp >= LOG_THRESHOLD) {
+          uint64_t current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+          while (current_temp >= LOG_THRESHOLD) {
+              uint64_t reset_value = current_temp % LOG_THRESHOLD;
+              // Attempt to reset _temp_total_bytes using CAS
+              if (_g1h->_temp_total_bytes.compare_exchange_weak(current_temp, reset_value,   std::memory_order_relaxed))      {
+                  // auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
+                  // auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
+                  log_info(gc)("[%u] total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
+                               _worker_id,
+                               total_copy_time, total_copy_bytes,
+                               total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
+                  break;
+              }
+              // CAS failed, reload the current value and retry
+              current_temp = _g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+      }
+    }
+  }
     return false;
   }
 
@@ -749,7 +788,7 @@ void G1RemSet::scan_heap_roots(G1ParScanThreadState* pss,
   G1GCPhaseTimes* p = _g1p->phase_times();
 
   p->record_or_add_time_secs(objcopy_phase, worker_id, cl.rem_set_trim_partially_time().seconds());
-
+  // _g1h->_copy_time.fetch_add(cl.rem_set_trim_partially_time().microseconds());
   p->record_or_add_time_secs(scan_phase, worker_id, cl.rem_set_root_scan_time().seconds());
   p->record_or_add_thread_work_item(scan_phase, worker_id, cl.cards_scanned(), G1GCPhaseTimes::ScanHRScannedCards);
   p->record_or_add_thread_work_item(scan_phase, worker_id, cl.blocks_scanned(), G1GCPhaseTimes::ScanHRScannedBlocks);
@@ -819,7 +858,9 @@ public:
       event.commit(GCId::current(), _worker_id, G1GCPhaseTimes::phase_name(_scan_phase));
     }
 
+    auto _prev_code_trim_partially_time = _code_trim_partially_time; 
     if (_scan_state->claim_collection_set_region(region_idx)) {
+      // pay attention to _code_trim_partially_time
       EventGCPhaseParallel event;
       G1EvacPhaseWithTrimTimeTracker timer(_pss, _code_root_scan_time, _code_trim_partially_time);
       // Scan the code root list attached to the current region
@@ -827,6 +868,44 @@ public:
 
       event.commit(GCId::current(), _worker_id, G1GCPhaseTimes::phase_name(_code_roots_phase));
     }
+
+    auto delta_trim_time = _code_trim_partially_time - _prev_code_trim_partially_time;
+    _prev_code_trim_partially_time = _code_trim_partially_time;
+
+    // _g1h->_copy_time.fetch_add(delta_trim_time.microseconds());
+    _pss->_thread_local_copy_time += delta_trim_time.microseconds();
+
+    if (_pss->_thread_local_temp_bytes >= MERGE_THRESHOLD) {
+      auto prev_total_copy_time = _pss->_g1h->_copy_time.fetch_add(_pss->_thread_local_copy_time, std::memory_order_relaxed);
+      auto total_copy_time = prev_total_copy_time + _pss->_thread_local_copy_time;
+      _pss->_thread_local_copy_time = 0;
+      
+      auto prev_total_copy_bytes = _pss->_g1h->_total_bytes.fetch_add(_pss->_thread_local_temp_bytes, std::memory_order_relaxed);
+      auto total_copy_bytes = prev_total_copy_bytes + _pss->_thread_local_temp_bytes;
+
+      uint64_t prev_temp = _pss->_g1h->_temp_total_bytes.fetch_add(_pss->_thread_local_temp_bytes, std::memory_order_relaxed);
+      uint64_t new_temp = prev_temp + _pss->_thread_local_temp_bytes;
+      _pss->_thread_local_temp_bytes = 0;
+
+      if (new_temp >= LOG_THRESHOLD) {
+          uint64_t current_temp = _pss->_g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+          while (current_temp >= LOG_THRESHOLD) {
+              uint64_t reset_value = current_temp % LOG_THRESHOLD;
+              // Attempt to reset _temp_total_bytes using CAS
+              if (_pss->_g1h->_temp_total_bytes.compare_exchange_weak(current_temp, reset_value,   std::memory_order_relaxed))      {
+                  // auto total_copy_time = _g1h->_copy_time.load(std::memory_order_relaxed);
+                  // auto total_copy_bytes = _g1h->_total_bytes.load(std::memory_order_relaxed);
+                  log_info(gc)("[%u] total_copy_time: %luus, total_copy_bytes: %lu, cost_per_byte: %lfus",
+                               _worker_id,
+                               total_copy_time, total_copy_bytes,
+                               total_copy_time * 1.0 / total_copy_bytes / ParallelGCThreads);
+                  break;
+              }
+              // CAS failed, reload the current value and retry
+              current_temp = _pss->_g1h->_temp_total_bytes.load(std::memory_order_relaxed);
+      }
+    }
+  }
 
     return false;
   }
@@ -857,7 +936,7 @@ void G1RemSet::scan_collection_set_regions(G1ParScanThreadState* pss,
 
   p->record_or_add_time_secs(coderoots_phase, worker_id, cl.code_root_scan_time().seconds());
   p->add_time_secs(objcopy_phase, worker_id, cl.code_root_trim_partially_time().seconds());
-
+  // _g1h->_copy_time.fetch_add(cl.code_root_trim_partially_time().microseconds());
   // At this time we record some metrics only for the evacuations after the initial one.
   if (scan_phase == G1GCPhaseTimes::OptScanHR) {
     p->record_or_add_thread_work_item(scan_phase, worker_id, cl.opt_roots_scanned(), G1GCPhaseTimes::ScanHRFoundRoots);
