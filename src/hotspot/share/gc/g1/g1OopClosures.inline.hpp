@@ -230,7 +230,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
     if (m.is_marked()) {
       forwardee = cast_to_oop(m.decode_pointer());
     } else {
-      forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
+      forwardee = _par_scan_state->copy_to_survivor_space(state, obj, p, m);
     }
     assert(forwardee != nullptr, "forwardee should not be null");
     RawAccess<IS_NOT_NULL>::oop_store(p, forwardee);

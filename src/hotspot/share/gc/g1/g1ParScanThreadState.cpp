@@ -209,7 +209,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   if (m.is_marked()) {
     obj = cast_to_oop(m.decode_pointer());
   } else {
-    obj = do_copy_to_survivor_space(region_attr, obj, m);
+    obj = do_copy_to_survivor_space(region_attr, obj, p, m);
   }
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);
 
@@ -444,9 +444,11 @@ void G1ParScanThreadState::update_bot_after_copying(oop obj, size_t word_sz) {
 
 // Private inline function, for direct internal use and providing the
 // implementation of the public not-inline function.
+template <class T>
 MAYBE_INLINE_EVACUATION
 oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const region_attr,
-                                                    oop const old,
+                                                    oop const old, 
+                                                    T* p,
                                                     markWord const old_mark) {
   assert(region_attr.is_in_cset(),
          "Unexpected region attr type: %s", region_attr.get_type_str());
@@ -511,6 +513,11 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       }
       _age_table.add(age, word_sz);
     } else {
+      HeapRegion* r = g1h->heap_region_containing(p);
+      HeapWord* const start_address = r->is_humongous() ?
+                                      r->humongous_start_region()->bottom() :
+                                      r->block_start(p);
+      _g1h->reference_dictionary()->add_klass(cast_to_oop(start_address)->klass(), klass);
       update_bot_after_copying(obj, word_sz);
     }
 
@@ -555,11 +562,13 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 }
 
 // Public not-inline entry point.
+template <class T>
 ATTRIBUTE_FLATTEN
 oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr region_attr,
                                                  oop old,
+                                                 T* p,
                                                  markWord old_mark) {
-  return do_copy_to_survivor_space(region_attr, old, old_mark);
+  return do_copy_to_survivor_space(region_attr, old, p, old_mark);
 }
 
 G1ParScanThreadState* G1ParScanThreadStateSet::state_for_worker(uint worker_id) {

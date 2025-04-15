@@ -173,8 +173,9 @@ private:
 
   void update_bot_after_copying(oop obj, size_t word_sz);
 
-  oop do_copy_to_survivor_space(G1HeapRegionAttr region_attr,
+  template <class T> oop do_copy_to_survivor_space(G1HeapRegionAttr region_attr,
                                 oop obj,
+                                T* p,
                                 markWord old_mark);
 
   // This method is applied to the fields of the objects that have just been copied.
@@ -209,7 +210,7 @@ private:
   inline void update_numa_stats(uint node_index);
 
 public:
-  oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, markWord old_mark);
+  template <class T> oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, T* p, markWord old_mark);
 
   inline void trim_queue();
   inline void trim_queue_partially();
