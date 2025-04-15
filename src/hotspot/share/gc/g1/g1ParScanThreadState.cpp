@@ -513,11 +513,27 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       }
       _age_table.add(age, word_sz);
     } else {
-      HeapRegion* r = g1h->heap_region_containing(p);
-      HeapWord* const start_address = r->is_humongous() ?
-                                      r->humongous_start_region()->bottom() :
-                                      r->block_start(p);
-      _g1h->reference_dictionary()->add_klass(cast_to_oop(start_address)->klass(), klass);
+      // log_info(gc)("p is %p", p);
+      log_info(gc)("p is %p", _g1h->heap_region_containing_or_null((void*)p));
+
+      // if(
+      //   _g1h->is_in_reserved((void*)p) &&
+      //   _g1h->heap_region_containing_or_null((void*)p) != nullptr 
+      //   && _g1h->block_is_obj((HeapWord*)p)
+      // ){
+      //   HeapRegion* r = _g1h->heap_region_containing(p);
+      //   HeapWord* const pb = r->parsable_bottom_acquire();
+      //   if ( r->obj_in_parsable_area((HeapWord*)p, pb)) {
+      //     HeapWord* const start_address = 
+      //       r->is_humongous() ?
+      //       r->humongous_start_region()->bottom() :
+      //       r->block_start(p, pb);
+      //   }
+      // }
+
+      // _g1h->reference_dictionary()->add_klass(Thread::current(), cast_to_oop(start_address)->klass(), klass);
+      // _g1h->reference_dictionary()->add_klass(Thread::current(), klass, klass);
+
       update_bot_after_copying(obj, word_sz);
     }
 
@@ -562,7 +578,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 }
 
 // Public not-inline entry point.
-template <class T>
+template <typename T>
 ATTRIBUTE_FLATTEN
 oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr region_attr,
                                                  oop old,
@@ -570,6 +586,20 @@ oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr region_attr,
                                                  markWord old_mark) {
   return do_copy_to_survivor_space(region_attr, old, p, old_mark);
 }
+
+template
+ATTRIBUTE_FLATTEN
+oop G1ParScanThreadState::copy_to_survivor_space<narrowOop>(G1HeapRegionAttr region_attr,
+                                                 oop old,
+                                                 narrowOop* p,
+                                                 markWord old_mark);
+
+template
+ATTRIBUTE_FLATTEN
+oop G1ParScanThreadState::copy_to_survivor_space<oop>(G1HeapRegionAttr region_attr,
+                                                oop old,
+                                                oop* p,
+                                                markWord old_mark);
 
 G1ParScanThreadState* G1ParScanThreadStateSet::state_for_worker(uint worker_id) {
   assert(worker_id < _num_workers, "out of bounds access");

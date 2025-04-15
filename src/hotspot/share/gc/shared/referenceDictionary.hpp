@@ -39,7 +39,7 @@ class ReferenceDictionary : public CHeapObj<mtClass> {
    ReferenceDictionary(size_t table_size);
    ~ReferenceDictionary();
  
-   void add_klass(JavaThread* current, Klass* from, Klass* to);
+   void add_klass(Thread* current, Klass* from, Klass* to);
  
    ReferenceDictionaryEntry* find_entry(Thread* current, Klass* from, Klass* to);
  

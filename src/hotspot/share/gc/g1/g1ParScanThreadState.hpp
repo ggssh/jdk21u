@@ -210,7 +210,8 @@ private:
   inline void update_numa_stats(uint node_index);
 
 public:
-  template <class T> oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, T* p, markWord old_mark);
+  template <typename T> 
+  oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, T* p, markWord old_mark);
 
   inline void trim_queue();
   inline void trim_queue_partially();

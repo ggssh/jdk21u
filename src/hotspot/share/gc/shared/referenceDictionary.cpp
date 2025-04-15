@@ -128,7 +128,7 @@ public:
 };
  
 // Add a loaded class to the ReferenceDictionary.
-void ReferenceDictionary::add_klass(JavaThread* current, Klass* from, Klass* to) {
+void ReferenceDictionary::add_klass(Thread* current, Klass* from, Klass* to) {
 //   assert_locked_or_safepoint(SystemDictionary_lock); // doesn't matter now
 //   assert(obj != nullptr, "adding nullptr obj");
 //   assert(obj->name() == class_name, "sanity check on name");
