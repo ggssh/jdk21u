@@ -383,6 +383,55 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous(MemRegion mr,
   }
 }
 
+
+template <bool in_gc_pause>
+HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
+                                                        G1ScanCardClosure* cl) {
+  assert(is_humongous(), "precondition");
+  HeapRegion* sr = humongous_start_region();
+  oop obj = cast_to_oop(sr->bottom());
+
+  // If concurrent and klass_or_null is null, then space has been
+  // allocated but the object has not yet been published by setting
+  // the klass.  That can only happen if the card is stale.  However,
+  // we've already set the card clean, so we must return failure,
+  // since the allocating thread could have performed a write to the
+  // card that might be missed otherwise.
+  if (!in_gc_pause && (obj->klass_or_null_acquire() == nullptr)) {
+    return nullptr;
+  }
+
+  // We have a well-formed humongous object at the start of sr.
+  // Only filler objects follow a humongous object in the containing
+  // regions, and we can ignore those.  So only process the one
+  // humongous object.
+
+    G1CollectedHeap* g1h = G1CollectedHeap::heap();
+
+  if (obj->is_objArray() || (sr->bottom() < mr.start())) {
+    // objArrays are always marked precisely, so limit processing
+    // with mr.  Non-objArrays might be precisely marked, and since
+    // it's humongous it's worthwhile avoiding full processing.
+    // However, the card could be stale and only cover filler
+    // objects.  That should be rare, so not worth checking for;
+    // instead let it fall out from the bounded iteration.
+    obj->oop_iterate(cl, mr);
+    g1h->reference_dictionary()->add_klass(obj->klass(), obj->klass());
+    return mr.end();
+  } else {
+    // If obj is not an objArray and mr contains the start of the
+    // obj, then this could be an imprecise mark, and we need to
+    // process the entire object.
+    size_t size = obj->oop_iterate_size(cl);
+    g1h->reference_dictionary()->add_klass(obj->klass(), obj->klass());
+    // We have scanned to the end of the object, but since there can be no objects
+    // after this humongous object in the region, we can return the end of the
+    // region if it is greater.
+    return MAX2(cast_from_oop<HeapWord*>(obj) + size, mr.end());
+  }
+}
+
+
 template <class Closure>
 inline HeapWord* HeapRegion::oops_on_memregion_iterate_in_unparsable(MemRegion mr, HeapWord* block_start, Closure* cl) {
   HeapWord* const start = mr.start();
@@ -492,6 +541,72 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate(MemRegion mr, Closure* cl
   }
 }
 
+template <bool in_gc_pause>
+inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, G1ScanCardClosure* cl) {
+  // Cache the boundaries of the memory region in some const locals
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+  HeapWord* const start = mr.start();
+  HeapWord* const end = mr.end();
+
+  // Snapshot the region's parsable_bottom.
+  HeapWord* const pb = in_gc_pause ? parsable_bottom() : parsable_bottom_acquire();
+
+  // Find the obj that extends onto mr.start().
+  //
+  // The BOT itself is stable enough to be read at any time as
+  //
+  // * during refinement the individual elements of the BOT are read and written
+  //   atomically and any visible mix of new and old BOT entries will eventually lead
+  //   to some (possibly outdated) object start.
+  //
+  // * during GC the BOT does not change while reading, and the objects corresponding
+  //   to these block starts are valid as "holes" are filled atomically wrt to
+  //   safepoints.
+  //
+  HeapWord* cur = block_start(start, pb);
+  if (!obj_in_parsable_area(start, pb)) {
+    // Limit the MemRegion to the part of the area to scan to the unparsable one as using the bitmap
+    // is slower than blindly iterating the objects.
+    MemRegion mr_in_unparsable(mr.start(), MIN2(mr.end(), pb));
+    cur = oops_on_memregion_iterate_in_unparsable<Closure>(mr_in_unparsable, cur, cl);
+    // We might have scanned beyond end at this point because of imprecise iteration.
+    if (cur >= end) {
+      return cur;
+    }
+    // Parsable_bottom is always the start of a valid parsable object, so we must either
+    // have stopped at parsable_bottom, or already iterated beyond end. The
+    // latter case is handled above.
+    assert(cur == pb, "must be cur " PTR_FORMAT " pb " PTR_FORMAT, p2i(cur), p2i(pb));
+  }
+  assert(cur < top(), "must be cur " PTR_FORMAT " top " PTR_FORMAT, p2i(cur), p2i(top()));
+
+  // All objects >= pb are parsable. So we can just take object sizes directly.
+  while (true) {
+    oop obj = cast_to_oop(cur);
+    g1h->reference_dictionary()->add_klass(obj->klass(), obj->klass());
+    assert(oopDesc::is_oop(obj, true), "Not an oop at " PTR_FORMAT, p2i(cur));
+
+    bool is_precise = false;
+
+    cur += obj->size();
+    // Process live object's references.
+
+    // Non-objArrays are usually marked imprecise at the object
+    // start, in which case we need to iterate over them in full.
+    // objArrays are precisely marked, but can still be iterated
+    // over in full if completely covered.
+    if (!obj->is_objArray() || (cast_from_oop<HeapWord*>(obj) >= start && cur <= end)) {
+      obj->oop_iterate(cl);
+    } else {
+      obj->oop_iterate(cl, mr);
+      is_precise = true;
+    }
+    if (cur >= end) {
+      return is_precise ? end : cur;
+    }
+  }
+}
+
 template <bool in_gc_pause, class Closure>
 HeapWord* HeapRegion::oops_on_memregion_seq_iterate_careful(MemRegion mr,
                                                             Closure* cl) {
@@ -513,6 +628,30 @@ HeapWord* HeapRegion::oops_on_memregion_seq_iterate_careful(MemRegion mr,
 
   return oops_on_memregion_iterate<Closure, in_gc_pause>(mr, cl);
 }
+
+
+template <bool in_gc_pause>
+HeapWord* HeapRegion::oops_on_memregion_seq_iterate_careful_with_klass(MemRegion mr,
+                                                            G1ScanCardClosure* cl) {
+  assert(MemRegion(bottom(), top()).contains(mr), "Card region not in heap region");
+
+  // Special handling for humongous regions.
+  if (is_humongous()) {
+    return do_oops_on_memregion_in_humongous_with_klass<in_gc_pause>(mr, cl);
+  }
+  assert(is_old(), "Wrongly trying to iterate over region %u type %s", _hrm_index, get_type_str());
+
+  // Because mr has been trimmed to what's been allocated in this
+  // region, the objects in these parts of the heap have non-null
+  // klass pointers. There's no need to use klass_or_null to detect
+  // in-progress allocation.
+  // We might be in the progress of scrubbing this region and in this
+  // case there might be objects that have their classes unloaded and
+  // therefore needs to be scanned using the bitmap.
+
+  return oops_on_memregion_iterate_with_klass<in_gc_pause>(mr, cl);
+}
+
 
 inline int HeapRegion::age_in_surv_rate_group() const {
   assert(has_surv_rate_group(), "pre-condition");

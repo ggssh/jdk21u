@@ -219,6 +219,8 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 MAYBE_INLINE_EVACUATION
 void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   oop from_obj = task.to_source_array();
+  _g1h->reference_dictionary()->add_klass(from_obj->klass(), from_obj->klass());
+
 
   assert(_g1h->is_in_reserved(from_obj), "must be in heap.");
   assert(from_obj->is_objArray(), "must be obj array");
@@ -251,6 +253,7 @@ MAYBE_INLINE_EVACUATION
 void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
                                                   oop from_obj,
                                                   oop to_obj) {
+  _g1h->reference_dictionary()->add_klass(from_obj->klass(), from_obj->klass());
   assert(from_obj->is_objArray(), "precondition");
   assert(from_obj->is_forwarded(), "precondition");
   assert(from_obj->forwardee() == to_obj, "precondition");
