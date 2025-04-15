@@ -47,6 +47,7 @@
 #include "gc/g1/g1YoungGCEvacFailureInjector.hpp"
 #include "gc/g1/heapRegionManager.hpp"
 #include "gc/g1/heapRegionSet.hpp"
+#include "gc/shared/referenceDictionary.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
@@ -193,6 +194,8 @@ private:
 
   // The block offset table for the G1 heap.
   G1BlockOffsetTable* _bot;
+
+  ReferenceDictionary* _reference_dictionary;
 
 public:
   void rebuild_free_region_list();

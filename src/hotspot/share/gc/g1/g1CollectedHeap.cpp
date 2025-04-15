@@ -93,6 +93,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "gc/shared/workerPolicy.hpp"
 #include "gc/shared/weakProcessor.inline.hpp"
+#include "gc/shared/referenceDictionary.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/heapInspection.hpp"
@@ -1235,6 +1236,7 @@ G1CollectedHeap::G1CollectedHeap() :
   _old_set("Old Region Set", new OldRegionSetChecker()),
   _humongous_set("Humongous Region Set", new HumongousRegionSetChecker()),
   _bot(nullptr),
+  _reference_dictionary(new ReferenceDictionary(2000)),
   _listener(),
   _numa(G1NUMA::create()),
   _hrm(),

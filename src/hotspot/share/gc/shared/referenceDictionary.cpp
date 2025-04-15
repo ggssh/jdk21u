@@ -24,9 +24,8 @@
 
  #include "precompiled.hpp"
  #include "classfile/classLoaderData.inline.hpp"
- #include "gc/shared/ReferenceDictionary.hpp"
+ #include "gc/shared/referenceDictionary.hpp"
  #include "classfile/javaClasses.hpp"
- #include "classfile/protectionDomainCache.hpp"
  #include "classfile/systemDictionary.hpp"
  #include "classfile/vmSymbols.hpp"
  #include "logging/log.hpp"
@@ -116,7 +115,7 @@ private:
 public:
   DictionaryLookup(Klass* from, Klass* to) : _from(from), _to(to) { }
   uintx get_hash() const {
-    return _from->->name()->identity_hash() + _to->name()->identity_hash();
+    return _from->name()->identity_hash() + _to->name()->identity_hash();
   }
   bool equals(ReferenceDictionaryEntry** value) {
     ReferenceDictionaryEntry *entry = *value;
@@ -134,7 +133,7 @@ void ReferenceDictionary::add_klass(JavaThread* current, Klass* from, Klass* to)
 //   assert(obj != nullptr, "adding nullptr obj");
 //   assert(obj->name() == class_name, "sanity check on name");
 
-  ReferenceDictionaryEntry* entry = new ReferenceDictionaryEntry(obj);
+  ReferenceDictionaryEntry* entry = new ReferenceDictionaryEntry(from, to);
   DictionaryLookup lookup(from, to);
   bool needs_rehashing, clean_hint;
   bool created = _table->insert(current, lookup, entry, &needs_rehashing, &clean_hint);
@@ -147,13 +146,13 @@ void ReferenceDictionary::add_klass(JavaThread* current, Klass* from, Klass* to)
     _table->grow(current);
 
     // It would be nice to have a JFR event here, add some logging.
-    LogTarget(Info, class, loader, data) lt;
-    if (lt.is_enabled()) {
-      ResourceMark rm;
-      LogStream ls(&lt);
-      ls.print("ReferenceDictionary resized to %d entries %d for ", table_size(), _number_of_entries);
-      loader_data()->print_value_on(&ls);
-    }
+    // LogTarget(Info, class, loader, data) lt;
+    // if (lt.is_enabled()) {
+    //   ResourceMark rm;
+    //   LogStream ls(&lt);
+    //   ls.print("ReferenceDictionary resized to %d entries %d for ", table_size(), _number_of_entries);
+    //   loader_data()->print_value_on(&ls);
+    // }
   }
 }
 
@@ -182,22 +181,22 @@ ReferenceDictionaryEntry* ReferenceDictionary::get_entry(Thread* current,
 }
 
 
-InstanceKlass* ReferenceDictionary::find(Thread* current, Symbol* name,
-                                Handle protection_domain) {
-  NoSafepointVerifier nsv;
+// InstanceKlass* ReferenceDictionary::find(Thread* current, Symbol* name,
+//                                 Handle protection_domain) {
+//   NoSafepointVerifier nsv;
 
-  ReferenceDictionaryEntry* entry = get_entry(current, name);
-  if (entry != nullptr && entry->is_valid_protection_domain(protection_domain)) {
-    return entry->instance_klass();
-  } else {
-    return nullptr;
-  }
-}
+//   ReferenceDictionaryEntry* entry = get_entry(current, name);
+//   if (entry != nullptr && entry->is_valid_protection_domain(protection_domain)) {
+//     return entry->instance_klass();
+//   } else {
+//     return nullptr;
+//   }
+// }
 
 ReferenceDictionaryEntry* ReferenceDictionary::find_entry(Thread* current,
                                       Klass* from, Klass* to) {
 //   assert_locked_or_safepoint(SystemDictionary_lock);
-  ReferenceDictionaryEntry* entry = get_entry(current, name);
+  ReferenceDictionaryEntry* entry = get_entry(current, from, to);
   return entry;
 }
 
