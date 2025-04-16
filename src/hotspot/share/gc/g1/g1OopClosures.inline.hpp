@@ -156,6 +156,7 @@ inline void G1ConcurrentRefineOopClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1ScanCardClosure::do_oop_work(T* p) {
+  static uint x = 0;
   T o = RawAccess<>::oop_load(p);
   if (CompressedOops::is_null(o)) {
     return;
@@ -172,6 +173,31 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   if (region_attr.is_in_cset()) {
     // Since the source is always from outside the collection set, here we implicitly know
     // that this is a cross-region reference too.
+    // if (_from_klass != nullptr && ( _from_klass->is_instance_klass() || _from_klass->is_array_klass() ) && _from_klass->name() != nullptr) {
+    if (_from_klass_name != nullptr) {
+      G1CollectedHeap* g1h = G1CollectedHeap::heap();
+      // uint v = _from_klass->name()->identity_hash();
+      uint v = _from_klass_name->identity_hash();
+      uint u = obj->klass()->name()->identity_hash();
+      x += v;
+      x += u;
+    //   if(name != nullptr) {
+    //     // uint v = name->identity_hash();
+    //     name->print();
+    //     // x += v;
+      ReferenceDictionaryEntry* entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass, obj->klass());
+      if( entry == nullptr) {
+        ResourceMark rm;
+        g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, obj->klass());
+        log_info(gc)("adding new ref %s to %s", _from_klass->name()->as_C_string(), obj->klass()->name()->as_C_string());
+        entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass, obj->klass());
+      }
+      entry->_times += 1;
+      g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, obj->klass());
+    //     // g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, _from_klass);
+    //   }
+
+    }
     prefetch_and_push(p, obj);
     _heap_roots_found++;
   } else if (!HeapRegion::is_in_same_region(p, obj)) {

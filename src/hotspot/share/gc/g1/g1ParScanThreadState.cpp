@@ -219,7 +219,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
 MAYBE_INLINE_EVACUATION
 void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   oop from_obj = task.to_source_array();
-  _g1h->reference_dictionary()->add_klass(from_obj->klass(), from_obj->klass());
+  // _g1h->reference_dictionary()->add_klass(Thread::current(), from_obj->klass(), from_obj->klass());
 
 
   assert(_g1h->is_in_reserved(from_obj), "must be in heap.");
@@ -253,7 +253,7 @@ MAYBE_INLINE_EVACUATION
 void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
                                                   oop from_obj,
                                                   oop to_obj) {
-  _g1h->reference_dictionary()->add_klass(from_obj->klass(), from_obj->klass());
+  // _g1h->reference_dictionary()->add_klass(Thread::current(), from_obj->klass(), from_obj->klass());
   assert(from_obj->is_objArray(), "precondition");
   assert(from_obj->is_forwarded(), "precondition");
   assert(from_obj->forwardee() == to_obj, "precondition");
@@ -517,7 +517,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       _age_table.add(age, word_sz);
     } else {
       // log_info(gc)("p is %p", p);
-      log_info(gc)("p is %p", _g1h->heap_region_containing_or_null((void*)p));
+      // log_info(gc)("p is %p", _g1h->heap_region_containing_or_null((void*)p));
 
       // if(
       //   _g1h->is_in_reserved((void*)p) &&

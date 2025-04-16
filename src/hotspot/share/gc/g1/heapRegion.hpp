@@ -44,6 +44,7 @@ class HeapRegionRemSet;
 class HeapRegion;
 class HeapRegionSetBase;
 class nmethod;
+class G1ScanCardClosure;
 
 #define HR_FORMAT "%u:(%s)[" PTR_FORMAT "," PTR_FORMAT "," PTR_FORMAT "]"
 #define HR_FORMAT_PARAMS(_hr_) \

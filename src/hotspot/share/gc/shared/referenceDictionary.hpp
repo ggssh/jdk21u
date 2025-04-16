@@ -67,6 +67,8 @@ class ReferenceDictionaryEntry : public CHeapObj<mtClass> {
    //
    Klass* _from_klass;
    Klass* _to_klass;
+  public:
+   size_t _times;
  
   public:
    ReferenceDictionaryEntry(Klass* from_klass, Klass* to_klass);

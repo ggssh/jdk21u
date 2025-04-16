@@ -79,7 +79,7 @@
  }
  
  ReferenceDictionaryEntry::ReferenceDictionaryEntry(Klass* from_class, Klass* to_class)
-   : _from_klass(from_class), _to_klass(to_class) {
+   : _from_klass(from_class), _to_klass(to_class), _times(0) {
  }
  
  ReferenceDictionaryEntry::~ReferenceDictionaryEntry() {
@@ -132,6 +132,12 @@ void ReferenceDictionary::add_klass(Thread* current, Klass* from, Klass* to) {
 //   assert_locked_or_safepoint(SystemDictionary_lock); // doesn't matter now
 //   assert(obj != nullptr, "adding nullptr obj");
 //   assert(obj->name() == class_name, "sanity check on name");
+
+  if(from == nullptr || to == nullptr) {
+    return;
+  }
+
+  to = from;
 
   ReferenceDictionaryEntry* entry = new ReferenceDictionaryEntry(from, to);
   DictionaryLookup lookup(from, to);

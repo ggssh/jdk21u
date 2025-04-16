@@ -62,6 +62,8 @@ public:
 // Used to scan cards from the DCQS or the remembered sets during garbage collection.
 class G1ScanCardClosure : public G1ScanClosureBase {
   size_t& _heap_roots_found;
+  Klass* _from_klass;
+  Symbol* _from_klass_name;
 public:
   G1ScanCardClosure(G1CollectedHeap* g1h,
                     G1ParScanThreadState* pss,
@@ -71,6 +73,14 @@ public:
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }
+  void set_from_klass(Klass* k) {
+    _from_klass = k;
+    if( k != nullptr){
+      _from_klass_name = k->name();
+    } else {
+      _from_klass_name = nullptr;
+    }
+  }
 };
 
 // Used during Optional RS scanning to make sure we trim the queues in a timely manner.

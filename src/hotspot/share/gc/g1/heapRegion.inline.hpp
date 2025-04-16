@@ -408,6 +408,8 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
 
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
+  static uint x = 0;
+
   if (obj->is_objArray() || (sr->bottom() < mr.start())) {
     // objArrays are always marked precisely, so limit processing
     // with mr.  Non-objArrays might be precisely marked, and since
@@ -415,15 +417,21 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
     // However, the card could be stale and only cover filler
     // objects.  That should be rare, so not worth checking for;
     // instead let it fall out from the bounded iteration.
+    cl->set_from_klass(obj->klass());
+    x += obj->klass()->name()->identity_hash();
     obj->oop_iterate(cl, mr);
-    g1h->reference_dictionary()->add_klass(obj->klass(), obj->klass());
+    cl->set_from_klass(nullptr);
+    // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
     return mr.end();
   } else {
     // If obj is not an objArray and mr contains the start of the
     // obj, then this could be an imprecise mark, and we need to
     // process the entire object.
+    cl->set_from_klass(obj->klass());
+    x += obj->klass()->name()->identity_hash();
     size_t size = obj->oop_iterate_size(cl);
-    g1h->reference_dictionary()->add_klass(obj->klass(), obj->klass());
+    cl->set_from_klass(nullptr);
+    // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
     // We have scanned to the end of the object, but since there can be no objects
     // after this humongous object in the region, we can return the end of the
     // region if it is greater.
@@ -581,9 +589,10 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
   assert(cur < top(), "must be cur " PTR_FORMAT " top " PTR_FORMAT, p2i(cur), p2i(top()));
 
   // All objects >= pb are parsable. So we can just take object sizes directly.
+  static uint x = 0;
   while (true) {
     oop obj = cast_to_oop(cur);
-    g1h->reference_dictionary()->add_klass(obj->klass(), obj->klass());
+    // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
     assert(oopDesc::is_oop(obj, true), "Not an oop at " PTR_FORMAT, p2i(cur));
 
     bool is_precise = false;
@@ -595,12 +604,16 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
     // start, in which case we need to iterate over them in full.
     // objArrays are precisely marked, but can still be iterated
     // over in full if completely covered.
+    cl->set_from_klass(obj->klass());
+    x += obj->klass()->name()->identity_hash();
     if (!obj->is_objArray() || (cast_from_oop<HeapWord*>(obj) >= start && cur <= end)) {
       obj->oop_iterate(cl);
     } else {
       obj->oop_iterate(cl, mr);
       is_precise = true;
     }
+    cl->set_from_klass(nullptr);
+
     if (cur >= end) {
       return is_precise ? end : cur;
     }
