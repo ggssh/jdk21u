@@ -79,7 +79,16 @@ public:
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }
-  void set_from_klass(Klass* k);
+  void set_from_klass(Klass* k) {
+    _from_klass = k;
+    if( k != nullptr){
+      // log_info(gc)("handle 1");
+      _from_klass_name = SymbolHandle(k->name());
+    } else {
+      // log_info(gc)("handle 2");
+      _from_klass_name = SymbolHandle();
+    }
+  }
 };
 
 // Used during Optional RS scanning to make sure we trim the queues in a timely manner.

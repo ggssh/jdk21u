@@ -56,10 +56,10 @@ class ReferenceHashMap : CHeapObj<mtGC> {
 
 private:
     static void print_entries(const ReferenceEntry& entry, const size_t& value){
-        // log_info(gc)("ReferenceHashMap: %s -> %s : %zu",
-        //              entry.from_symbol()->as_C_string(),
-        //              entry.to_symbol()->as_C_string(),
-        //              value);
+        log_info(gc)("ReferenceHashMap: %s -> %s : %zu",
+                     entry.from_symbol()->as_C_string(),
+                     entry.to_symbol()->as_C_string(),
+                     value);
     }
 
 public:
@@ -78,11 +78,11 @@ public:
             _table->insert(entry, value + 1);
         } else {
             _table->insert(entry, 1);
-            ResourceMark rm;
-            log_info(gc)("ReferenceHashMap: %s -> %s : %zu",
-                entry.from_symbol()->as_C_string(),
-                entry.to_symbol()->as_C_string(),
-                value);
+            // ResourceMark rm;
+            // log_info(gc)("add ReferenceHashMap: %s -> %s : %zu",
+            //     entry.from_symbol()->as_C_string(),
+            //     entry.to_symbol()->as_C_string(),
+            //     value);
         }
     }
 

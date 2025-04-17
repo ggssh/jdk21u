@@ -177,7 +177,7 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
     // that this is a cross-region reference too.
     // if (_from_klass != nullptr && ( _from_klass->is_instance_klass() || _from_klass->is_array_klass() ) && _from_klass->name() != nullptr) {
     if (_from_klass_name != nullptr) {
-      log_info(gc)("exist");
+      // log_info(gc)("exist");
       G1CollectedHeap* g1h = G1CollectedHeap::heap();
       SymbolHandle to_name = SymbolHandle(obj->klass()->name());
       // uint v = _from_klass->name()->identity_hash();
@@ -212,16 +212,6 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   }
 }
 
-void G1ScanCardClosure::set_from_klass(Klass* k) {
-  _from_klass = k;
-  if( k != nullptr){
-    log_info(gc)("handle 1");
-    _from_klass_name = SymbolHandle(k->name());
-  } else {
-    log_info(gc)("handle 2");
-    _from_klass_name = SymbolHandle();
-  }
-}
 
 template <class T>
 inline void G1ScanRSForOptionalClosure::do_oop_work(T* p) {

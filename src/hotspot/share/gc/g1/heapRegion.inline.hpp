@@ -34,6 +34,8 @@
 #include "gc/g1/g1MonotonicArena.inline.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1Predictions.hpp"
+#include "gc/g1/g1OopClosures.hpp"
+#include "gc/g1/g1OopClosures.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/init.hpp"
@@ -576,7 +578,7 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
     // Limit the MemRegion to the part of the area to scan to the unparsable one as using the bitmap
     // is slower than blindly iterating the objects.
     MemRegion mr_in_unparsable(mr.start(), MIN2(mr.end(), pb));
-    cur = oops_on_memregion_iterate_in_unparsable<Closure>(mr_in_unparsable, cur, cl);
+    cur = oops_on_memregion_iterate_in_unparsable<G1ScanCardClosure>(mr_in_unparsable, cur, cl);
     // We might have scanned beyond end at this point because of imprecise iteration.
     if (cur >= end) {
       return cur;
