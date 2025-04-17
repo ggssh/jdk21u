@@ -1237,6 +1237,7 @@ G1CollectedHeap::G1CollectedHeap() :
   _humongous_set("Humongous Region Set", new HumongousRegionSetChecker()),
   _bot(nullptr),
   // _reference_dictionary(new ReferenceDictionary(2000)),
+  _reference_hash_map(20),
   _listener(),
   _numa(G1NUMA::create()),
   _hrm(),

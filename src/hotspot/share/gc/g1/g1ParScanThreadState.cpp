@@ -117,7 +117,8 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
 }
 
 size_t G1ParScanThreadState::flush_stats(size_t* surviving_young_words, uint num_workers) {
-  _reference_hash_map.print_all();
+  // _reference_hash_map.print_all();
+  _g1h->merge_reference_hash_map(&_reference_hash_map);
   _rdc_local_qset.flush();
   flush_numa_stats();
   // Update allocation statistics.
@@ -249,9 +250,11 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   // Process claimed task.  The length of to_array is not correct, but
   // fortunately the iteration ignores the length field and just relies
   // on start/end.
+  _scanner->set_from_klass(from_obj->klass());
   to_array->oop_iterate_range(&_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
+  _scanner->set_from_klass(nullptr);
 }
 
 MAYBE_INLINE_EVACUATION
@@ -288,7 +291,9 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   // klass, as it will already be handled by processing the built-in
   // module. The length of to_array is not correct, but fortunately
   // the iteration ignores that length field and relies on start/end.
+  _scanner->set_from_klass(from_obj->klass());
   to_array->oop_iterate_range(&_scanner, 0, step._index);
+  _scanner->set_from_klass(nullptr);
 }
 
 MAYBE_INLINE_EVACUATION
@@ -577,7 +582,9 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
     // equal: successfully allocated young regions must be survivor regions.
     assert(dest_attr.is_young() == _g1h->heap_region_containing(obj)->is_survivor(), "must be");
     G1SkipCardEnqueueSetter x(&_scanner, dest_attr.is_young());
+    _scanner->set_from_klass(klass);
     obj->oop_iterate_backwards(&_scanner, klass);
+    _scanner->set_from_klass(nullptr);
     return obj;
   } else {
     _plab_allocator->undo_allocation(dest_attr, obj_ptr, word_sz, node_index);

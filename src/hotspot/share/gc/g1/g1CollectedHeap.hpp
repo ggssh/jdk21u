@@ -47,7 +47,7 @@
 #include "gc/g1/g1YoungGCEvacFailureInjector.hpp"
 #include "gc/g1/heapRegionManager.hpp"
 #include "gc/g1/heapRegionSet.hpp"
-// #include "gc/shared/referenceDictionary.hpp"
+#include "gc/shared/referenceHashMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
@@ -195,7 +195,14 @@ private:
   // The block offset table for the G1 heap.
   G1BlockOffsetTable* _bot;
 
+  ReferenceHashMap _reference_hash_map;
   // ReferenceDictionary* _reference_dictionary;
+
+private:
+  void merge_entry(ReferenceEntry& k, size_t& v) {
+    // Merge the entry with the existing one.
+    _reference_hash_map.add_or_inc(k.from_symbol(), k.to_symbol(), v);
+  }
 
 public:
   void rebuild_free_region_list();
@@ -203,6 +210,13 @@ public:
   void start_new_collection_set();
 
   void prepare_region_for_full_compaction(HeapRegion* hr);
+
+  ReferenceHashMap* reference_hash_map() {
+    return &_reference_hash_map;
+  }
+
+  void merge_reference_hash_map(ReferenceHashMap* other_map) {
+  }
 
   // ReferenceDictionary* reference_dictionary() const {
   //   return _reference_dictionary;

@@ -71,13 +71,13 @@ public:
         delete _table;
     }
 
-    void add_or_inc(SymbolHandle from, SymbolHandle to){
+    void add_or_inc(SymbolHandle from, SymbolHandle to, size_t inc = 1) {
         ReferenceEntry entry(from, to);
         size_t value = 0;
         if(_table->get(entry, value)) {
-            _table->insert(entry, value + 1);
+            _table->insert(entry, value + inc);
         } else {
-            _table->insert(entry, 1);
+            _table->insert(entry, inc);
             // ResourceMark rm;
             // log_info(gc)("add ReferenceHashMap: %s -> %s : %zu",
             //     entry.from_symbol()->as_C_string(),
@@ -88,6 +88,10 @@ public:
 
     void print_all(){
         _table->forEach(print_entries);
+    }
+
+    voif for_each(void (*func)(const ReferenceEntry&, const size_t&)) const {
+        _table->forEach(func);
     }
 };
 

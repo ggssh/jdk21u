@@ -114,6 +114,7 @@ class G1ScanEvacuatedObjClosure : public G1ScanClosureBase {
   };
 
   SkipCardEnqueueTristate _skip_card_enqueue;
+  SymbolHandle _from_klass_name;
 
 public:
   G1ScanEvacuatedObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
@@ -129,6 +130,15 @@ public:
   void set_ref_discoverer(ReferenceDiscoverer* rd) {
     set_ref_discoverer_internal(rd);
   }
+
+  void set_from_klass(Klass* klass){
+    if( klass != nullptr){
+      _from_klass_name = SymbolHandle(klass->name());
+    } else {
+      _from_klass_name = SymbolHandle();
+    }
+  }
+
 };
 
 // RAII object to properly set the _skip_card_enqueue field in G1ScanEvacuatedObjClosure.

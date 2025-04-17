@@ -1055,6 +1055,8 @@ void G1YoungCollector::collect() {
     }
     post_evacuate_collection_set(jtm.evacuation_info(), &per_thread_states);
 
+    _g1h->reference_hash_map()->print_all();
+
     // Refine the type of a concurrent mark operation now that we did the
     // evacuation, eventually aborting it.
     _concurrent_operation_is_full_mark = policy()->concurrent_operation_is_full_mark("Revise IHOP");

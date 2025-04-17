@@ -90,6 +90,11 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
     prefetch_and_push(p, obj);
+    if (_from_klass_name != nullptr) {
+      G1CollectedHeap* g1h = G1CollectedHeap::heap();
+      SymbolHandle to_name = SymbolHandle(obj->klass()->name());
+      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, to_name);
+    }
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
     assert(_skip_card_enqueue != Uninitialized, "Scan location has not been initialized.");
