@@ -33,6 +33,7 @@
 #include "gc/g1/g1RemSet.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.inline.hpp"
+#include "gc/shared/referenceHashMap.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/iterator.inline.hpp"
@@ -40,6 +41,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "oops/oop.inline.hpp"
+// #include "oops/symbolHandle.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/align.hpp"
 
@@ -175,25 +177,29 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
     // that this is a cross-region reference too.
     // if (_from_klass != nullptr && ( _from_klass->is_instance_klass() || _from_klass->is_array_klass() ) && _from_klass->name() != nullptr) {
     if (_from_klass_name != nullptr) {
+      log_info(gc)("exist");
       G1CollectedHeap* g1h = G1CollectedHeap::heap();
+      SymbolHandle to_name = SymbolHandle(obj->klass()->name());
       // uint v = _from_klass->name()->identity_hash();
-      uint v = _from_klass_name->identity_hash();
-      uint u = obj->klass()->name()->identity_hash();
-      x += v;
-      x += u;
+      // uint v = _from_klass_name->identity_hash();
+      // uint u = to_name->identity_hash();
+      // x += v;
+      // x += u;
+      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, to_name);
+      // ReferenceHashMap map();
     //   if(name != nullptr) {
     //     // uint v = name->identity_hash();
     //     name->print();
     //     // x += v;
-      ReferenceDictionaryEntry* entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass, obj->klass());
-      if( entry == nullptr) {
-        ResourceMark rm;
-        g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, obj->klass());
-        log_info(gc)("adding new ref %s to %s", _from_klass->name()->as_C_string(), obj->klass()->name()->as_C_string());
-        entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass, obj->klass());
-      }
-      entry->_times += 1;
-      g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, obj->klass());
+      // ReferenceDictionaryEntry* entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass_name, to_name);
+      // if( entry == nullptr) {
+      //   ResourceMark rm;
+      //   g1h->reference_dictionary()->add_symbol(Thread::current(), _from_klass_name, to_name);
+      //   log_info(gc)("adding new ref %s to %s", _from_klass_name->as_C_string(), to_name->as_C_string());
+      //   entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass_name, to_name);
+      // }
+      // entry->_times += 1;
+      // g1h->reference_dictionary()->add_symbol(Thread::current(), _from_klass_name, to_name);
     //     // g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, _from_klass);
     //   }
 
@@ -203,6 +209,17 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
     _par_scan_state->enqueue_card_if_tracked(region_attr, p, obj);
+  }
+}
+
+void G1ScanCardClosure::set_from_klass(Klass* k) {
+  _from_klass = k;
+  if( k != nullptr){
+    log_info(gc)("handle 1");
+    _from_klass_name = SymbolHandle(k->name());
+  } else {
+    log_info(gc)("handle 2");
+    _from_klass_name = SymbolHandle();
   }
 }
 

@@ -36,6 +36,7 @@
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "gc/shared/taskqueue.hpp"
+#include "gc/shared/referenceHashMap.hpp"
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
 #include "utilities/ticks.hpp"
@@ -50,6 +51,7 @@ class HeapRegion;
 class PreservedMarks;
 class PreservedMarksSet;
 class outputStream;
+// class ReferenceHashMap;
 
 class G1ParScanThreadState : public CHeapObj<mtGC> {
   G1CollectedHeap* _g1h;
@@ -109,6 +111,8 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   PreservedMarks* _preserved_marks;
   EvacuationFailedInfo _evacuation_failed_info;
   G1EvacFailureRegions* _evac_failure_regions;
+  ReferenceHashMap _reference_hash_map;
+
 
   bool inject_evacuation_failure(uint region_idx) EVAC_FAILURE_INJECTOR_RETURN_( return false; );
 
@@ -229,6 +233,8 @@ public:
   inline void remember_reference_into_optional_region(T* p);
 
   inline G1OopStarChunkedList* oops_into_optional_region(const HeapRegion* hr);
+
+  ReferenceHashMap* reference_hash_map() { return &_reference_hash_map; }
 };
 
 class G1ParScanThreadStateSet : public StackObj {

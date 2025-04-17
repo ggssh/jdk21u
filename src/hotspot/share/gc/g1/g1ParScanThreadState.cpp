@@ -45,6 +45,9 @@
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+// #include "gc/shared/referenceHashMap.hpp"
+
+
 
 // In fastdebug builds the code size can get out of hand, potentially
 // tripping over compiler limits (which may be bugs, but nevertheless
@@ -88,7 +91,8 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
     EVAC_FAILURE_INJECTOR_ONLY(_evac_failure_inject_counter(0) COMMA)
     _preserved_marks(preserved_marks),
     _evacuation_failed_info(),
-    _evac_failure_regions(evac_failure_regions)
+    _evac_failure_regions(evac_failure_regions),
+    _reference_hash_map(16)
 {
   // We allocate number of young gen regions in the collection set plus one
   // entries, since entry 0 keeps track of surviving bytes for non-young regions.
@@ -113,6 +117,7 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
 }
 
 size_t G1ParScanThreadState::flush_stats(size_t* surviving_young_words, uint num_workers) {
+  _reference_hash_map.print_all();
   _rdc_local_qset.flush();
   flush_numa_stats();
   // Update allocation statistics.

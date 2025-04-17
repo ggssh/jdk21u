@@ -535,8 +535,8 @@ class G1ScanHRForRegionClosure : public HeapRegionClosure {
     HeapRegion* const card_region = _g1h->region_at(region_idx_for_card);
     G1ScanCardClosure card_cl(_g1h, _pss, _heap_roots_found);
 
-    HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful<true>(mr, &card_cl);
-    // HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful_with_klass<true>(mr, &card_cl);
+    // HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful<true>(mr, &card_cl);
+    HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful_with_klass<true>(mr, &card_cl);
 
     assert(scanned_to != nullptr, "Should be able to scan range");
     assert(scanned_to >= mr.end(), "Scanned to " PTR_FORMAT " less than range " PTR_FORMAT, p2i(scanned_to), p2i(mr.end()));

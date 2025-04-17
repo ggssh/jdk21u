@@ -29,6 +29,8 @@
 #include "gc/g1/g1HeapRegionAttr.hpp"
 #include "memory/iterator.hpp"
 #include "oops/markWord.hpp"
+#include "oops/symbolHandle.hpp"
+
 
 class HeapRegion;
 class G1CollectedHeap;
@@ -39,6 +41,8 @@ class G1ParScanThreadState;
 class G1ScanEvacuatedObjClosure;
 class G1CMTask;
 class ReferenceProcessor;
+// class SymbolHandle;
+
 
 class G1ScanClosureBase : public BasicOopIterateClosure {
 protected:
@@ -59,28 +63,23 @@ public:
   inline void trim_queue_partially();
 };
 
+
 // Used to scan cards from the DCQS or the remembered sets during garbage collection.
 class G1ScanCardClosure : public G1ScanClosureBase {
   size_t& _heap_roots_found;
   Klass* _from_klass;
-  Symbol* _from_klass_name;
+  SymbolHandle _from_klass_name;
+  // Symbol* _from_klass_name;
 public:
   G1ScanCardClosure(G1CollectedHeap* g1h,
                     G1ParScanThreadState* pss,
                     size_t& heap_roots_found) :
-    G1ScanClosureBase(g1h, pss), _heap_roots_found(heap_roots_found) { }
+    G1ScanClosureBase(g1h, pss), _heap_roots_found(heap_roots_found), _from_klass_name() { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }
-  void set_from_klass(Klass* k) {
-    _from_klass = k;
-    if( k != nullptr){
-      _from_klass_name = k->name();
-    } else {
-      _from_klass_name = nullptr;
-    }
-  }
+  void set_from_klass(Klass* k);
 };
 
 // Used during Optional RS scanning to make sure we trim the queues in a timely manner.
