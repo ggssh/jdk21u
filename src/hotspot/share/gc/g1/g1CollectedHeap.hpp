@@ -198,11 +198,23 @@ private:
   ReferenceHashMap _reference_hash_map;
   // ReferenceDictionary* _reference_dictionary;
 
+  class MergeEntryClosure {
+    public:
+    ReferenceHashMap* _reference_hash_map;
+
+    MergeEntryClosure(ReferenceHashMap* reference_hash_map) :
+      _reference_hash_map(reference_hash_map) {}
+
+    void work(const ReferenceEntry& k, const size_t& v){
+      _reference_hash_map->add_or_inc(k.from_symbol(), k.to_symbol(), v);
+    }
+  };
+
 private:
-  void merge_entry(ReferenceEntry& k, size_t& v) {
-    // Merge the entry with the existing one.
-    _reference_hash_map.add_or_inc(k.from_symbol(), k.to_symbol(), v);
-  }
+  // void merge_entry(const ReferenceEntry& k, const size_t& v) {
+  //   // Merge the entry with the existing one.
+  //   _reference_hash_map.add_or_inc(k.from_symbol(), k.to_symbol(), v);
+  // }
 
 public:
   void rebuild_free_region_list();
@@ -216,6 +228,8 @@ public:
   }
 
   void merge_reference_hash_map(ReferenceHashMap* other_map) {
+    MergeEntryClosure cl(&_reference_hash_map);
+    other_map->for_each_closure(&cl);
   }
 
   // ReferenceDictionary* reference_dictionary() const {

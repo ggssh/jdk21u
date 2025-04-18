@@ -69,6 +69,7 @@ class G1ScanCardClosure : public G1ScanClosureBase {
   size_t& _heap_roots_found;
   Klass* _from_klass;
   SymbolHandle _from_klass_name;
+  size_t _array_acc;
   // Symbol* _from_klass_name;
 public:
   G1ScanCardClosure(G1CollectedHeap* g1h,

@@ -32,8 +32,8 @@ public:
     ~ReferenceEntry() {};
 
 
-    SymbolHandle from_symbol() const { return _from_symbol; }
-    SymbolHandle to_symbol() const { return _to_symbol; }
+    inline SymbolHandle from_symbol() const { return _from_symbol; }
+    inline SymbolHandle to_symbol() const { return _to_symbol; }
 
 };
 
@@ -41,10 +41,10 @@ class ReferenceHashMap : CHeapObj<mtGC> {
 
     class Config {
     public:
-        static bool get_hash(const ReferenceEntry& entry) {
+        static inline bool get_hash(const ReferenceEntry& entry) {
             return entry.from_symbol()->identity_hash() + entry.to_symbol()->identity_hash();
         }
-        static bool key_equals(const ReferenceEntry& entry1, const ReferenceEntry& entry2) {
+        static inline bool key_equals(const ReferenceEntry& entry1, const ReferenceEntry& entry2) {
             return entry1.from_symbol() == entry2.from_symbol() &&
                    entry1.to_symbol() == entry2.to_symbol();
         }
@@ -71,27 +71,38 @@ public:
         delete _table;
     }
 
-    void add_or_inc(SymbolHandle from, SymbolHandle to, size_t inc = 1) {
+    inline void add_or_inc(SymbolHandle from, SymbolHandle to, size_t inc = 1) {
         ReferenceEntry entry(from, to);
-        size_t value = 0;
-        if(_table->get(entry, value)) {
-            _table->insert(entry, value + inc);
-        } else {
-            _table->insert(entry, inc);
-            // ResourceMark rm;
-            // log_info(gc)("add ReferenceHashMap: %s -> %s : %zu",
-            //     entry.from_symbol()->as_C_string(),
-            //     entry.to_symbol()->as_C_string(),
-            //     value);
+        // size_t value = 1;
+        size_t * old_value_ptr = nullptr;
+        _table->get_ptr_or_insert(entry, inc, old_value_ptr);
+        if(old_value_ptr != nullptr) {
+            (*old_value_ptr) += inc;
         }
+        // if(_table->get(entry, value)) {
+        //     _table->insert(entry, value + inc);
+        // } else {
+        //     _table->insert(entry, inc);
+        //     // ResourceMark rm;
+        //     // log_info(gc)("add ReferenceHashMap: %s -> %s : %zu",
+        //     //     entry.from_symbol()->as_C_string(),
+        //     //     entry.to_symbol()->as_C_string(),
+        //     //     value);
+        // }
     }
 
     void print_all(){
+        log_info(gc)("print entries");
         _table->forEach(print_entries);
     }
 
-    voif for_each(void (*func)(const ReferenceEntry&, const size_t&)) const {
+    inline void for_each(void (*func)(const ReferenceEntry&, const size_t&)) const {
         _table->forEach(func);
+    }
+
+    template <class Closure>
+    inline void for_each_closure(Closure* cl) {
+        _table->forEachClosure(cl);
     }
 };
 

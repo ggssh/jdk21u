@@ -88,11 +88,16 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   }
   oop obj = CompressedOops::decode_not_null(heap_oop);
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
+  static uint x = 0;
   if (region_attr.is_in_cset()) {
     prefetch_and_push(p, obj);
     if (_from_klass_name != nullptr) {
       G1CollectedHeap* g1h = G1CollectedHeap::heap();
       SymbolHandle to_name = SymbolHandle(obj->klass()->name());
+      // uint v = _from_klass_name->identity_hash();
+      // uint u = to_name->identity_hash();
+      // x += v;
+      // x += u;
       _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, to_name);
     }
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
@@ -185,29 +190,11 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
       // log_info(gc)("exist");
       G1CollectedHeap* g1h = G1CollectedHeap::heap();
       SymbolHandle to_name = SymbolHandle(obj->klass()->name());
-      // uint v = _from_klass->name()->identity_hash();
       // uint v = _from_klass_name->identity_hash();
       // uint u = to_name->identity_hash();
       // x += v;
       // x += u;
       _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, to_name);
-      // ReferenceHashMap map();
-    //   if(name != nullptr) {
-    //     // uint v = name->identity_hash();
-    //     name->print();
-    //     // x += v;
-      // ReferenceDictionaryEntry* entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass_name, to_name);
-      // if( entry == nullptr) {
-      //   ResourceMark rm;
-      //   g1h->reference_dictionary()->add_symbol(Thread::current(), _from_klass_name, to_name);
-      //   log_info(gc)("adding new ref %s to %s", _from_klass_name->as_C_string(), to_name->as_C_string());
-      //   entry = g1h->reference_dictionary()->find_entry(Thread::current(), _from_klass_name, to_name);
-      // }
-      // entry->_times += 1;
-      // g1h->reference_dictionary()->add_symbol(Thread::current(), _from_klass_name, to_name);
-    //     // g1h->reference_dictionary()->add_klass(Thread::current(), _from_klass, _from_klass);
-    //   }
-
     }
     prefetch_and_push(p, obj);
     _heap_roots_found++;

@@ -23,13 +23,13 @@ private:
     size_t capacity;
     size_t size;
 
-    uint hash(const K& key) const {
+    inline uint hash(const K& key) const {
         // Simple hash using std::hash
         return Config::get_hash(key) % capacity;
     }
 
 public:
-    HashMap(uint cap = 16) : capacity(1 << cap), size(0) {
+    HashMap(uint cap = 16) : capacity((1 << cap) - 1), size(0) {
         table = NEW_C_HEAP_ARRAY(Node*, capacity, F);
         for (size_t i = 0; i < capacity; ++i)
             table[i] = nullptr;
@@ -47,7 +47,7 @@ public:
         FREE_C_HEAP_ARRAY(Node*, table);
     }
 
-    void insert(const K& key, const V& value) {
+    inline void insert(const K& key, const V& value) {
         uint idx = hash(key);
         Node* curr = table[idx];
         while (curr) {
@@ -61,7 +61,7 @@ public:
         size++;
     }
 
-    bool get(const K& key, V& value) const {
+    inline bool get(const K& key, V& value) const {
         uint idx = hash(key);
         Node* curr = table[idx];
         while (curr) {
@@ -74,7 +74,21 @@ public:
         return false;
     }
 
-    bool remove(const K& key) {
+    inline void get_ptr_or_insert(const K& key, V& value, V*& old_value_ptr) {
+        uint idx = hash(key);
+        Node* curr = table[idx];
+        while (curr) {
+            if (Config::key_equals(curr->key, key)) {
+                old_value_ptr= &(curr->value);
+                return;
+            }
+            curr = curr->next;
+        }
+        table[idx] = new Node(key, value, table[idx]);
+        size++;
+    }
+
+    inline bool remove(const K& key) {
         uint idx = hash(key);
         Node* curr = table[idx];
         Node* prev = nullptr;
@@ -94,19 +108,30 @@ public:
         return false;
     }
 
-    size_t getSize() const {
+    inline size_t getSize() const {
         return size;
     }
 
-    bool isEmpty() const {
+    inline bool isEmpty() const {
         return size == 0;
     }
 
-    void forEach(void (*func)(const K&, const V&)) const {
+    inline void forEach(void (*func)(const K&, const V&)) const {
         for (size_t i = 0; i < capacity; ++i) {
             Node* curr = table[i];
             while (curr) {
                 func(curr->key, curr->value);
+                curr = curr->next;
+            }
+        }
+    }
+
+    template <class Closure>
+    inline void forEachClosure(Closure* cl) {
+        for (size_t i = 0; i < capacity; ++i) {
+            Node* curr = table[i];
+            while (curr) {
+                cl->work(curr->key, curr->value);
                 curr = curr->next;
             }
         }
