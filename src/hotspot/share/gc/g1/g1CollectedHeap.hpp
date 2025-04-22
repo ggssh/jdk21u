@@ -205,8 +205,8 @@ private:
     MergeEntryClosure(ReferenceHashMap* reference_hash_map) :
       _reference_hash_map(reference_hash_map) {}
 
-    void work(const ReferenceEntry& k, const size_t& v){
-      _reference_hash_map->add_or_inc(k.from_symbol(), k.to_symbol(), v);
+    void work(const SymbolHandle& from, const SymbolHandle& to, const size_t& v, const size_t& size) {
+      _reference_hash_map->add_or_inc(from, to, v, size);
     }
   };
 

@@ -93,12 +93,12 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
     prefetch_and_push(p, obj);
     if (_from_klass_name != nullptr) {
       G1CollectedHeap* g1h = G1CollectedHeap::heap();
-      SymbolHandle to_name = SymbolHandle(obj->klass()->name());
+      // SymbolHandle to_name = SymbolHandle(obj->klass()->name());
       // uint v = _from_klass_name->identity_hash();
       // uint u = to_name->identity_hash();
       // x += v;
       // x += u;
-      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, to_name);
+      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
     }
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
@@ -189,12 +189,12 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
     if (_from_klass_name != nullptr) {
       // log_info(gc)("exist");
       G1CollectedHeap* g1h = G1CollectedHeap::heap();
-      SymbolHandle to_name = SymbolHandle(obj->klass()->name());
+      // SymbolHandle to_name = SymbolHandle(obj->klass()->name());
       // uint v = _from_klass_name->identity_hash();
       // uint u = to_name->identity_hash();
       // x += v;
       // x += u;
-      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, to_name);
+      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
     }
     prefetch_and_push(p, obj);
     _heap_roots_found++;
