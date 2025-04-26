@@ -73,9 +73,11 @@ private:
     }
 
     static void print_entries(SymbolHandle& from, SymbolHandle& to, size_t& count, size_t& size) {
-        log_info(gc)("ReferenceHashMap: %s -> %s : count %zu size %zu",
+        log_info(gc)("ReferenceHashMap: %s -> %s (%u -> %u) : count %zu size %zu",
                      from->as_C_string(),
                      to->as_C_string(),
+                     from->identity_hash(),
+                     to->identity_hash(),
                      count, size);
     }
 
