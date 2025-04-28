@@ -2068,6 +2068,12 @@ void G1ConcurrentMark::print_on_error(outputStream* st) const {
   _mark_bitmap.print_on_error(st, " Bits: ");
 }
 
+void G1ConcurrentMark::merge_region_class() const {
+  for (uint i = 0; i < _max_num_tasks; ++i) {
+    _g1h->merge_region_class_hash_map(_tasks[i]->region_class_hash_map());
+  }
+}
+
 static ReferenceProcessor* get_cm_oop_closure_ref_processor(G1CollectedHeap* g1h) {
   ReferenceProcessor* result = g1h->ref_processor_cm();
   assert(result != nullptr, "CM reference processor should not be null");
@@ -2153,6 +2159,7 @@ void G1CMTask::reset(G1CMBitMap* mark_bitmap) {
   _termination_start_time_ms     = 0.0;
 
   _mark_stats_cache.reset();
+  _region_class_hash_map.clear();
 }
 
 bool G1CMTask::should_exit_termination() {

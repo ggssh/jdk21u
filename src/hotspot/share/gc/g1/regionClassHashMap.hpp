@@ -1,10 +1,10 @@
-#ifndef SHARE_GC_SHARED_REFERENCEHASHMAP_HPP
-#define SHARE_GC_SHARED_REFERENCEHASHMAP_HPP
+#ifndef SHARE_GC_SHARED_REGIONCLASSHASHMAP_HPP
+#define SHARE_GC_SHARED_REGIONCLASSHASHMAP_HPP
 
 #include "oops/symbolHandle.hpp"
 #include "utilities/ostream.hpp"
-#include "g1/heapRegion.hpp"
-#include "g1/heapRegion.inline.hpp"
+#include "gc/g1/heapRegion.hpp"
+// #include "gc/g1/heapRegion.inline.hpp"
 
 class RegionClassHashMap : CHeapObj<mtGC> {
     struct Node : public CHeapObj<mtGC> {
@@ -31,12 +31,10 @@ private:
         return entry->_obj_class == obj_class && entry->_region == region;
     }
 
-    static void print_entries(SymbolHandle& from, SymbolHandle& to, size_t& count, size_t& size) {
-        log_info(gc)("RegionClassHashMap: %s -> %s (%u -> %u) : count %zu size %zu",
-                     from->as_C_string(),
-                     to->as_C_string(),
-                     from->identity_hash(),
-                     to->identity_hash(),
+    static void print_entries(HeapRegion* region, SymbolHandle& obj_class, size_t& count, size_t& size) {
+        log_info(gc)("Region %u contains %s : count %zu size %zu",
+                     region->hrm_index(),
+                     obj_class->as_C_string(),
                      count, size);
     }
 
@@ -113,6 +111,18 @@ public:
     template <class Closure>
     inline void for_each_closure(Closure* cl) {
         forEachClosure(cl);
+    }
+
+    void clear() {
+        for (size_t i = 0; i < capacity; ++i) {
+            Node* curr = table[i];
+            table[i] = nullptr;
+            while (curr) {
+                Node* toDelete = curr;
+                curr = curr->_next;
+                delete toDelete;
+            }
+        }
     }
 };
 

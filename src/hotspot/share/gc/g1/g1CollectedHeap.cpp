@@ -1238,6 +1238,7 @@ G1CollectedHeap::G1CollectedHeap() :
   _bot(nullptr),
   // _reference_dictionary(new ReferenceDictionary(2000)),
   _reference_hash_map(20),
+  _region_class_hash_map(),
   _listener(),
   _numa(G1NUMA::create()),
   _hrm(),
