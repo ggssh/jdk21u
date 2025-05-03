@@ -591,6 +591,7 @@ public:
 // Used as a task queue element type.
 class ScannerTask {
   void* _p;
+  oop _from_oop;
 
   static const uintptr_t OopTag = 0;
   static const uintptr_t NarrowOopTag = 1;
@@ -618,14 +619,14 @@ class ScannerTask {
   }
 
 public:
-  ScannerTask() : _p(nullptr) {}
+  ScannerTask() : _p(nullptr), _from_oop(nullptr) {}
 
-  explicit ScannerTask(oop* p) : _p(encode(p, OopTag)) {}
+  explicit ScannerTask(oop* p, oop from_oop=nullptr) : _p(encode(p, OopTag)), _from_oop(from_oop) {}
 
-  explicit ScannerTask(narrowOop* p) : _p(encode(p, NarrowOopTag)) {}
+  explicit ScannerTask(narrowOop* p, oop from_oop=nullptr) : _p(encode(p, NarrowOopTag)), _from_oop(from_oop) {}
 
-  explicit ScannerTask(PartialArrayScanTask t) :
-    _p(encode(t.to_source_array(), PartialArrayTag)) {}
+  explicit ScannerTask(PartialArrayScanTask t, oop from_oop=nullptr) :
+    _p(encode(t.to_source_array(), PartialArrayTag)), _from_oop(from_oop) {}
 
   // Trivially copyable.
 
@@ -645,6 +646,10 @@ public:
 
   oop* to_oop_ptr() const {
     return static_cast<oop*>(decode(OopTag));
+  }
+
+  oop from_oop() const {
+    return _from_oop;
   }
 
   narrowOop* to_narrow_oop_ptr() const {

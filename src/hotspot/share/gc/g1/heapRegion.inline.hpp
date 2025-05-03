@@ -419,20 +419,20 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
     // However, the card could be stale and only cover filler
     // objects.  That should be rare, so not worth checking for;
     // instead let it fall out from the bounded iteration.
-    cl->set_from_klass(obj->klass());
+    cl->set_from_oop(obj);
     x += obj->klass()->name()->identity_hash();
     obj->oop_iterate(cl, mr);
-    cl->set_from_klass(nullptr);
+    cl->set_from_oop(nullptr);
     // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
     return mr.end();
   } else {
     // If obj is not an objArray and mr contains the start of the
     // obj, then this could be an imprecise mark, and we need to
     // process the entire object.
-    cl->set_from_klass(obj->klass());
+    cl->set_from_oop(obj->klass());
     x += obj->klass()->name()->identity_hash();
     size_t size = obj->oop_iterate_size(cl);
-    cl->set_from_klass(nullptr);
+    cl->set_from_oop(nullptr);
     // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
     // We have scanned to the end of the object, but since there can be no objects
     // after this humongous object in the region, we can return the end of the
@@ -606,7 +606,7 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
     // start, in which case we need to iterate over them in full.
     // objArrays are precisely marked, but can still be iterated
     // over in full if completely covered.
-    cl->set_from_klass(obj->klass());
+    cl->set_from_oop(obj->klass());
     x += obj->klass()->name()->identity_hash();
     if (!obj->is_objArray() || (cast_from_oop<HeapWord*>(obj) >= start && cur <= end)) {
       obj->oop_iterate(cl);
@@ -614,7 +614,7 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
       obj->oop_iterate(cl, mr);
       is_precise = true;
     }
-    cl->set_from_klass(nullptr);
+    cl->set_from_oop(nullptr);
 
     if (cur >= end) {
       return is_precise ? end : cur;
