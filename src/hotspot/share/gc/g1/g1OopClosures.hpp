@@ -68,14 +68,15 @@ public:
 class G1ScanCardClosure : public G1ScanClosureBase {
   size_t& _heap_roots_found;
   Klass* _from_klass;
-  SymbolHandle _from_klass_name;
+  // SymbolHandle _from_klass_name;
+  Symbol* _from_klass_name;
   size_t _array_acc;
   // Symbol* _from_klass_name;
 public:
   G1ScanCardClosure(G1CollectedHeap* g1h,
                     G1ParScanThreadState* pss,
                     size_t& heap_roots_found) :
-    G1ScanClosureBase(g1h, pss), _heap_roots_found(heap_roots_found), _from_klass_name() { }
+    G1ScanClosureBase(g1h, pss), _heap_roots_found(heap_roots_found), _from_klass_name(nullptr) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
@@ -84,10 +85,12 @@ public:
     _from_klass = k;
     if( k != nullptr){
       // log_info(gc)("handle 1");
-      _from_klass_name = SymbolHandle(k->name());
+      _from_klass_name = k->name();
+      // _from_klass_name = SymbolHandle(k->name());
     } else {
       // log_info(gc)("handle 2");
-      _from_klass_name = SymbolHandle();
+      _from_klass_name = nullptr;
+      // _from_klass_name = SymbolHandle();
     }
   }
 };
@@ -115,11 +118,12 @@ class G1ScanEvacuatedObjClosure : public G1ScanClosureBase {
   };
 
   SkipCardEnqueueTristate _skip_card_enqueue;
-  SymbolHandle _from_klass_name;
+  // SymbolHandle _from_klass_name;
+  Symbol* _from_klass_name;
 
 public:
   G1ScanEvacuatedObjClosure(G1CollectedHeap* g1h, G1ParScanThreadState* par_scan_state) :
-    G1ScanClosureBase(g1h, par_scan_state), _skip_card_enqueue(Uninitialized) { }
+    G1ScanClosureBase(g1h, par_scan_state), _skip_card_enqueue(Uninitialized), _from_klass_name(nullptr) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(oop* p)          { do_oop_work(p); }
@@ -134,9 +138,11 @@ public:
 
   void set_from_klass(Klass* klass){
     if( klass != nullptr){
-      _from_klass_name = SymbolHandle(klass->name());
+      _from_klass_name = klass->name();
+      // _from_klass_name = SymbolHandle(klass->name());
     } else {
-      _from_klass_name = SymbolHandle();
+      _from_klass_name = nullptr;
+      // _from_klass_name = SymbolHandle();
     }
   }
 
