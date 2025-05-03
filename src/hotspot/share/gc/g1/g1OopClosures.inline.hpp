@@ -91,14 +91,11 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   static uint x = 0;
   if (region_attr.is_in_cset()) {
     prefetch_and_push(p, obj);
-    if (_from_klass_name != nullptr) {
-      G1CollectedHeap* g1h = G1CollectedHeap::heap();
-      // SymbolHandle to_name = SymbolHandle(obj->klass()->name());
-      // uint v = _from_klass_name->identity_hash();
-      // uint u = to_name->identity_hash();
-      // x += v;
-      // x += u;
-      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+    if(_from_oop != nullptr && _from_oop->klass() != nullptr){
+    // if (_from_klass_name != nullptr) {
+      // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+      _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
+
     }
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
@@ -184,17 +181,11 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   if (region_attr.is_in_cset()) {
     // Since the source is always from outside the collection set, here we implicitly know
-    // that this is a cross-region reference too.
-    // if (_from_klass != nullptr && ( _from_klass->is_instance_klass() || _from_klass->is_array_klass() ) && _from_klass->name() != nullptr) {
-    if (_from_klass_name != nullptr) {
-      // log_info(gc)("exist");
-      G1CollectedHeap* g1h = G1CollectedHeap::heap();
-      // SymbolHandle to_name = SymbolHandle(obj->klass()->name());
-      // uint v = _from_klass_name->identity_hash();
-      // uint u = to_name->identity_hash();
-      // x += v;
-      // x += u;
-      _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+
+    if(_from_oop != nullptr && _from_oop->klass() != nullptr){
+      // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+      _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
+
     }
     prefetch_and_push(p, obj);
     _heap_roots_found++;

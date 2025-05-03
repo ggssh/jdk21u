@@ -429,7 +429,7 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
     // If obj is not an objArray and mr contains the start of the
     // obj, then this could be an imprecise mark, and we need to
     // process the entire object.
-    cl->set_from_oop(obj->klass());
+    cl->set_from_oop(obj);
     x += obj->klass()->name()->identity_hash();
     size_t size = obj->oop_iterate_size(cl);
     cl->set_from_oop(nullptr);
@@ -606,7 +606,7 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
     // start, in which case we need to iterate over them in full.
     // objArrays are precisely marked, but can still be iterated
     // over in full if completely covered.
-    cl->set_from_oop(obj->klass());
+    cl->set_from_oop(obj);
     x += obj->klass()->name()->identity_hash();
     if (!obj->is_objArray() || (cast_from_oop<HeapWord*>(obj) >= start && cur <= end)) {
       obj->oop_iterate(cl);
