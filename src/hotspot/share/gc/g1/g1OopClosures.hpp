@@ -53,7 +53,7 @@ protected:
   ~G1ScanClosureBase() { }
 
   template <class T>
-  inline void prefetch_and_push(T* p, oop const obj);
+  inline void prefetch_and_push(T* p, oop const obj, oop from_obj);
 
   template <class T>
   inline void handle_non_cset_obj_common(G1HeapRegionAttr const region_attr, T* p, oop const obj);

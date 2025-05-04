@@ -190,7 +190,7 @@ void G1ParScanThreadState::verify_task(ScannerTask task) const {
 
 template <class T>
 MAYBE_INLINE_EVACUATION
-void G1ParScanThreadState::do_oop_evac(T* p) {
+void G1ParScanThreadState::do_oop_evac(T* p, oop from_obj) {
   // Reference should not be null here as such are never pushed to the task queue.
   oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
 
@@ -215,7 +215,7 @@ void G1ParScanThreadState::do_oop_evac(T* p) {
   if (m.is_marked()) {
     obj = cast_to_oop(m.decode_pointer());
   } else {
-    obj = do_copy_to_survivor_space(region_attr, obj, p, m);
+    obj = do_copy_to_survivor_space(region_attr, obj, from_obj, p, m);
   }
   RawAccess<IS_NOT_NULL>::oop_store(p, obj);
 
@@ -242,7 +242,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
                                   to_array,
                                   _partial_objarray_chunk_size);
   for (uint i = 0; i < step._ncreate; ++i) {
-    push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
+    push_on_queue(ScannerTask(PartialArrayScanTask(from_obj), to_obj));
   }
 
   G1HeapRegionAttr dest_attr = _g1h->region_attr(to_array);
@@ -250,7 +250,7 @@ void G1ParScanThreadState::do_partial_array(PartialArrayScanTask task) {
   // Process claimed task.  The length of to_array is not correct, but
   // fortunately the iteration ignores the length field and just relies
   // on start/end.
-  _scanner.set_from_oop(from_obj);
+  _scanner.set_from_oop(to_obj);
   to_array->oop_iterate_range(&_scanner,
                               step._index,
                               step._index + _partial_objarray_chunk_size);
@@ -278,7 +278,7 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   // Push any needed partial scan tasks.  Pushed before processing the
   // initial chunk to allow other workers to steal while we're processing.
   for (uint i = 0; i < step._ncreate; ++i) {
-    push_on_queue(ScannerTask(PartialArrayScanTask(from_obj)));
+    push_on_queue(ScannerTask(PartialArrayScanTask(from_obj), to_obj));
   }
 
   // Skip the card enqueue iff the object (to_array) is in survivor region.
@@ -291,7 +291,7 @@ void G1ParScanThreadState::start_partial_objarray(G1HeapRegionAttr dest_attr,
   // klass, as it will already be handled by processing the built-in
   // module. The length of to_array is not correct, but fortunately
   // the iteration ignores that length field and relies on start/end.
-  _scanner.set_from_oop(from_obj);
+  _scanner.set_from_oop(to_obj);
   to_array->oop_iterate_range(&_scanner, 0, step._index);
   _scanner.set_from_oop(nullptr);
 }
@@ -300,9 +300,9 @@ MAYBE_INLINE_EVACUATION
 void G1ParScanThreadState::dispatch_task(ScannerTask task) {
   verify_task(task);
   if (task.is_narrow_oop_ptr()) {
-    do_oop_evac(task.to_narrow_oop_ptr());
+    do_oop_evac(task.to_narrow_oop_ptr(), task.from_oop());
   } else if (task.is_oop_ptr()) {
-    do_oop_evac(task.to_oop_ptr());
+    do_oop_evac(task.to_oop_ptr(), task.from_oop());
   } else {
     do_partial_array(task.to_partial_array_task());
   }
@@ -461,6 +461,7 @@ template <class T>
 MAYBE_INLINE_EVACUATION
 oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const region_attr,
                                                     oop const old, 
+                                                    oop from_obj,
                                                     T* p,
                                                     markWord const old_mark) {
   assert(region_attr.is_in_cset(),
@@ -546,7 +547,11 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
       // _g1h->reference_dictionary()->add_klass(Thread::current(), cast_to_oop(start_address)->klass(), klass);
       // _g1h->reference_dictionary()->add_klass(Thread::current(), klass, klass);
-
+      if(from_obj != nullptr && from_obj->klass() != nullptr){
+      // if (_from_klass_name != nullptr) {
+        // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+        _par_scan_state->reference_hash_map()->add_or_inc(from_obj->klass()->name(), obj->klass()->name(), 1, obj->size());
+      }
       update_bot_after_copying(obj, word_sz);
     }
 
@@ -597,15 +602,17 @@ template <typename T>
 ATTRIBUTE_FLATTEN
 oop G1ParScanThreadState::copy_to_survivor_space(G1HeapRegionAttr region_attr,
                                                  oop old,
+                                                 oop from_obj,
                                                  T* p,
                                                  markWord old_mark) {
-  return do_copy_to_survivor_space(region_attr, old, p, old_mark);
+  return do_copy_to_survivor_space(region_attr, old, from_obj, p, old_mark);
 }
 
 template
 ATTRIBUTE_FLATTEN
 oop G1ParScanThreadState::copy_to_survivor_space<narrowOop>(G1HeapRegionAttr region_attr,
                                                  oop old,
+                                                 oop from_obj,
                                                  narrowOop* p,
                                                  markWord old_mark);
 
@@ -613,6 +620,7 @@ template
 ATTRIBUTE_FLATTEN
 oop G1ParScanThreadState::copy_to_survivor_space<oop>(G1HeapRegionAttr region_attr,
                                                 oop old,
+                                                oop from_obj,
                                                 oop* p,
                                                 markWord old_mark);
 

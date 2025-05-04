@@ -46,7 +46,7 @@
 #include "utilities/align.hpp"
 
 template <class T>
-inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
+inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj, oop from_obj) {
   // We're not going to even bother checking whether the object is
   // already forwarded or not, as this usually causes an immediate
   // stall. We'll try to prefetch the object (for write, given that
@@ -63,7 +63,7 @@ inline void G1ScanClosureBase::prefetch_and_push(T* p, const oop obj) {
          obj->forwardee() == RawAccess<>::oop_load(p)),
          "p should still be pointing to obj or to its forwardee");
 
-  _par_scan_state->push_on_queue(ScannerTask(p));
+  _par_scan_state->push_on_queue(ScannerTask(p, from_obj));
 }
 
 template <class T>
@@ -90,13 +90,12 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
   static uint x = 0;
   if (region_attr.is_in_cset()) {
-    prefetch_and_push(p, obj);
-    if(_from_oop != nullptr && _from_oop->klass() != nullptr){
-    // if (_from_klass_name != nullptr) {
-      // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
-      _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
-
-    }
+    prefetch_and_push(p, obj, _from_oop);
+    // if(_from_oop != nullptr && _from_oop->klass() != nullptr){
+    // // if (_from_klass_name != nullptr) {
+    //   // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+    //   _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
+    // }
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
     assert(_skip_card_enqueue != Uninitialized, "Scan location has not been initialized.");
@@ -182,12 +181,11 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   if (region_attr.is_in_cset()) {
     // Since the source is always from outside the collection set, here we implicitly know
 
-    if(_from_oop != nullptr && _from_oop->klass() != nullptr){
-      // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
-      _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
-
-    }
-    prefetch_and_push(p, obj);
+    // if(_from_oop != nullptr && _from_oop->klass() != nullptr){
+    //   // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+    //   _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
+    // }
+    prefetch_and_push(p, obj, _from_oop);
     _heap_roots_found++;
   } else if (!HeapRegion::is_in_same_region(p, obj)) {
     handle_non_cset_obj_common(region_attr, p, obj);
@@ -246,7 +244,7 @@ void G1ParCopyClosure<barrier, should_mark>::do_oop_work(T* p) {
     if (m.is_marked()) {
       forwardee = cast_to_oop(m.decode_pointer());
     } else {
-      forwardee = _par_scan_state->copy_to_survivor_space(state, obj, p, m);
+      forwardee = _par_scan_state->copy_to_survivor_space(state, obj, nullptr, p, m);
     }
     assert(forwardee != nullptr, "forwardee should not be null");
     RawAccess<IS_NOT_NULL>::oop_store(p, forwardee);

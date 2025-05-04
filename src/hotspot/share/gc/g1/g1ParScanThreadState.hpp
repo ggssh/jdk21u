@@ -183,7 +183,7 @@ private:
                                 markWord old_mark);
 
   // This method is applied to the fields of the objects that have just been copied.
-  template <class T> void do_oop_evac(T* p);
+  template <class T> void do_oop_evac(T* p, oop from_obj);
 
   void dispatch_task(ScannerTask task);
 
@@ -215,7 +215,7 @@ private:
 
 public:
   template <typename T> 
-  oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, T* p, markWord old_mark);
+  oop copy_to_survivor_space(G1HeapRegionAttr region_attr, oop obj, oop from_obj, T* p, markWord old_mark);
 
   inline void trim_queue();
   inline void trim_queue_partially();
