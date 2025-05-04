@@ -550,7 +550,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
       if(from_obj != nullptr && from_obj->klass() != nullptr){
       // if (_from_klass_name != nullptr) {
         // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
-        _par_scan_state->reference_hash_map()->add_or_inc(from_obj->klass()->name(), obj->klass()->name(), 1, obj->size());
+        reference_hash_map()->add_or_inc(from_obj->klass()->name(), obj->klass()->name(), 1, obj->size());
       }
       update_bot_after_copying(obj, word_sz);
     }

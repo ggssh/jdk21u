@@ -845,7 +845,7 @@ public:
       // When the queue is drained (after each phase of reference processing)
       // the object and it's followers will be copied, the reference field set
       // to point to the new location, and the RSet updated.
-      _par_scan_state->push_on_queue(ScannerTask(p), nullptr);
+      _par_scan_state->push_on_queue(ScannerTask(p, nullptr));
     }
   }
 };

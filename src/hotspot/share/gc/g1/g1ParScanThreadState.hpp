@@ -179,6 +179,7 @@ private:
 
   template <class T> oop do_copy_to_survivor_space(G1HeapRegionAttr region_attr,
                                 oop obj,
+                                oop from_obj,
                                 T* p,
                                 markWord old_mark);
 
