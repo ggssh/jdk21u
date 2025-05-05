@@ -74,6 +74,8 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
+#include "gc/g1/g1DataStructureManager.hpp"
+#include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/shared/concurrentGCBreakpoints.hpp"
 #include "gc/shared/gcBehaviours.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
@@ -1238,6 +1240,7 @@ G1CollectedHeap::G1CollectedHeap() :
   _bot(nullptr),
   // _reference_dictionary(new ReferenceDictionary(2000)),
   _reference_hash_map(20),
+  _data_structure_manager(),
   _listener(),
   _numa(G1NUMA::create()),
   _hrm(),

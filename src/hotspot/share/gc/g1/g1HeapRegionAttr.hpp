@@ -53,11 +53,12 @@ public:
   // eager reclamation of humongous objects or optional regions.
   static const region_type_t Optional     =  -4;    // The region is optional not in the current collection set.
   static const region_type_t HumongousCandidate    =  -3;    // The region is a humongous candidate not in the current collection set.
-  static const region_type_t NewSurvivor  =  -2;    // The region is a new (ly allocated) survivor region.
-  static const region_type_t NotInCSet    =  -1;    // The region is not in the collection set.
-  static const region_type_t Young        =   0;    // The region is in the collection set and a young region.
-  static const region_type_t Old          =   1;    // The region is in the collection set and an old region.
-  static const region_type_t Num          =   2;
+  static const region_type_t NewSurvivor   = -2;    // The region is a new (ly allocated) survivor region.
+  static const region_type_t NotInCSet     = -1;    // The region is not in the collection set.
+  static const region_type_t Young         =  0;    // The region is in the collection set and a young region.
+  static const region_type_t Old           =  1;    // The region is in the collection set and an old region.
+  static const region_type_t DataStructure =  2;
+  static const region_type_t Num           =  3;
 
   G1HeapRegionAttr(region_type_t type = NotInCSet, bool remset_is_tracked = false) :
     _remset_is_tracked(remset_is_tracked), _type(type) {

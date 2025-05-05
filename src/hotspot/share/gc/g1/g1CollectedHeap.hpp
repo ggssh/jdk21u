@@ -80,6 +80,7 @@ class G1NewTracer;
 class G1RemSet;
 class G1ServiceTask;
 class G1ServiceThread;
+class G1DataStructureManager;
 class GCMemoryManager;
 class HeapRegion;
 class MemoryPool;
@@ -196,6 +197,7 @@ private:
   G1BlockOffsetTable* _bot;
 
   ReferenceHashMap _reference_hash_map;
+  G1DataStructureManager _data_structure_manager;
   // ReferenceDictionary* _reference_dictionary;
 
   class MergeEntryClosure {
@@ -225,6 +227,10 @@ public:
 
   ReferenceHashMap* reference_hash_map() {
     return &_reference_hash_map;
+  }
+
+  G1DataStructureManager* data_structure_manager() {
+    return &_data_structure_manager;
   }
 
   void merge_reference_hash_map(ReferenceHashMap* other_map) {
