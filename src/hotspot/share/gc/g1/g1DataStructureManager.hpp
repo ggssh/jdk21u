@@ -31,13 +31,13 @@
 #include "oops/symbolHandle.hpp"
 
 
-class G1DataStructureRegionSet : public CHeapObj<mtGC> {
+class G1DataStructureManager : public CHeapObj<mtGC> {
 private:
     LinkedListImpl<G1DataStructureRegionSet*> _data_structures;
 
 public:
     G1DataStructureRegionSet* get_data_structure_by_root(Symbol* root_symbol);
-}
+};
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP
   

@@ -69,9 +69,9 @@ public:
 class G1DataStructure : public CHeapObj<mtGC> {
 private:
     LinkedListImpl<G1DataStructureNode*> _roots;
-    LinkedListImpl<SymbolHandle> _symbols;
-    LinkedListImpl<G1DataStructureNode> _nodes;
-    LinkedListImpl<G1DataStructureEdge> _edges;
+    LinkedListImpl<SymbolHandle*> _symbols;
+    LinkedListImpl<G1DataStructureNode*> _nodes;
+    LinkedListImpl<G1DataStructureEdge*> _edges;
 
 public:
     G1DataStructureNode* symbol_in_roots(Symbol* symbol);

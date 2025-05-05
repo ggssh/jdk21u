@@ -47,6 +47,8 @@
 #include "gc/g1/g1YoungGCEvacFailureInjector.hpp"
 #include "gc/g1/heapRegionManager.hpp"
 #include "gc/g1/heapRegionSet.hpp"
+#include "gc/g1/g1DataStructureManager.hpp"
+#include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/shared/referenceHashMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
