@@ -30,6 +30,7 @@
 #include "utilities/linkedlist.hpp"
 #include "oops/symbolHandle.hpp"
 
+class PLAB;
 
 class G1DataStructureManager : public CHeapObj<mtGC> {
 private:
@@ -37,6 +38,11 @@ private:
 
 public:
     G1DataStructureRegionSet* get_data_structure_by_root(Symbol* root_symbol);
+    PLAB* get_data_structure_plab(oop from_oop, oop to_oop);
+    void init_data_structure_alloc_regions(G1Allocator* allocator, G1EvacInfo* evacuation_info);
+    void release_data_structure_alloc_regions();
+    uint alloc_count();
+    bool is_retained_old_region(HeapRegion* hr);
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

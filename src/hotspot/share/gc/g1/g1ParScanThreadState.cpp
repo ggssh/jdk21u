@@ -33,6 +33,8 @@
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/g1/g1Trace.hpp"
 #include "gc/g1/g1YoungGCEvacFailureInjector.inline.hpp"
+#include "gc/g1/g1DataStructureRegionSet.hpp"
+#include "gc/g1/g1DataStructureManager.hpp"
 #include "gc/shared/continuationGCSupport.inline.hpp"
 #include "gc/shared/partialArrayTaskStepper.inline.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
@@ -339,7 +341,8 @@ void G1ParScanThreadState::steal_and_trim_queue(G1ScannerTasksQueueSet* task_que
 HeapWord* G1ParScanThreadState::allocate_in_next_plab(G1HeapRegionAttr* dest,
                                                       size_t word_sz,
                                                       bool previous_plab_refill_failed,
-                                                      uint node_index) {
+                                                      uint node_index,
+                                                      G1DataStructureRegionSet* data_structure) {
 
   assert(dest->is_in_cset_or_humongous_candidate(), "Unexpected dest: %s region attr", dest->get_type_str());
 
@@ -350,7 +353,8 @@ HeapWord* G1ParScanThreadState::allocate_in_next_plab(G1HeapRegionAttr* dest,
     HeapWord* const obj_ptr = _plab_allocator->allocate(G1HeapRegionAttr::Old,
                                                         word_sz,
                                                         &plab_refill_in_old_failed,
-                                                        node_index);
+                                                        node_index,
+                                                        data_structure);
     // Make sure that we won't attempt to copy any other objects out
     // of a survivor region (given that apparently we cannot allocate
     // any new ones) to avoid coming into this slow path again and again.
@@ -409,7 +413,8 @@ HeapWord* G1ParScanThreadState::allocate_copy_slow(G1HeapRegionAttr* dest_attr,
                                                    oop old,
                                                    size_t word_sz,
                                                    uint age,
-                                                   uint node_index) {
+                                                   uint node_index,
+                                                   G1DataStructureRegionSet* data_structure) {
   HeapWord* obj_ptr = nullptr;
   // Try slow-path allocation unless we're allocating old and old is already full.
   if (!(dest_attr->is_old() && _old_gen_is_full)) {
@@ -417,12 +422,14 @@ HeapWord* G1ParScanThreadState::allocate_copy_slow(G1HeapRegionAttr* dest_attr,
     obj_ptr = _plab_allocator->allocate_direct_or_new_plab(*dest_attr,
                                                            word_sz,
                                                            &plab_refill_failed,
-                                                           node_index);
+                                                           node_index,
+                                                           data_structure);
     if (obj_ptr == nullptr) {
       obj_ptr = allocate_in_next_plab(dest_attr,
                                       word_sz,
                                       plab_refill_failed,
-                                      node_index);
+                                      node_index,
+                                      data_structure);
     }
   }
   if (obj_ptr != nullptr) {
@@ -477,7 +484,10 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   HeapRegion* const from_region = _g1h->heap_region_containing(old);
   uint node_index = from_region->node_index();
 
-  HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index);
+  // HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index);
+  G1DataStructureRegionSet* target_data_structure = _g1h->data_structure_region_set(from_obj, old);
+  HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index, target_data_structure);
+
 
   // PLAB allocations should succeed most of the time, so we'll
   // normally check against null once and that's it.

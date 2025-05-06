@@ -127,6 +127,8 @@ void HeapRegion::hr_clear(bool clear_space) {
   rem_set()->clear_locked();
 
   init_top_at_mark_start();
+  _data_structure_region_set->remove_region(this);
+  _data_structure_region_set = nullptr;
   if (clear_space) clear(SpaceDecorator::Mangle);
 }
 
@@ -234,7 +236,8 @@ HeapRegion::HeapRegion(uint hrm_index,
   _young_index_in_cset(-1),
   _surv_rate_group(nullptr),
   _age_index(G1SurvRateGroup::InvalidAgeIndex),
-  _node_index(G1NUMA::UnknownNodeIndex)
+  _node_index(G1NUMA::UnknownNodeIndex),
+  _data_structure_region_set(nullptr)
 {
   assert(Universe::on_page_boundary(mr.start()) && Universe::on_page_boundary(mr.end()),
          "invalid space boundaries");

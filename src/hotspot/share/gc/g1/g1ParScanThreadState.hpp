@@ -168,12 +168,14 @@ private:
                                oop old,
                                size_t word_sz,
                                uint age,
-                               uint node_index);
+                               uint node_index,
+                               G1DataStructureRegionSet* data_structure);
 
   void undo_allocation(G1HeapRegionAttr dest_addr,
                        HeapWord* obj_ptr,
                        size_t word_sz,
-                       uint node_index);
+                       uint node_index,
+                       G1DataStructureRegionSet* data_structure);
 
   void update_bot_after_copying(oop obj, size_t word_sz);
 
@@ -197,7 +199,8 @@ private:
   HeapWord* allocate_in_next_plab(G1HeapRegionAttr* dest,
                                   size_t word_sz,
                                   bool previous_plab_refill_failed,
-                                  uint node_index);
+                                  uint node_index,
+                                  G1DataStructureRegionSet* data_structure);
 
   inline G1HeapRegionAttr next_region_attr(G1HeapRegionAttr const region_attr, markWord const m, uint& age);
 

@@ -46,6 +46,7 @@ G1Allocator::G1Allocator(G1CollectedHeap* heap) :
   _mutator_alloc_regions(nullptr),
   _survivor_gc_alloc_regions(nullptr),
   _old_gc_alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Old)),
+  _data_structure_manager(heap->data_structure_manager()),
   _retained_old_gc_alloc_region(nullptr) {
 
   _mutator_alloc_regions = NEW_C_HEAP_ARRAY(MutatorAllocRegion, _num_alloc_regions, mtGC);
@@ -123,6 +124,38 @@ void G1Allocator::reuse_retained_old_region(G1EvacInfo* evacuation_info,
   }
 }
 
+void G1Allocator::reuse_retained_old_region(G1EvacInfo* evacuation_info,
+                                            OldDataStructureGCAllocRegion* old,
+                                            HeapRegion** retained_old) {
+  HeapRegion* retained_region = *retained_old;
+  *retained_old = nullptr;
+
+  // We will discard the current GC alloc region if:
+  // a) it's in the collection set (it can happen!),
+  // b) it's already full (no point in using it),
+  // c) it's empty (this means that it was emptied during
+  // a cleanup and it should be on the free list now), or
+  // d) it's humongous (this means that it was emptied
+  // during a cleanup and was added to the free list, but
+  // has been subsequently used to allocate a humongous
+  // object that may be less than the region size).
+  if (retained_region != nullptr &&
+      !retained_region->in_collection_set() &&
+      !(retained_region->top() == retained_region->end()) &&
+      !retained_region->is_empty() &&
+      !retained_region->is_humongous()) {
+    // The retained region was added to the old region set when it was
+    // retired. We have to remove it now, since we don't allow regions
+    // we allocate to in the region sets. We'll re-add it later, when
+    // it's retired again.
+    _g1h->old_set_remove(retained_region);
+    old->set(retained_region);
+    _g1h->hr_printer()->reuse(retained_region);
+    evacuation_info->set_alloc_regions_used_before(retained_region->used());
+  }
+}
+
+
 void G1Allocator::init_gc_alloc_regions(G1EvacInfo* evacuation_info) {
   assert_at_safepoint_on_vm_thread();
 
@@ -137,6 +170,8 @@ void G1Allocator::init_gc_alloc_regions(G1EvacInfo* evacuation_info) {
   reuse_retained_old_region(evacuation_info,
                             &_old_gc_alloc_region,
                             &_retained_old_gc_alloc_region);
+  
+  _data_structure_manager->init_data_structure_alloc_region(this, evacuation_info);
 }
 
 void G1Allocator::release_gc_alloc_regions(G1EvacInfo* evacuation_info) {
@@ -146,7 +181,7 @@ void G1Allocator::release_gc_alloc_regions(G1EvacInfo* evacuation_info) {
     survivor_gc_alloc_region(node_index)->release();
   }
   evacuation_info->set_allocation_regions(survivor_region_count +
-                                          old_gc_alloc_region()->count());
+                                          old_gc_alloc_region()->count() + _data_structure_manager->alloc_count());
 
   // If we have an old GC alloc region to release, we'll save it in
   // _retained_old_gc_alloc_region. If we don't
@@ -210,9 +245,10 @@ size_t G1Allocator::used_in_alloc_regions() {
 
 HeapWord* G1Allocator::par_allocate_during_gc(G1HeapRegionAttr dest,
                                               size_t word_size,
-                                              uint node_index) {
+                                              uint node_index,
+                                              G1DataStructureRegionSet* data_structure) {
   size_t temp = 0;
-  HeapWord* result = par_allocate_during_gc(dest, word_size, word_size, &temp, node_index);
+  HeapWord* result = par_allocate_during_gc(dest, word_size, word_size, &temp, node_inde, data_structure);
   assert(result == nullptr || temp == word_size,
          "Requested " SIZE_FORMAT " words, but got " SIZE_FORMAT " at " PTR_FORMAT,
          word_size, temp, p2i(result));
@@ -223,11 +259,15 @@ HeapWord* G1Allocator::par_allocate_during_gc(G1HeapRegionAttr dest,
                                               size_t min_word_size,
                                               size_t desired_word_size,
                                               size_t* actual_word_size,
-                                              uint node_index) {
+                                              uint node_index,
+                                              G1DataStructureRegionSet* data_structure) {
   switch (dest.type()) {
     case G1HeapRegionAttr::Young:
       return survivor_attempt_allocation(min_word_size, desired_word_size, actual_word_size, node_index);
     case G1HeapRegionAttr::Old:
+      if( data_structure != nullptr) {
+        return old_data_structure_attempt_allocation(min_word_size, desired_word_size, actual_word_size, data_structure);
+      }
       return old_attempt_allocation(min_word_size, desired_word_size, actual_word_size);
     default:
       ShouldNotReachHere();
@@ -291,6 +331,35 @@ HeapWord* G1Allocator::old_attempt_allocation(size_t min_word_size,
   return result;
 }
 
+HeapWord* G1Allocator::old_data_structure_attempt_allocation(size_t min_word_size,
+                                              size_t desired_word_size,
+                                              size_t* actual_word_size,
+                                              G1DataStructureRegionSet* data_structure) {
+  assert(!_g1h->is_humongous(desired_word_size),
+         "we should not be seeing humongous-size allocations in this path");
+  
+  OldDataStructureGCAllocRegion* old_gc_alloc_region = data_structure->old_gc_alloc_region();
+
+  HeapWord* result = old_gc_alloc_region->attempt_allocation(min_word_size,
+                                                               desired_word_size,
+                                                               actual_word_size);
+  if (result == nullptr && !old_is_full()) {
+    MutexLocker x(FreeList_lock, Mutex::_no_safepoint_check_flag);
+    // Multiple threads may have queued at the FreeList_lock above after checking whether there
+    // actually is still memory available. Redo the check under the lock to avoid unnecessary work;
+    // the memory may have been used up as the threads waited to acquire the lock.
+    if (!old_is_full()) {
+      result = old_gc_alloc_region->attempt_allocation_locked(min_word_size,
+                                                                desired_word_size,
+                                                                actual_word_size);
+      if (result == nullptr) {
+        set_old_full();
+      }
+    }
+  }
+  return result;
+}
+
 G1PLABAllocator::PLABData::PLABData() :
   _alloc_buffer(nullptr),
   _direct_allocated(0),
@@ -334,7 +403,8 @@ void G1PLABAllocator::PLABData::notify_plab_refill(size_t tolerated_refills, siz
 
 G1PLABAllocator::G1PLABAllocator(G1Allocator* allocator) :
   _g1h(G1CollectedHeap::heap()),
-  _allocator(allocator) {
+  _allocator(allocator),
+  _data_structure_manager(_g1h->data_structure_manager()){
 
   if (ResizePLAB) {
     // See G1EvacStats::compute_desired_plab_sz for the reasoning why this is the
@@ -365,11 +435,15 @@ bool G1PLABAllocator::may_throw_away_buffer(size_t const allocation_word_sz, siz
 HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
                                                        size_t word_sz,
                                                        bool* plab_refill_failed,
-                                                       uint node_index) {
+                                                       uint node_index,
+                                                       G1DataStructureRegionSet* data_structure) {
   size_t plab_word_size = plab_size(dest.type());
   size_t next_plab_word_size = plab_word_size;
 
   PLABData* plab_data = &_dest_data[dest.type()];
+  if(dest == G1HeapRegionAttr::Old && data_structure != nullptr) {
+    plab_data = data_structure->plab_data();
+  }
 
   if (plab_data->should_boost()) {
     next_plab_word_size = _g1h->clamp_plab_size(next_plab_word_size * 2);
@@ -396,7 +470,8 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
                                                        required_in_plab,
                                                        plab_word_size,
                                                        &actual_plab_size,
-                                                       node_index);
+                                                       node_index,
+                                                       data_structure);
 
     assert(buf == nullptr || ((actual_plab_size >= required_in_plab) && (actual_plab_size <= plab_word_size)),
            "Requested at minimum %zu, desired %zu words, but got %zu at " PTR_FORMAT,
@@ -415,7 +490,7 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
     *plab_refill_failed = true;
   }
   // Try direct allocation.
-  HeapWord* result = _allocator->par_allocate_during_gc(dest, word_sz, node_index);
+  HeapWord* result = _allocator->par_allocate_during_gc(dest, word_sz, node_index, data_structure);
   if (result != nullptr) {
     plab_data->_direct_allocated += word_sz;
     plab_data->_num_direct_allocations++;

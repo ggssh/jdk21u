@@ -30,6 +30,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/plab.hpp"
 
+class G1DataStructureManager;
 class G1EvacInfo;
 class G1NUMA;
 
@@ -38,6 +39,8 @@ class G1NUMA;
 // Also keeps track of retained regions across GCs.
 class G1Allocator : public CHeapObj<mtGC> {
   friend class VMStructs;
+  friend class G1DataStructureManager;
+  friend class G1DataStructureRegionSet;
 
 private:
   G1CollectedHeap* _g1h;
@@ -60,6 +63,8 @@ private:
   // old objects.
   OldGCAllocRegion _old_gc_alloc_region;
 
+  G1DataStructureManager* _data_structure_manager;
+
   HeapRegion* _retained_old_gc_alloc_region;
 
   bool survivor_is_full() const;
@@ -71,6 +76,10 @@ private:
   void reuse_retained_old_region(G1EvacInfo* evacuation_info,
                                  OldGCAllocRegion* old,
                                  HeapRegion** retained);
+
+  void reuse_retained_old_region(G1EvacInfo* evacuation_info,
+                                  OldDataStructureGCAllocRegion* old,
+                                  HeapRegion** retained);
 
   // Accessors to the allocation regions.
   inline MutatorAllocRegion* mutator_alloc_region(uint node_index);
@@ -132,13 +141,15 @@ public:
   // may not be a humongous - it must fit into a single heap region.
   HeapWord* par_allocate_during_gc(G1HeapRegionAttr dest,
                                    size_t word_size,
-                                   uint node_index);
+                                   uint node_index,
+                                   G1DataStructureRegionSet* data_structure);
 
   HeapWord* par_allocate_during_gc(G1HeapRegionAttr dest,
                                    size_t min_word_size,
                                    size_t desired_word_size,
                                    size_t* actual_word_size,
-                                   uint node_index);
+                                   uint node_index,
+                                   G1DataStructureRegionSet* data_structure);
 };
 
 // Manages the PLABs used during garbage collection. Interface for allocation from PLABs.
@@ -154,6 +165,7 @@ private:
 
   // Collects per-destination information (e.g. young, old gen) about current PLAB
   // and statistics about it.
+public:
   struct PLABData {
     PLAB** _alloc_buffer;
 
@@ -180,14 +192,20 @@ private:
 
   } _dest_data[G1HeapRegionAttr::Num];
 
+  G1DataStructureManager* _data_structure_manager;
+
+private:
   // The amount of PLAB refills tolerated until boosting PLAB size.
   // This value is the same for all generations because they all use the same
   // resizing logic.
   size_t _tolerated_refills;
 
   void flush_and_retire_stats(uint num_workers);
-  inline PLAB* alloc_buffer(G1HeapRegionAttr dest, uint node_index) const;
-  inline PLAB* alloc_buffer(region_type_t dest, uint node_index) const;
+  // inline PLAB* alloc_buffer(G1HeapRegionAttr dest, uint node_index) const;
+  // inline PLAB* alloc_buffer(region_type_t dest, uint node_index) const;
+  inline PLAB* alloc_buffer(G1HeapRegionAttr dest, uint node_index, G1DataStructureRegionSet* data_structure) const;
+  inline PLAB* alloc_buffer(region_type_t dest, uint node_index, G1DataStructureRegionSet* data_structure) const;
+  inline G1DataStructureRegionSet* data_structure_region_set(oop from_oop, oop to_oop) const;
 
   // Returns the number of allocation buffers for the given dest.
   // There is only 1 buffer for Old while Young may have multiple buffers depending on
@@ -209,18 +227,25 @@ public:
   HeapWord* allocate_direct_or_new_plab(G1HeapRegionAttr dest,
                                         size_t word_sz,
                                         bool* plab_refill_failed,
-                                        uint node_index);
+                                        uint node_index,
+                                        G1DataStructureRegionSet* data_structure);
 
   // Allocate word_sz words in the PLAB of dest.  Returns the address of the
   // allocated memory, null if not successful.
+  // inline HeapWord* plab_allocate(G1HeapRegionAttr dest,
+  //                                size_t word_sz,
+  //                                uint node_index);
+
   inline HeapWord* plab_allocate(G1HeapRegionAttr dest,
                                  size_t word_sz,
-                                 uint node_index);
+                                 uint node_index,
+                                 G1DataStructureRegionSet* data_structure);
 
   inline HeapWord* allocate(G1HeapRegionAttr dest,
                             size_t word_sz,
                             bool* refill_failed,
-                            uint node_index);
+                            uint node_index,
+                            G1DataStructureRegionSet* data_structure);
 
   void undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz, uint node_index);
 };

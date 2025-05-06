@@ -76,15 +76,36 @@ inline HeapWord* G1Allocator::attempt_allocation_force(size_t word_size) {
   return mutator_alloc_region(node_index)->attempt_allocation_force(word_size);
 }
 
-inline PLAB* G1PLABAllocator::alloc_buffer(G1HeapRegionAttr dest, uint node_index) const {
+// inline PLAB* G1PLABAllocator::alloc_buffer(G1HeapRegionAttr dest, uint node_index) const {
+//   assert(dest.is_valid(),
+//          "Allocation buffer index out of bounds: %s", dest.get_type_str());
+//   assert(_dest_data[dest.type()]._alloc_buffer != nullptr,
+//          "Allocation buffer is null: %s", dest.get_type_str());
+//   return alloc_buffer(dest.type(), node_index);
+// }
+
+// inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index) const {
+//   assert(dest < G1HeapRegionAttr::Num,
+//          "Allocation buffer index out of bounds: %u", dest);
+
+//   if (dest == G1HeapRegionAttr::Young) {
+//     assert(node_index < alloc_buffers_length(dest),
+//            "Allocation buffer index out of bounds: %u, %u", dest, node_index);
+//     return _dest_data[dest]._alloc_buffer[node_index];
+//   } else {
+//     return _dest_data[dest]._alloc_buffer[0];
+//   }
+// }
+
+inline PLAB* G1PLABAllocator::alloc_buffer(G1HeapRegionAttr dest, uint node_index, G1DataStructureRegionSet* data_structure) const {
   assert(dest.is_valid(),
          "Allocation buffer index out of bounds: %s", dest.get_type_str());
   assert(_dest_data[dest.type()]._alloc_buffer != nullptr,
          "Allocation buffer is null: %s", dest.get_type_str());
-  return alloc_buffer(dest.type(), node_index);
-}
+  return alloc_buffer(dest.type(), from_oop, to_oop, node_index);
+} 
 
-inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index) const {
+inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, G1DataStructureRegionSet* data_structure) const {
   assert(dest < G1HeapRegionAttr::Num,
          "Allocation buffer index out of bounds: %u", dest);
 
@@ -93,8 +114,15 @@ inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index) 
            "Allocation buffer index out of bounds: %u, %u", dest, node_index);
     return _dest_data[dest]._alloc_buffer[node_index];
   } else {
+    if (data_structure != nullptr) {
+      return data_structure->plab_data()->alloc_buffer[0];
+    }
     return _dest_data[dest]._alloc_buffer[0];
   }
+}
+
+inline G1DataStructureRegionSet* G1PLABAllocator::data_structure_region_set(oop from_oop, oop to_oop) const {
+  return _data_structure_manager->get_data_structure_plab(from_oop, to_oop);
 }
 
 inline uint G1PLABAllocator::alloc_buffers_length(region_type_t dest) const {
@@ -105,22 +133,31 @@ inline uint G1PLABAllocator::alloc_buffers_length(region_type_t dest) const {
   }
 }
 
+// inline HeapWord* G1PLABAllocator::plab_allocate(G1HeapRegionAttr dest,
+//                                                 size_t word_sz,
+//                                                 uint node_index) {
+//   PLAB* buffer = alloc_buffer(dest, node_index);
+//   return buffer->allocate(word_sz);
+// }
+
 inline HeapWord* G1PLABAllocator::plab_allocate(G1HeapRegionAttr dest,
-                                                size_t word_sz,
-                                                uint node_index) {
-  PLAB* buffer = alloc_buffer(dest, node_index);
+                                                                size_t word_sz,
+                                                                uint node_index,
+                                                                G1DataStructureRegionSet* data_structure){
+  PLAB* buffer = alloc_buffer(dest, node_index, data_structure);
   return buffer->allocate(word_sz);
 }
 
 inline HeapWord* G1PLABAllocator::allocate(G1HeapRegionAttr dest,
                                            size_t word_sz,
                                            bool* refill_failed,
-                                           uint node_index) {
-  HeapWord* const obj = plab_allocate(dest, word_sz, node_index);
+                                           uint node_index,
+                                           G1DataStructureRegionSet* data_structure) {
+  HeapWord* const obj = plab_allocate(dest, word_sz, node_index, data_structure);
   if (obj != nullptr) {
     return obj;
   }
-  return allocate_direct_or_new_plab(dest, word_sz, refill_failed, node_index);
+  return allocate_direct_or_new_plab(dest, word_sz, refill_failed, node_index, data_structure);
 }
 
 #endif // SHARE_GC_G1_G1ALLOCATOR_INLINE_HPP

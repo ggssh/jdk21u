@@ -26,6 +26,7 @@
 #define SHARE_GC_G1_G1DATASTRUCTUREREGIONSET_HPP
 
 #include "gc/g1/heapRegion.hpp"
+#include "gc/g1/g1Allocator.hpp"
 #include "utilities/linkedlist.hpp"
 #include "oops/symbolHandle.hpp"
 
@@ -75,22 +76,59 @@ private:
 
 public:
     G1DataStructureNode* symbol_in_roots(Symbol* symbol);
+    G1DataStructureEdge* find_edge(Symbol* from, Symbol* to);
 };
 
 
 class G1DataStructureRegionSet : public CHeapObj<mtGC> {
 private:
-
     LinkedListImpl<HeapRegion*> _regions;
-    G1DataStructure _data_structure;
+    G1DataStructure* _data_structure;
+    OldDataStructureGCAllocRegion _alloc_region;
+    G1PLABAllocator::PLABData _plab_data;
+    HeapRegion* _retained_old_region;
+
 public:
+    G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure);
+    ~G1DataStructureRegionSet() {
+        delete _data_structure;
+    }
+
+    void add_region(HeapRegion* region) {
+        _regions.add(region);
+    }
+
+    void remove_region(HeapRegion* region) {
+        _regions.remove(region);
+    }
+
     bool is_data_structure_root_symbol(Symbol* symbol) {
-        return _data_structure.symbol_in_roots(symbol) != nullptr;
+        return _data_structure->symbol_in_roots(symbol) != nullptr;
     }
 
     bool region_in(HeapRegion* region){
         return _regions.find(region) != nullptr;
     }
+
+    OldDataStructureGCAllocRegion* alloc_region() {
+        return &_alloc_region;
+    }
+
+    PLABData* plab_data() {
+        return &_plab_data;
+    }
+
+    G1DataStructureEdge* find_edge(Symbol* from, Symbol* to) {
+        return _data_structure->find_edge(from, to);
+    }
+
+    void init_data_structure_alloc_region(G1Allocator* allocator, G1EvacInfo* evacuation_info);
+    void release_data_structure_alloc_region();
+
+    bool is_retained_old_region(HeapRegion* hr) {
+        return _retained_old_region == hr;
+    }
+
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP
