@@ -71,9 +71,14 @@ private:
     LinkedListImpl<G1DataStructureNode*> _nodes;
     LinkedListImpl<G1DataStructureEdge*> _edges;
 
+    G1DataStructureNode* create_new_node(Symbol* symbol, G1DataStructureNodeType type);
+
 public:
     G1DataStructureNode* symbol_in_roots(Symbol* symbol);
     G1DataStructureEdge* find_edge(Symbol* from, Symbol* to);
+    G1DataStructureNode* find_node(Symbol* symbol);
+    void add_root(Symbol* symbol);
+    void add_edge(Symbol* from, Symbol* to);
 };
 
 

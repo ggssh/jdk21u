@@ -43,6 +43,8 @@ public:
     void release_data_structure_alloc_regions();
     uint alloc_count();
     bool is_retained_old_region(HeapRegion* hr);
+    
+    void initialize_predefined_data_structures();
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

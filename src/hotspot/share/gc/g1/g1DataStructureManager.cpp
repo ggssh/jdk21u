@@ -8,6 +8,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/klass.hpp"
 #include "oops/symbol.hpp"
+#include "classfile/symbolTable.hpp"
 
 
 G1DataStructureRegionSet* G1DataStructureManager::get_data_structure_by_root(Symbol* root_symbol) {
@@ -86,4 +87,16 @@ bool G1DataStructureManager::is_retained_old_region(HeapRegion* hr) {
         p = p->next();
     }
     return false;
+}
+
+void G1DataStructureManager::initialize_predefined_data_structures() {
+    Symbol* s1 = SymbolTable::new_symbol("[Ledu/cmu/graphchi/ChiVertex;");
+    Symbol* s2 = SymbolTable::new_symbol("edu/cmu/graphchi/ChiVertex");
+
+    G1DataStructure* data_structure = new G1DataStructure();
+    data_structure->add_root(s1);
+    data_structure->add_edge(s1, s2);
+
+    G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
+    _data_structures.add(data_structure_region_set);
 }
