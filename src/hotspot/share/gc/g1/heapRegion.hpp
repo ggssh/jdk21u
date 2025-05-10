@@ -586,11 +586,11 @@ private:
   G1DataStructureRegionSet* _data_structure_region_set;
 
 public:
-  inline G1DataStrcutureRegionSet* data_structure(){
+  inline G1DataStructureRegionSet* data_structure(){
     return _data_structure_region_set;
   }
 
-  inline set_data_structure(G1DataStrcutureRegionSet* data_structure){
+  inline void set_data_structure(G1DataStructureRegionSet* data_structure){
     _data_structure_region_set = data_structure;
   }
 };

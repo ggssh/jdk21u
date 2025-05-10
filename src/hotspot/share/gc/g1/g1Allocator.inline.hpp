@@ -102,7 +102,7 @@ inline PLAB* G1PLABAllocator::alloc_buffer(G1HeapRegionAttr dest, uint node_inde
          "Allocation buffer index out of bounds: %s", dest.get_type_str());
   assert(_dest_data[dest.type()]._alloc_buffer != nullptr,
          "Allocation buffer is null: %s", dest.get_type_str());
-  return alloc_buffer(dest.type(), from_oop, to_oop, node_index);
+  return alloc_buffer(dest.type(), node_index, data_structure);
 } 
 
 inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, G1DataStructureRegionSet* data_structure) const {
@@ -115,14 +115,14 @@ inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, 
     return _dest_data[dest]._alloc_buffer[node_index];
   } else {
     if (data_structure != nullptr) {
-      return data_structure->plab_data()->alloc_buffer[0];
+      return data_structure->plab_data()->_alloc_buffer[0];
     }
     return _dest_data[dest]._alloc_buffer[0];
   }
 }
 
 inline G1DataStructureRegionSet* G1PLABAllocator::data_structure_region_set(oop from_oop, oop to_oop) const {
-  return _data_structure_manager->get_data_structure_plab(from_oop, to_oop);
+  return _data_structure_manager->get_data_structure(from_oop, to_oop);
 }
 
 inline uint G1PLABAllocator::alloc_buffers_length(region_type_t dest) const {

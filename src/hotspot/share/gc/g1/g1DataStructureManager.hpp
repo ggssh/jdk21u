@@ -38,7 +38,7 @@ private:
 
 public:
     G1DataStructureRegionSet* get_data_structure_by_root(Symbol* root_symbol);
-    PLAB* get_data_structure_plab(oop from_oop, oop to_oop);
+    G1DataStructureRegionSet* get_data_structure(oop from_oop, oop to_oop);
     void init_data_structure_alloc_regions(G1Allocator* allocator, G1EvacInfo* evacuation_info);
     void release_data_structure_alloc_regions();
     uint alloc_count();

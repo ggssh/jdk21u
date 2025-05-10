@@ -1,9 +1,11 @@
-#include <gc/g1/g1DataStructureRegionSet.hpp>
+#include "gc/g1/g1DataStructureRegionSet.hpp"
+#include "gc/g1/g1CollectedHeap.hpp"
+#include "gc/g1/g1CollectedHeap.inline.hpp"
 
 G1DataStructureEdge* G1DataStructure::find_edge(Symbol* from, Symbol* to) {
     LinkedListNode<G1DataStructureEdge*>* p = _edges.head();
     while (p != nullptr) {
-        if((*p->data())->from()->symbol() == from && (*p->data())->to()->symbol() == to){
+        if((*p->data())->_from->symbol() == from && (*p->data())->_to->symbol() == to){
             return *(p->data());
         }
         p = p->next();

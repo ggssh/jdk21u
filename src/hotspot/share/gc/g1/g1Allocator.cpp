@@ -171,7 +171,7 @@ void G1Allocator::init_gc_alloc_regions(G1EvacInfo* evacuation_info) {
                             &_old_gc_alloc_region,
                             &_retained_old_gc_alloc_region);
   
-  _data_structure_manager->init_data_structure_alloc_region(this, evacuation_info);
+  _data_structure_manager->init_data_structure_alloc_regions(this, evacuation_info);
 }
 
 void G1Allocator::release_gc_alloc_regions(G1EvacInfo* evacuation_info) {
@@ -248,7 +248,7 @@ HeapWord* G1Allocator::par_allocate_during_gc(G1HeapRegionAttr dest,
                                               uint node_index,
                                               G1DataStructureRegionSet* data_structure) {
   size_t temp = 0;
-  HeapWord* result = par_allocate_during_gc(dest, word_size, word_size, &temp, node_inde, data_structure);
+  HeapWord* result = par_allocate_during_gc(dest, word_size, word_size, &temp, node_index, data_structure);
   assert(result == nullptr || temp == word_size,
          "Requested " SIZE_FORMAT " words, but got " SIZE_FORMAT " at " PTR_FORMAT,
          word_size, temp, p2i(result));
@@ -338,7 +338,7 @@ HeapWord* G1Allocator::old_data_structure_attempt_allocation(size_t min_word_siz
   assert(!_g1h->is_humongous(desired_word_size),
          "we should not be seeing humongous-size allocations in this path");
   
-  OldDataStructureGCAllocRegion* old_gc_alloc_region = data_structure->old_gc_alloc_region();
+  OldDataStructureGCAllocRegion* old_gc_alloc_region = data_structure->alloc_region();
 
   HeapWord* result = old_gc_alloc_region->attempt_allocation(min_word_size,
                                                                desired_word_size,
@@ -441,7 +441,7 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
   size_t next_plab_word_size = plab_word_size;
 
   PLABData* plab_data = &_dest_data[dest.type()];
-  if(dest == G1HeapRegionAttr::Old && data_structure != nullptr) {
+  if(dest.type() == G1HeapRegionAttr::Old && data_structure != nullptr) {
     plab_data = data_structure->plab_data();
   }
 
@@ -457,7 +457,7 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
   if ((required_in_plab <= next_plab_word_size) &&
     may_throw_away_buffer(required_in_plab, plab_word_size)) {
 
-    PLAB* alloc_buf = alloc_buffer(dest, node_index);
+    PLAB* alloc_buf = alloc_buffer(dest, node_index, data_structure);
     guarantee(alloc_buf->words_remaining() <= required_in_plab, "must be");
 
     alloc_buf->retire();
@@ -498,15 +498,15 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
   return result;
 }
 
-void G1PLABAllocator::undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz, uint node_index) {
-  alloc_buffer(dest, node_index)->undo_allocation(obj, word_sz);
+void G1PLABAllocator::undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz, uint node_index, G1DataStructureRegionSet* data_structure) {
+  alloc_buffer(dest, node_index, data_structure)->undo_allocation(obj, word_sz);
 }
 
 void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     G1EvacStats* stats = _g1h->alloc_buffer_stats(state);
     for (uint node_index = 0; node_index < alloc_buffers_length(state); node_index++) {
-      PLAB* const buf = alloc_buffer(state, node_index);
+      PLAB* const buf = alloc_buffer(state, node_index, nullptr);
       if (buf != nullptr) {
         buf->flush_and_retire_stats(stats);
       }
@@ -515,6 +515,7 @@ void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
     stats->add_num_plab_filled(plab_data->_num_plab_fills);
     stats->add_direct_allocated(plab_data->_direct_allocated);
     stats->add_num_direct_allocated(plab_data->_num_direct_allocations);
+    //hua todo add waste
   }
 
   log_trace(gc, plab)("PLAB boost: Young %zu -> %zu refills %zu (tolerated %zu) Old %zu -> %zu refills %zu (tolerated %zu)",
@@ -532,12 +533,13 @@ size_t G1PLABAllocator::waste() const {
   size_t result = 0;
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     for (uint node_index = 0; node_index < alloc_buffers_length(state); node_index++) {
-      PLAB* const buf = alloc_buffer(state, node_index);
+      PLAB* const buf = alloc_buffer(state, node_index, nullptr);
       if (buf != nullptr) {
         result += buf->waste();
       }
     }
   }
+  //hua: todo waste in data structure plab
   return result;
 }
 
@@ -549,11 +551,12 @@ size_t G1PLABAllocator::undo_waste() const {
   size_t result = 0;
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     for (uint node_index = 0; node_index < alloc_buffers_length(state); node_index++) {
-      PLAB* const buf = alloc_buffer(state, node_index);
+      PLAB* const buf = alloc_buffer(state, node_index, nullptr);
       if (buf != nullptr) {
         result += buf->undo_waste();
       }
     }
   }
+  //hua: todo waste in data structure plab
   return result;
 }

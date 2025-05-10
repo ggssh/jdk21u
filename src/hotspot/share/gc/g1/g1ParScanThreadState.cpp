@@ -396,8 +396,9 @@ G1HeapRegionAttr G1ParScanThreadState::next_region_attr(G1HeapRegionAttr const r
 
 void G1ParScanThreadState::report_promotion_event(G1HeapRegionAttr const dest_attr,
                                                   oop const old, size_t word_sz, uint age,
-                                                  HeapWord * const obj_ptr, uint node_index) const {
-  PLAB* alloc_buf = _plab_allocator->alloc_buffer(dest_attr, node_index);
+                                                  HeapWord * const obj_ptr, uint node_index,
+                                                  G1DataStructureRegionSet* data_structure) const {
+  PLAB* alloc_buf = _plab_allocator->alloc_buffer(dest_attr, node_index, data_structure);
   if (alloc_buf->contains(obj_ptr)) {
     _g1h->gc_tracer_stw()->report_promotion_in_new_plab_event(old->klass(), word_sz * HeapWordSize, age,
                                                               dest_attr.type() == G1HeapRegionAttr::Old,
@@ -436,7 +437,7 @@ HeapWord* G1ParScanThreadState::allocate_copy_slow(G1HeapRegionAttr* dest_attr,
     update_numa_stats(node_index);
     if (_g1h->gc_tracer_stw()->should_report_promotion_events()) {
       // The events are checked individually as part of the actual commit
-      report_promotion_event(*dest_attr, old, word_sz, age, obj_ptr, node_index);
+      report_promotion_event(*dest_attr, old, word_sz, age, obj_ptr, node_index, data_structure);
     }
   }
   return obj_ptr;
@@ -452,8 +453,9 @@ NOINLINE
 void G1ParScanThreadState::undo_allocation(G1HeapRegionAttr dest_attr,
                                            HeapWord* obj_ptr,
                                            size_t word_sz,
-                                           uint node_index) {
-  _plab_allocator->undo_allocation(dest_attr, obj_ptr, word_sz, node_index);
+                                           uint node_index,
+                                           G1DataStructureRegionSet* data_structure) {
+  _plab_allocator->undo_allocation(dest_attr, obj_ptr, word_sz, node_index, data_structure);
 }
 
 void G1ParScanThreadState::update_bot_after_copying(oop obj, size_t word_sz) {
@@ -485,14 +487,14 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   uint node_index = from_region->node_index();
 
   // HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index);
-  G1DataStructureRegionSet* target_data_structure = _g1h->data_structure_region_set(from_obj, old);
+  G1DataStructureRegionSet* target_data_structure = _plab_allocator->data_structure_region_set(from_obj, old);
   HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index, target_data_structure);
 
 
   // PLAB allocations should succeed most of the time, so we'll
   // normally check against null once and that's it.
   if (obj_ptr == nullptr) {
-    obj_ptr = allocate_copy_slow(&dest_attr, old, word_sz, age, node_index);
+    obj_ptr = allocate_copy_slow(&dest_attr, old, word_sz, age, node_index, target_data_structure);
     if (obj_ptr == nullptr) {
       // This will either forward-to-self, or detect that someone else has
       // installed a forwarding pointer.
@@ -507,7 +509,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   if (inject_evacuation_failure(from_region->hrm_index())) {
     // Doing this after all the allocation attempts also tests the
     // undo_allocation() method too.
-    undo_allocation(dest_attr, obj_ptr, word_sz, node_index);
+    undo_allocation(dest_attr, obj_ptr, word_sz, node_index, target_data_structure);
     return handle_evacuation_failure_par(old, old_mark, word_sz);
   }
 
@@ -602,7 +604,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
     _scanner.set_from_oop(nullptr);
     return obj;
   } else {
-    _plab_allocator->undo_allocation(dest_attr, obj_ptr, word_sz, node_index);
+    _plab_allocator->undo_allocation(dest_attr, obj_ptr, word_sz, node_index, target_data_structure);
     return forward_ptr;
   }
 }

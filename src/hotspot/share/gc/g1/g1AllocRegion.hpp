@@ -284,6 +284,6 @@ public:
   OldDataStructureGCAllocRegion(G1EvacStats* stats, G1DataStructureRegionSet* data_structure_region_set)
   : G1GCAllocRegion("Old Data Structure GC Alloc Region", true /* bot_updates */, stats, G1HeapRegionAttr::DataStructure), _data_structure_region_set(data_structure_region_set) { }
   virtual HeapRegion* allocate_new_region(size_t word_size, bool force);
-}
+};
 
 #endif // SHARE_GC_G1_G1ALLOCREGION_HPP

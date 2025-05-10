@@ -1,7 +1,14 @@
 #include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/g1/g1DataStructureManager.hpp"
 #include "gc/g1/heapRegion.hpp"
+#include "gc/g1/g1CollectedHeap.hpp"
+#include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/shared/plab.hpp"
+#include "oops/oop.hpp"
+#include "oops/oop.inline.hpp"
+#include "oops/klass.hpp"
+#include "oops/symbol.hpp"
+
 
 G1DataStructureRegionSet* G1DataStructureManager::get_data_structure_by_root(Symbol* root_symbol) {
     G1DataStructureRegionSet* data_structure = nullptr;
@@ -16,21 +23,23 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure_by_root(Sym
     return nullptr;
 }
 
-PLAB* G1DataStructureManager::get_data_structure_plab(oop from_oop, oop to_oop) {
+G1DataStructureRegionSet* G1DataStructureManager::get_data_structure(oop from_oop, oop to_oop) {
     Symbol* to_symbol = to_oop->klass()->name();
     G1DataStructureRegionSet* data_structure = get_data_structure_by_root(to_symbol);
     if (data_structure != nullptr) {
-        return data_structure->plab_data()->alloc_buffer[0];
+        return data_structure;
     }
+
+    G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
     if (from_oop != nullptr) {
         Symbol* from_symbol = from_oop->klass()->name();
         Symbol* to_symbol = to_oop->klass()->name();
-        HeapRegion* from_region = G1CollectedHeap::heap()->heap_region_containing(from_oop);
+        HeapRegion* from_region = g1h->heap_region_containing(from_oop);
         if (from_region->data_structure() != nullptr) {
             G1DataStructureRegionSet* data_structure = from_region->data_structure();
             if (data_structure->find_edge(from_symbol, to_symbol) != nullptr) {
-                return data_structure->plab_data()->alloc_buffer[0];
+                return data_structure;
             }
         }
     }
@@ -72,7 +81,7 @@ bool G1DataStructureManager::is_retained_old_region(HeapRegion* hr) {
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
         if (data_structure->region_in(hr)) {
-            return data_structure->alloc_region()->is_retained_old_region(hr);
+            return data_structure->is_retained_old_region(hr);
         }
         p = p->next();
     }

@@ -97,6 +97,11 @@ private:
                                    size_t desired_word_size,
                                    size_t* actual_word_size);
 
+  HeapWord* old_data_structure_attempt_allocation(size_t min_word_size,
+                                   size_t desired_word_size,
+                                   size_t* actual_word_size,
+                                   G1DataStructureRegionSet* data_structure);
+
   // Node index of current thread.
   inline uint current_node_index() const;
 
@@ -247,7 +252,8 @@ public:
                             uint node_index,
                             G1DataStructureRegionSet* data_structure);
 
-  void undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz, uint node_index);
+  void undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz, uint node_index,
+                       G1DataStructureRegionSet* data_structure);
 };
 
 #endif // SHARE_GC_G1_G1ALLOCATOR_HPP

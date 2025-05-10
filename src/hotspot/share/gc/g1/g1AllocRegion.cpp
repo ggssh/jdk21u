@@ -371,7 +371,7 @@ HeapRegion* OldDataStructureGCAllocRegion::allocate_new_region(size_t word_size,
   HeapRegion* new_region = _g1h->new_gc_alloc_region(word_size, _purpose, _node_index);
   if (new_region != nullptr) {
     new_region->set_data_structure(_data_structure_region_set);
-    _data_structure_region_set->add(new_region);
+    _data_structure_region_set->add_region(new_region);
   }
   return new_region;
 }

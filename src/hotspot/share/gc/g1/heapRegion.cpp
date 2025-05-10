@@ -127,7 +127,10 @@ void HeapRegion::hr_clear(bool clear_space) {
   rem_set()->clear_locked();
 
   init_top_at_mark_start();
-  _data_structure_region_set->remove_region(this);
+  if(_data_structure_region_set != nullptr) {
+    _data_structure_region_set->remove_region(this);
+
+  }
   _data_structure_region_set = nullptr;
   if (clear_space) clear(SpaceDecorator::Mangle);
 }

@@ -206,7 +206,7 @@ private:
 
   void report_promotion_event(G1HeapRegionAttr const dest_attr,
                               oop const old, size_t word_sz, uint age,
-                              HeapWord * const obj_ptr, uint node_index) const;
+                              HeapWord * const obj_ptr, uint node_index, G1DataStructureRegionSet* data_structure) const;
 
   void trim_queue_to_threshold(uint threshold);
 

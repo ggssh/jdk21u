@@ -90,6 +90,7 @@ class nmethod;
 class ReferenceProcessor;
 class STWGCTimer;
 class WorkerThreads;
+class OldDataStructureGCAllocRegion;
 
 typedef OverflowTaskQueue<ScannerTask, mtGC>           G1ScannerTasksQueue;
 typedef GenericTaskQueueSet<G1ScannerTasksQueue, mtGC> G1ScannerTasksQueueSet;
@@ -157,6 +158,7 @@ class G1CollectedHeap : public CollectedHeap {
   friend class MutatorAllocRegion;
   friend class G1FullCollector;
   friend class G1GCAllocRegion;
+  friend class OldDataStructureGCAllocRegion;
   friend class G1HeapVerifier;
 
   friend class G1YoungGCVerifierMark;

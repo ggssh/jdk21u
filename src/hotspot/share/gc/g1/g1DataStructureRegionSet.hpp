@@ -43,20 +43,18 @@ enum G1DataStructureEdgeType {
 
 class G1DataStructureEdge;
 
-class G1DataStructureNode : public CHeapObj<mtGC> {
-private:
+struct G1DataStructureNode : public CHeapObj<mtGC> {
     Symbol* _symbol;
     LinkedListImpl<G1DataStructureEdge*> _to_edges;
     LinkedListImpl<G1DataStructureEdge*> _from_edges;
     G1DataStructureNodeType _type;
-public:
+
     Symbol* symbol() const {
         return _symbol;
     }
 };
 
-class G1DataStructureEdge : public CHeapObj<mtGC> {
-private:
+struct G1DataStructureEdge : public CHeapObj<mtGC> {
     G1DataStructureNode* _from;
     G1DataStructureNode* _to;
     G1DataStructureEdgeType _type;
@@ -64,7 +62,6 @@ private:
     size_t _evac_size;
     size_t _overwrite_count;
     size_t _overwrite_size;
-public:
 };
 
 class G1DataStructure : public CHeapObj<mtGC> {
@@ -114,7 +111,7 @@ public:
         return &_alloc_region;
     }
 
-    PLABData* plab_data() {
+    G1PLABAllocator::PLABData* plab_data() {
         return &_plab_data;
     }
 
