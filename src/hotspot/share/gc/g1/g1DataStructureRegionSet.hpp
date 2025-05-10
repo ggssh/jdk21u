@@ -44,13 +44,13 @@ enum G1DataStructureEdgeType {
 class G1DataStructureEdge;
 
 struct G1DataStructureNode : public CHeapObj<mtGC> {
-    Symbol* _symbol;
+    SymbolHandle _symbol;
     LinkedListImpl<G1DataStructureEdge*> _to_edges;
     LinkedListImpl<G1DataStructureEdge*> _from_edges;
     G1DataStructureNodeType _type;
 
     Symbol* symbol() const {
-        return _symbol;
+        return (Symbol*)_symbol;
     }
 };
 
@@ -67,7 +67,7 @@ struct G1DataStructureEdge : public CHeapObj<mtGC> {
 class G1DataStructure : public CHeapObj<mtGC> {
 private:
     LinkedListImpl<G1DataStructureNode*> _roots;
-    LinkedListImpl<SymbolHandle*> _symbols;
+    // LinkedListImpl<SymbolHandle*> _symbols;
     LinkedListImpl<G1DataStructureNode*> _nodes;
     LinkedListImpl<G1DataStructureEdge*> _edges;
 

@@ -1563,6 +1563,7 @@ void G1CollectedHeap::safepoint_synchronize_end() {
 void G1CollectedHeap::post_initialize() {
   CollectedHeap::post_initialize();
   ref_processing_init();
+  _data_structure_manager.initialize_predefined_data_structures();
 }
 
 void G1CollectedHeap::ref_processing_init() {

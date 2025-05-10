@@ -29,7 +29,7 @@ G1DataStructureNode* G1DataStructure::create_new_node(Symbol* symbol, G1DataStru
     node->_symbol = symbol;
     node->_type = type;
     _nodes.add(node);
-    _symbols.add(new SymbolHandle(symbol));
+    // _symbols.add(new SymbolHandle(symbol));
     return node;
 }
 
@@ -51,7 +51,7 @@ void G1DataStructure::add_root(Symbol* symbol) {
 
     G1DataStructureNode* node;
 
-    if(node = find_node(symbol) != nullptr) {
+    if((node = find_node(symbol)) != nullptr) {
         node->_type = HeapRootNode;
         _roots.add(node);
         return;
@@ -69,11 +69,11 @@ void G1DataStructure::add_edge(Symbol* from, Symbol* to) {
     G1DataStructureNode* to_node = find_node(to);
 
     if(from_node == nullptr) {
-        from_node = create_new_node(from, NormalNode);
+        from_node = create_new_node(from, KlassNode);
     }
 
     if(to_node == nullptr) {
-        to_node = create_new_node(to, NormalNode);
+        to_node = create_new_node(to, KlassNode);
     }
 
     G1DataStructureEdge* edge = new G1DataStructureEdge();
