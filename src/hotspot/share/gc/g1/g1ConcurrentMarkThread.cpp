@@ -290,6 +290,10 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   // We can not easily abort before root region scan either because of the
   // reasons mentioned in G1CollectedHeap::abort_concurrent_cycle().
 
+  G1CollectedHeap* g1h = G1CollectedHeap::heap();
+
+  g1h->region_class_hash_map()->clear();
+
   // Phase 1: Scan root regions.
   if (phase_scan_root_regions()) return;
 
@@ -314,6 +318,11 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
 
   // Phase 7: Clear bitmap for next mark.
   phase_clear_bitmap_for_next_mark();
+
+  _cm->merge_region_class();
+
+  g1h->region_class_hash_map()->print_all();
+
 }
 
 void G1ConcurrentMarkThread::concurrent_undo_cycle_do() {

@@ -49,6 +49,7 @@
 #include "gc/g1/heapRegionSet.hpp"
 #include "gc/g1/g1DataStructureManager.hpp"
 #include "gc/g1/g1DataStructureRegionSet.hpp"
+#include "gc/g1/regionClassHashMap.hpp"
 #include "gc/shared/referenceHashMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
@@ -216,6 +217,20 @@ private:
     }
   };
 
+  RegionClassHashMap _region_class_hash_map;
+
+  class MergeRegionClassClosure {
+    public:
+    RegionClassHashMap* _region_class_hash_map;
+
+    MergeRegionClassClosure(RegionClassHashMap* region_class_hash_map) :
+      _region_class_hash_map(region_class_hash_map) {}
+
+    void work(HeapRegion* region, SymbolHandle& obj_class, const size_t& v, const size_t& size) {
+      _region_class_hash_map->add_or_inc(region, obj_class, v, size);
+    }
+  };
+
 private:
   // void merge_entry(const ReferenceEntry& k, const size_t& v) {
   //   // Merge the entry with the existing one.
@@ -237,8 +252,17 @@ public:
     return &_data_structure_manager;
   }
 
+  RegionClassHashMap* region_class_hash_map() {
+    return &_region_class_hash_map;
+  }
+
   void merge_reference_hash_map(ReferenceHashMap* other_map) {
     MergeEntryClosure cl(&_reference_hash_map);
+    other_map->for_each_closure(&cl);
+  }
+
+  void merge_region_class_hash_map(RegionClassHashMap* other_map){
+    MergeRegionClassClosure cl(&_region_class_hash_map);
     other_map->for_each_closure(&cl);
   }
 

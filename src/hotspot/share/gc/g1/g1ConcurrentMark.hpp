@@ -30,6 +30,7 @@
 #include "gc/g1/g1HeapVerifier.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.hpp"
 #include "gc/g1/heapRegionSet.hpp"
+#include "gc/g1/regionClassHashMap.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
@@ -534,6 +535,8 @@ public:
   // task local ones; should be called during concurrent start.
   void reset();
 
+  void merge_region_class() const;
+
   // Moves all per-task cached data into global state.
   void flush_all_task_caches();
   // Prepare internal data structures for the next mark cycle. This includes clearing
@@ -702,6 +705,8 @@ private:
 
   TruncatedSeq                _marking_step_diff_ms;
 
+  RegionClassHashMap         _region_class_hash_map;
+
   // Updates the local fields after this task has claimed
   // a new region to scan
   void setup_for_region(HeapRegion* hr);
@@ -842,6 +847,10 @@ public:
   Pair<size_t, size_t> flush_mark_stats_cache();
   // Prints statistics associated with this task
   void print_stats();
+
+  RegionClassHashMap* region_class_hash_map() {
+    return &_region_class_hash_map;
+  }
 };
 
 // Class that's used to to print out per-region liveness
