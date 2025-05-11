@@ -427,6 +427,11 @@ G1PLABAllocator::G1PLABAllocator(G1Allocator* allocator) :
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     _dest_data[state].initialize(alloc_buffers_length(state), _g1h->desired_plab_sz(state), initial_tolerated_refills);
   }
+  _data_structure_plab_map = _data_structure_manager->create_and_initialize_plab_map(alloc_buffers_length(state), _g1h->desired_plab_sz(state), initial_tolerated_refills);
+}
+
+G1PLABAllocator::~G1PLABAllocator() {
+  _data_structure_manager->delete_plab_map(_data_structure_plab_map);
 }
 
 bool G1PLABAllocator::may_throw_away_buffer(size_t const allocation_word_sz, size_t const buffer_size) const {
@@ -443,7 +448,9 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
 
   PLABData* plab_data = &_dest_data[dest.type()];
   if(dest.type() == G1HeapRegionAttr::Old && data_structure != nullptr) {
-    plab_data = data_structure->plab_data();
+    // plab_data = data_structure->plab_data();
+    bool success = _data_structure_plab_map->get(data_structure, plab_data);
+    assert(success, "PLABData not found for data structure");
     plab_word_size = plab_data->_cur_desired_plab_size;
     next_plab_word_size = plab_word_size;
   }

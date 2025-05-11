@@ -87,7 +87,7 @@ private:
     LinkedListImpl<HeapRegion*> _regions;
     G1DataStructure* _data_structure;
     OldDataStructureGCAllocRegion _alloc_region;
-    G1PLABAllocator::PLABData _plab_data;
+    // G1PLABAllocator::PLABData _plab_data;
     HeapRegion* _retained_old_region;
 
 public:
@@ -116,9 +116,9 @@ public:
         return &_alloc_region;
     }
 
-    G1PLABAllocator::PLABData* plab_data() {
-        return &_plab_data;
-    }
+    // G1PLABAllocator::PLABData* plab_data() {
+    //     return &_plab_data;
+    // }
 
     G1DataStructureEdge* find_edge(Symbol* from, Symbol* to) {
         return _data_structure->find_edge(from, to);

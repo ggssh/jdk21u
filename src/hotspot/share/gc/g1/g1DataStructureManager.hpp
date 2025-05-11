@@ -28,9 +28,11 @@
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "utilities/linkedlist.hpp"
+#include "utilities/hashMap.hpp"
 #include "oops/symbolHandle.hpp"
 
 class PLAB;
+
 
 class G1DataStructureManager : public CHeapObj<mtGC> {
 private:
@@ -45,6 +47,27 @@ public:
     bool is_retained_old_region(HeapRegion* hr);
     
     void initialize_predefined_data_structures();
+
+    class Config : public AllStatic {
+    public:
+        static uint get_hash(const G1DataStructureRegionSet*& key) { return (uint)key; }
+        static bool key_equals(const G1DataStructureRegionSet*& key1, const G1DataStructureRegionSet*& key2) {
+            return key1 == key2;
+        }
+    };
+
+    typedef HashMap<G1DataStructureRegionSet*, G1PLABAllocator::PLABData*, Config> DataPLABMap;
+
+    DataPLABMap* create_and_initialize_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills);
+
+    class DeleteClosure : public StackObj {
+    public:
+        void work(G1DataStructureRegionSet*& key, G1PLABAllocator::PLABData*& value){
+            delete value;
+        }
+    };
+
+    void delete_plab_map(DataPLABMap* plab_map);
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

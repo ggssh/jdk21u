@@ -115,7 +115,10 @@ inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, 
     return _dest_data[dest]._alloc_buffer[node_index];
   } else {
     if (data_structure != nullptr) {
-      return data_structure->plab_data()->_alloc_buffer[0];
+      PLABData* plab_data = nullptr;
+      bool success = _data_structure_plab_map->get(data_structure, plab_data);
+      assert(success, "PLABData not found for data structure");
+      return plab_data->_alloc_buffer[0];
     }
     return _dest_data[dest]._alloc_buffer[0];
   }

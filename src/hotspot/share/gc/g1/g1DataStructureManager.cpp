@@ -103,3 +103,21 @@ void G1DataStructureManager::initialize_predefined_data_structures() {
     G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
     _data_structures.add(data_structure_region_set);
 }
+
+DataPLABMap* G1DataStructureManager::create_and_initialize_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills){
+    DataPLABMap* plab_map = new DataPLABMap();
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        G1PLABAllocator::PLABData* plab_data = new G1PLABAllocator::PLABData();
+        plab_data->initialize(num_alloc_buffers, desired_plab_size, tolerated_refills);
+        plab_map->insert(data_structure, plab_data);
+        p = p->next();
+    }
+    return plab_map;
+}
+
+void G1DataStructureManager::delete_plab_map(DataPLABMap* plab_map) {
+    plab_map->forEachClosure(DeleteClosure());
+    delete plab_map;
+}

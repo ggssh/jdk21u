@@ -197,6 +197,8 @@ public:
 
   } _dest_data[G1HeapRegionAttr::Num];
 
+  G1DataStructureManager::DataPLABMap* _data_structure_plab_map;
+
   G1DataStructureManager* _data_structure_manager;
 
 private:
@@ -220,6 +222,7 @@ private:
   bool may_throw_away_buffer(size_t const allocation_word_sz, size_t const buffer_size) const;
 public:
   G1PLABAllocator(G1Allocator* allocator);
+  ~G1PLABAllocator();
 
   size_t waste() const;
   size_t undo_waste() const;

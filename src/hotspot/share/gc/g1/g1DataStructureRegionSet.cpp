@@ -93,29 +93,29 @@ G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1Data
     _regions(),
     _data_structure(data_structure),
     _alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Old), this),
-    _plab_data(),
+    // _plab_data(),
     _retained_old_region(nullptr) { 
     
-    size_t _tolerated_refills = 0;
+    // size_t _tolerated_refills = 0;
     
-    if (ResizePLAB) {
-        // See G1EvacStats::compute_desired_plab_sz for the reasoning why this is the
-        // expected number of refills.
-        double const ExpectedNumberOfRefills = G1LastPLABAverageOccupancy / TargetPLABWastePct;
-        // Add some padding to the threshold to not boost exactly when the targeted refills
-        // were reached.
-        // E.g. due to limitation of PLAB size to non-humongous objects and region boundaries
-        // a thread may experience more refills than expected. Keeping the PLAB waste low
-        // is the main goal, so being a bit conservative is better.
-        double const PadFactor = 1.5;
-        _tolerated_refills = MAX2(ExpectedNumberOfRefills, 1.0) * PadFactor;
-    } else {
-        // Make the tolerated refills a huge number.
-        _tolerated_refills = SIZE_MAX;
-    }
-    // The initial PLAB refill should not count, hence the +1 for the first boost.
-    size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;
-    _plab_data.initialize(1, heap->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
+    // if (ResizePLAB) {
+    //     // See G1EvacStats::compute_desired_plab_sz for the reasoning why this is the
+    //     // expected number of refills.
+    //     double const ExpectedNumberOfRefills = G1LastPLABAverageOccupancy / TargetPLABWastePct;
+    //     // Add some padding to the threshold to not boost exactly when the targeted refills
+    //     // were reached.
+    //     // E.g. due to limitation of PLAB size to non-humongous objects and region boundaries
+    //     // a thread may experience more refills than expected. Keeping the PLAB waste low
+    //     // is the main goal, so being a bit conservative is better.
+    //     double const PadFactor = 1.5;
+    //     _tolerated_refills = MAX2(ExpectedNumberOfRefills, 1.0) * PadFactor;
+    // } else {
+    //     // Make the tolerated refills a huge number.
+    //     _tolerated_refills = SIZE_MAX;
+    // }
+    // // The initial PLAB refill should not count, hence the +1 for the first boost.
+    // size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;
+    // _plab_data.initialize(1, heap->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
 }
 
 void G1DataStructureRegionSet::init_data_structure_alloc_region(G1Allocator* allocator, G1EvacInfo* evacuation_info) {
