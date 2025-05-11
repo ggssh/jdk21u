@@ -189,6 +189,7 @@ void G1Allocator::release_gc_alloc_regions(G1EvacInfo* evacuation_info) {
   // want either way so no reason to check explicitly for either
   // condition.
   _retained_old_gc_alloc_region = old_gc_alloc_region()->release();
+  _data_structure_manager->release_data_structure_alloc_regions();
 }
 
 void G1Allocator::abandon_gc_alloc_regions() {
@@ -443,6 +444,8 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
   PLABData* plab_data = &_dest_data[dest.type()];
   if(dest.type() == G1HeapRegionAttr::Old && data_structure != nullptr) {
     plab_data = data_structure->plab_data();
+    plab_word_size = plab_data->_cur_desired_plab_size;
+    next_plab_word_size = plab_word_size;
   }
 
   if (plab_data->should_boost()) {

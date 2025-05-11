@@ -16,6 +16,7 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure_by_root(Sym
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
     while (p != nullptr) {
         data_structure = *p->data();
+        // log_info(gc)("data structure");
         if (data_structure->is_data_structure_root_symbol(root_symbol)) {
             return data_structure;
         }
@@ -94,8 +95,10 @@ void G1DataStructureManager::initialize_predefined_data_structures() {
     Symbol* s2 = SymbolTable::new_symbol("edu/cmu/graphchi/ChiVertex");
 
     G1DataStructure* data_structure = new G1DataStructure();
-    data_structure->add_root(s1);
-    data_structure->add_edge(s1, s2);
+    // data_structure->add_root(s1);
+    data_structure->add_root(s2);
+
+    // data_structure->add_edge(s1, s2);
 
     G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
     _data_structures.add(data_structure_region_set);

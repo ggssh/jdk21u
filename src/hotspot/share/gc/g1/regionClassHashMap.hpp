@@ -4,6 +4,7 @@
 #include "oops/symbolHandle.hpp"
 #include "utilities/ostream.hpp"
 #include "gc/g1/heapRegion.hpp"
+#include "logging/log.hpp"
 // #include "gc/g1/heapRegion.inline.hpp"
 
 class RegionClassHashMap : CHeapObj<mtGC> {

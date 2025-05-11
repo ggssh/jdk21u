@@ -488,9 +488,13 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
   // HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index);
   G1DataStructureRegionSet* target_data_structure = _plab_allocator->data_structure_region_set(from_obj, old);
-  if(target_data_structure != nullptr){
-    log_info(gc)("found data structure obj %s -> %s", from_obj->klass()->name(), old->klass()->name());
-  }
+  // if(target_data_structure != nullptr){
+  //   if(from_obj != nullptr){
+  //     log_info(gc)("found data structure obj %s -> %s", from_obj->klass()->name()->as_C_string(), old->klass()->name()->as_C_string());
+  //   } else {
+  //     log_info(gc)("found data structure obj root -> %s", old->klass()->name()->as_C_string());
+  //   }
+  // }
   HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index, target_data_structure);
 
 
