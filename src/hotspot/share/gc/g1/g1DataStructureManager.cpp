@@ -91,14 +91,15 @@ bool G1DataStructureManager::is_retained_old_region(HeapRegion* hr) {
 }
 
 void G1DataStructureManager::initialize_predefined_data_structures() {
-    Symbol* s1 = SymbolTable::new_symbol("[Ledu/cmu/graphchi/ChiVertex;");
+    // Symbol* s1 = SymbolTable::new_symbol("[Ledu/cmu/graphchi/ChiVertex;");
     Symbol* s2 = SymbolTable::new_symbol("edu/cmu/graphchi/ChiVertex");
+    Symbol* s3 = SymbolTable::new_symbol("[I");
 
     G1DataStructure* data_structure = new G1DataStructure();
     // data_structure->add_root(s1);
     data_structure->add_root(s2);
 
-    // data_structure->add_edge(s1, s2);
+    data_structure->add_edge(s2, s3);
 
     G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
     _data_structures.add(data_structure_region_set);
@@ -115,9 +116,12 @@ DataPLABMap* G1DataStructureManager::create_and_initialize_plab_map(uint num_all
         p = p->next();
     }
     return plab_map;
+
+    // return nullptr;
 }
 
 void G1DataStructureManager::delete_plab_map(DataPLABMap* plab_map) {
-    plab_map->forEachClosure(DeleteClosure());
+    DeleteClosure cl;
+    plab_map->forEachClosure(&cl);
     delete plab_map;
 }

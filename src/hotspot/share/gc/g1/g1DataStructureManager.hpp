@@ -34,6 +34,17 @@
 class PLAB;
 
 
+class DataStructureConfig : public AllStatic {
+public:
+    static uint get_hash(G1DataStructureRegionSet* const& key) { return ((uintptr_t)key) & 0xffffffff; }
+    static bool key_equals(G1DataStructureRegionSet* const& key1, G1DataStructureRegionSet* const& key2) {
+        return key1 == key2;
+    }
+};
+
+typedef HashMap<G1DataStructureRegionSet*, G1PLABAllocator::PLABData*, DataStructureConfig, mtGC> DataPLABMap;
+
+
 class G1DataStructureManager : public CHeapObj<mtGC> {
 private:
     LinkedListImpl<G1DataStructureRegionSet*> _data_structures;
@@ -47,16 +58,6 @@ public:
     bool is_retained_old_region(HeapRegion* hr);
     
     void initialize_predefined_data_structures();
-
-    class Config : public AllStatic {
-    public:
-        static uint get_hash(const G1DataStructureRegionSet*& key) { return (uint)key; }
-        static bool key_equals(const G1DataStructureRegionSet*& key1, const G1DataStructureRegionSet*& key2) {
-            return key1 == key2;
-        }
-    };
-
-    typedef HashMap<G1DataStructureRegionSet*, G1PLABAllocator::PLABData*, Config> DataPLABMap;
 
     DataPLABMap* create_and_initialize_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills);
 

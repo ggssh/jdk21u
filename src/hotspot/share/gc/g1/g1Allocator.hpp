@@ -29,10 +29,15 @@
 #include "gc/g1/g1HeapRegionAttr.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/plab.hpp"
+#include "utilities/hashMap.hpp"
 
 class G1DataStructureManager;
+class G1DataStructureRegionSet;
 class G1EvacInfo;
 class G1NUMA;
+
+
+class DataStructureConfig;
 
 // Interface to keep track of which regions G1 is currently allocating into. Provides
 // some accessors (e.g. allocating into them, or getting their occupancy).
@@ -171,7 +176,8 @@ private:
   // Collects per-destination information (e.g. young, old gen) about current PLAB
   // and statistics about it.
 public:
-  struct PLABData {
+  class PLABData : public CHeapObj<mtGC> {
+  public:
     PLAB** _alloc_buffer;
 
     size_t _direct_allocated;             // Number of words allocated directly (not counting PLAB allocation).
@@ -197,7 +203,9 @@ public:
 
   } _dest_data[G1HeapRegionAttr::Num];
 
-  G1DataStructureManager::DataPLABMap* _data_structure_plab_map;
+
+  typedef HashMap<G1DataStructureRegionSet*, PLABData*, DataStructureConfig, mtGC> DataPLABMap;
+  DataPLABMap* _data_structure_plab_map;
 
   G1DataStructureManager* _data_structure_manager;
 

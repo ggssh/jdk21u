@@ -427,7 +427,7 @@ G1PLABAllocator::G1PLABAllocator(G1Allocator* allocator) :
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     _dest_data[state].initialize(alloc_buffers_length(state), _g1h->desired_plab_sz(state), initial_tolerated_refills);
   }
-  _data_structure_plab_map = _data_structure_manager->create_and_initialize_plab_map(alloc_buffers_length(state), _g1h->desired_plab_sz(state), initial_tolerated_refills);
+  _data_structure_plab_map = _data_structure_manager->create_and_initialize_plab_map(alloc_buffers_length(G1HeapRegionAttr::Old), _g1h->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
 }
 
 G1PLABAllocator::~G1PLABAllocator() {
@@ -512,6 +512,18 @@ void G1PLABAllocator::undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size
   alloc_buffer(dest, node_index, data_structure)->undo_allocation(obj, word_sz);
 }
 
+class FlushClosure : public StackObj {
+  G1EvacStats* _stats;
+public:
+  FlushClosure(G1EvacStats* stats) : _stats(stats) { }
+  void work(G1DataStructureRegionSet*& key, G1PLABAllocator::PLABData*& value){
+    value->_alloc_buffer[0]->flush_and_retire_stats(_stats);
+    _stats->add_num_plab_filled(value->_num_plab_fills);
+    _stats->add_direct_allocated(value->_direct_allocated);
+    _stats->add_num_direct_allocated(value->_num_direct_allocations);
+  }
+};
+
 void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     G1EvacStats* stats = _g1h->alloc_buffer_stats(state);
@@ -528,6 +540,9 @@ void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
     //hua todo add waste
   }
 
+  FlushClosure flush_closure(_g1h->alloc_buffer_stats(G1HeapRegionAttr::Old));
+  _data_structure_plab_map->forEachClosure(&flush_closure);
+
   log_trace(gc, plab)("PLAB boost: Young %zu -> %zu refills %zu (tolerated %zu) Old %zu -> %zu refills %zu (tolerated %zu)",
                       _g1h->alloc_buffer_stats(G1HeapRegionAttr::Young)->desired_plab_size(num_workers),
                       plab_size(G1HeapRegionAttr::Young),
@@ -539,6 +554,17 @@ void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
                       _tolerated_refills);
 }
 
+class WastedClosure : public StackObj {
+  size_t _result;
+public:
+  WastedClosure() : _result(0) { }
+  void work(G1DataStructureRegionSet*& key, G1PLABAllocator::PLABData*& value){
+    _result += value->_alloc_buffer[0]->waste();
+  }
+
+  size_t result() const { return _result;  }
+};
+
 size_t G1PLABAllocator::waste() const {
   size_t result = 0;
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
@@ -549,6 +575,9 @@ size_t G1PLABAllocator::waste() const {
       }
     }
   }
+  WastedClosure wasted_closure;
+  _data_structure_plab_map->forEachClosure(&wasted_closure);
+  result += wasted_closure.result();
   //hua: todo waste in data structure plab
   return result;
 }
@@ -556,6 +585,17 @@ size_t G1PLABAllocator::waste() const {
 size_t G1PLABAllocator::plab_size(G1HeapRegionAttr which) const {
   return _dest_data[which.type()]._cur_desired_plab_size;
 }
+
+class UndoWastedClosure : public StackObj {
+  size_t _result;
+public:
+  UndoWastedClosure() : _result(0) { }
+  void work(G1DataStructureRegionSet*& key, G1PLABAllocator::PLABData*& value){
+    _result += value->_alloc_buffer[0]->undo_waste();
+  }
+
+  size_t result() const { return _result;  }
+};
 
 size_t G1PLABAllocator::undo_waste() const {
   size_t result = 0;
@@ -567,6 +607,9 @@ size_t G1PLABAllocator::undo_waste() const {
       }
     }
   }
+  UndoWastedClosure undo_wasted_closure;
+  _data_structure_plab_map->forEachClosure(&undo_wasted_closure);
+  result += undo_wasted_closure.result();
   //hua: todo waste in data structure plab
   return result;
 }
