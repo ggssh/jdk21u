@@ -2851,6 +2851,7 @@ public:
         assert(r->is_young() || r->is_free() || r->is_old(), "invariant");
         // We now move all (non-humongous, non-old) regions to old gen,
         // and register them as such.
+        log_info(gc)("rebuild move to old region %u", r->hrm_index());
         r->move_to_old();
         _old_set->add(r);
       }

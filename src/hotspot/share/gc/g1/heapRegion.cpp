@@ -104,6 +104,7 @@ void HeapRegion::handle_evacuation_failure() {
   uninstall_surv_rate_group();
   clear_young_index_in_cset();
   clear_index_in_opt_cset();
+  log_info(gc)("evac failure move to old region %u", hrm_index());
   move_to_old();
 
   _rem_set->clean_code_roots(this);

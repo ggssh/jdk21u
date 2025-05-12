@@ -1001,6 +1001,26 @@ G1YoungCollector::G1YoungCollector(GCCause::Cause gc_cause) :
 {
 }
 
+class PrintRegionStatsClosure : public HeapRegionClosure {
+public:
+  PrintRegionStatsClosure():HeapRegionClosure() { }
+
+  bool do_heap_region(HeapRegion* hr) {
+    if (hr->is_young()) {
+      log_info(gc)("region %u is young, used %lu", hr->hrm_index(), hr->used());
+    } else if (hr->is_old()) {
+      log_info(gc)("region %u is old, used %lu", hr->hrm_index(), hr->used());
+    } else if (hr->is_humongous()) {
+      log_info(gc)("region %u is humongous, used %lu", hr->hrm_index(), hr->used());
+    } else if (hr->is_free()) {
+      log_info(gc)("region %u is free, used %lu", hr->hrm_index(), hr->used());
+    } else {
+      log_info(gc)("region %u is unknown, used %lu", hr->hrm_index(), hr->used());
+    }
+    return false;
+  }
+};
+
 void G1YoungCollector::collect() {
   // Do timing/tracing/statistics/pre- and post-logging/verification work not
   // directly related to the collection. They should not be accounted for in
@@ -1031,6 +1051,9 @@ void G1YoungCollector::collect() {
   wait_for_root_region_scanning();
 
   G1YoungGCVerifierMark vm(this);
+
+  PrintRegionStatsClosure prsc;
+  _g1h->heap_region_iterate(&prsc);
   {
     // Actual collection work starts and is executed (only) in this scope.
 
@@ -1065,5 +1088,7 @@ void G1YoungCollector::collect() {
 
     policy()->record_young_collection_end(_concurrent_operation_is_full_mark, evacuation_failed());
   }
+  _g1h->heap_region_iterate(&prsc);
+
   TASKQUEUE_STATS_ONLY(_g1h->task_queues()->print_and_reset_taskqueue_stats("Oop Queue");)
 }
