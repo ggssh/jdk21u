@@ -50,6 +50,7 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcHeapSummary.hpp"
+#include "gc/shared/klassLifetimeMap.hpp"
 #include "gc/shared/plab.hpp"
 #include "gc/shared/softRefPolicy.hpp"
 #include "gc/shared/taskqueue.hpp"
@@ -194,12 +195,36 @@ private:
   // The block offset table for the G1 heap.
   G1BlockOffsetTable* _bot;
 
+  KlassLifetimeMap _klass_lifetime_map;
+
+  class MergeEntryClosure {
+    public:
+    KlassLifetimeMap* _klass_lifetime_map;
+
+    MergeEntryClosure(KlassLifetimeMap* klass_lifetime_map) :
+      _klass_lifetime_map(klass_lifetime_map) {}
+
+    void work(const KlassLifetimeEntry& k, const UIntArray& v){
+      _klass_lifetime_map->add_or_merge(k, v);
+    }
+  };
+
 public:
   void rebuild_free_region_list();
   // Start a new incremental collection set for the next pause.
   void start_new_collection_set();
 
   void prepare_region_for_full_compaction(HeapRegion* hr);
+
+  KlassLifetimeMap* klass_lifetime_map() {
+    return &_klass_lifetime_map;
+  }
+
+  void merge_klass_lifetime_map(KlassLifetimeMap* other_map)  {
+    // _klass_lifetime_map.merge(other_map);
+    MergeEntryClosure cl(klass_lifetime_map());
+    other_map->for_each_closure(&cl);
+  }
 
 private:
   // Rebuilds the region sets / lists so that they are repopulated to

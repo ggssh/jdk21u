@@ -39,7 +39,9 @@
 #include "logging/log.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/symbolHandle.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/prefetch.inline.hpp"
 #include "utilities/copy.hpp"
@@ -270,6 +272,12 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
     if (!UseParallelFullScavengeGC && !new_obj_is_tenured) {
       new_obj->incr_age();
       assert(young_space()->contains(new_obj), "Attempt to push non-promoted obj");
+    }
+
+    uint extend_age = new_obj->extend_age();
+    if (extend_age < markWord::max_extend_age) {
+      new_obj->incr_extend_age();
+      klass_lifetime_map()->add_or_inc(SymbolHandle(new_obj->klass()->name()), extend_age);
     }
 
     // Do the size comparison first with new_obj_size, which we

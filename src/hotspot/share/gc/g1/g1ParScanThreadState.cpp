@@ -22,6 +22,9 @@
  *
  */
 
+#include "gc/shared/gc_globals.hpp"
+#include "logging/log.hpp"
+#include "oops/markWord.hpp"
 #include "precompiled.hpp"
 #include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
@@ -88,7 +91,8 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
     EVAC_FAILURE_INJECTOR_ONLY(_evac_failure_inject_counter(0) COMMA)
     _preserved_marks(preserved_marks),
     _evacuation_failed_info(),
-    _evac_failure_regions(evac_failure_regions)
+    _evac_failure_regions(evac_failure_regions),
+    _klass_lifetime_map(16)
 {
   // We allocate number of young gen regions in the collection set plus one
   // entries, since entry 0 keeps track of surviving bytes for non-young regions.
@@ -113,6 +117,9 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
 }
 
 size_t G1ParScanThreadState::flush_stats(size_t* surviving_young_words, uint num_workers) {
+  // yizhe
+  _g1h->merge_klass_lifetime_map(klass_lifetime_map());
+  // klass_lifetime_map()->clear();
   _rdc_local_qset.flush();
   flush_numa_stats();
   // Update allocation statistics.
@@ -369,7 +376,7 @@ G1HeapRegionAttr G1ParScanThreadState::next_region_attr(G1HeapRegionAttr const r
   if (region_attr.is_young()) {
     age = !m.has_displaced_mark_helper() ? m.age()
                                          : m.displaced_mark_helper().age();
-    if (age < _tenuring_threshold) {
+    if (age < MaxTenuringThreshold) {
       return region_attr;
     }
   }
@@ -462,7 +469,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   uint node_index = from_region->node_index();
 
   HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index);
-
+  // auto r = _g1h->heap_region_containing(obj_ptr);
+  // auto r_idx = r->hrm_index();
   // PLAB allocations should succeed most of the time, so we'll
   // normally check against null once and that's it.
   if (obj_ptr == nullptr) {
@@ -510,6 +518,15 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
         obj->incr_age();
       }
       _age_table.add(age, word_sz);
+
+      // yizhe
+      // if (obj->is_unlocked()) {
+        uint extend_age = obj->extend_age();
+        // if (extend_age > 13) log_info(gc) ("klass: %s extend_age: %u", obj->klass()->name()->as_C_string(), extend_age);
+        if (extend_age < markWord::max_extend_age) {
+          obj->incr_extend_age();
+          klass_lifetime_map()->add_or_inc(SymbolHandle(obj->klass()->name()), extend_age);
+        }
     } else {
       update_bot_after_copying(obj, word_sz);
     }

@@ -22,6 +22,7 @@
  *
  */
 
+#include "gc/shared/klassLifetimeMap.hpp"
 #include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "gc/parallel/mutableSpace.hpp"
@@ -121,6 +122,10 @@ bool PSPromotionManager::post_scavenge(YoungGCTracer& gc_tracer) {
       gc_tracer.report_promotion_failed(manager->_promotion_failed_info);
       promotion_failure_occurred = true;
     }
+
+    // yizhe
+    ParallelScavengeHeap::heap()->merge_klass_lifetime_map(manager->klass_lifetime_map());
+    manager->klass_lifetime_map()->clear();
     manager->flush_labs();
     manager->flush_string_dedup_requests();
   }
@@ -172,7 +177,8 @@ void PSPromotionManager::reset_stats() {
 }
 #endif // TASKQUEUE_STATS
 
-PSPromotionManager::PSPromotionManager() {
+PSPromotionManager::PSPromotionManager() : 
+  _klass_lifetime_map(16) {
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
 
   // We set the old lab's start array.

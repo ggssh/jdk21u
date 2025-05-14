@@ -464,6 +464,8 @@ void G1ConcurrentMark::reset() {
   // threads. So, it's easiest to have all of them ready.
   for (uint i = 0; i < _max_num_tasks; ++i) {
     _tasks[i]->reset(mark_bitmap());
+    // todo
+    _tasks[i]->klass_lifetime_map()->clear();
   }
 
   uint max_reserved_regions = _g1h->max_reserved_regions();
@@ -1847,6 +1849,10 @@ void G1ConcurrentMark::clear_bitmap_for_region(HeapRegion* hr) {
   _mark_bitmap.clear_range(MemRegion(hr->bottom(), hr->end()));
 }
 
+void G1ConcurrentMark::merge_klass_lifetime_map(KlassLifetimeMap* other_map)  {
+    _g1h->merge_klass_lifetime_map(other_map);
+}
+
 HeapRegion* G1ConcurrentMark::claim_region(uint worker_id) {
   // "checkpoint" the finger
   HeapWord* finger = _finger;
@@ -2877,7 +2883,8 @@ G1CMTask::G1CMTask(uint worker_id,
   _elapsed_time_ms(0.0),
   _termination_time_ms(0.0),
   _termination_start_time_ms(0.0),
-  _marking_step_diff_ms()
+  _marking_step_diff_ms(),
+  _klass_lifetime_map(16)
 {
   guarantee(task_queue != nullptr, "invariant");
 

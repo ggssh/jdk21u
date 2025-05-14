@@ -28,7 +28,9 @@
 #include "metaprogramming/primitiveConversions.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/globals.hpp"
+#include "utilities/globalDefinitions.hpp"
 
+#include <cstdint>
 #include <type_traits>
 
 // The markWord describes the header of an object.
@@ -104,6 +106,9 @@ class markWord {
   static const int age_bits                       = 4;
   static const int lock_bits                      = 2;
   static const int first_unused_gap_bits          = 1;
+  // yizhe
+  // unused:25 hash:31 -->| unused_gap:1  age:4  unused_gap:1  lock:2 (normal object)
+  static const int extend_age_bits                = 8;
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - first_unused_gap_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
   static const int second_unused_gap_bits         = LP64_ONLY(1) NOT_LP64(0);
@@ -111,6 +116,8 @@ class markWord {
   static const int lock_shift                     = 0;
   static const int age_shift                      = lock_bits + first_unused_gap_bits;
   static const int hash_shift                     = age_shift + age_bits + second_unused_gap_bits;
+  // yizhe
+  static const int extend_age_shift               = hash_shift + hash_bits;
 
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
@@ -118,6 +125,9 @@ class markWord {
   static const uintptr_t age_mask_in_place        = age_mask << age_shift;
   static const uintptr_t hash_mask                = right_n_bits(hash_bits);
   static const uintptr_t hash_mask_in_place       = hash_mask << hash_shift;
+  // yizhe
+  static const uintptr_t extend_age_mask          = right_n_bits(extend_age_bits);
+  static const uintptr_t extend_age_mask_in_place = extend_age_mask << extend_age_shift;
 
   static const uintptr_t locked_value             = 0;
   static const uintptr_t unlocked_value           = 1;
@@ -129,6 +139,8 @@ class markWord {
   static const uintptr_t no_lock_in_place         = unlocked_value;
 
   static const uint max_age                       = age_mask;
+  // yizhe
+  static const uint max_extend_age                = extend_age_mask;
 
   // Creates a markWord with all bits set to zero.
   static markWord zero() { return markWord(uintptr_t(0)); }
@@ -237,6 +249,14 @@ class markWord {
     return markWord((value() & ~age_mask_in_place) | ((v & age_mask) << age_shift));
   }
   markWord incr_age()      const { return age() == max_age ? markWord(_value) : set_age(age() + 1); }
+
+  // yizhe
+  uint extend_age()        const { return mask_bits(value() >> extend_age_shift, extend_age_mask); }
+  markWord set_extend_age(uint v) const {
+    assert((v & ~extend_age_mask) == 0, "shouldn't overflow extend_age field");
+    return markWord((value() & ~extend_age_mask_in_place) | ((v & extend_age_mask) << extend_age_shift));
+  }
+  markWord incr_extend_age()      const { return extend_age() == max_extend_age ? markWord(_value) : set_extend_age(extend_age() + 1); }
 
   // hash operations
   intptr_t hash() const {

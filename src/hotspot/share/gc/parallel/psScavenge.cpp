@@ -680,6 +680,7 @@ bool PSScavenge::invoke_no_policy() {
 
   _gc_tracer.report_gc_end(_gc_timer.gc_end(), _gc_timer.time_partitions());
 
+  ParallelScavengeHeap::heap()->klass_lifetime_map()->print_all();
   gc_majflt_stats.end_and_log("young");
 
   return !promotion_failure_occurred;

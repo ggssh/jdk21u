@@ -271,6 +271,10 @@ class oopDesc {
   // Age of object during scavenge
   inline uint age() const;
   inline void incr_age();
+  // yizhe
+  inline uint extend_age() const;
+  inline void incr_extend_age();
+  inline void set_extend_age(uint age);
 
   template <typename OopClosureType>
   inline void oop_iterate(OopClosureType* cl);
@@ -311,6 +315,7 @@ class oopDesc {
   // for code generation
   static int mark_offset_in_bytes()      { return (int)offset_of(oopDesc, _mark); }
   static int klass_offset_in_bytes()     { return (int)offset_of(oopDesc, _metadata._klass); }
+  static int extend_age_offset_in_bytes(){ return (int)offset_of(oopDesc, _mark) + 2; }
   static int klass_gap_offset_in_bytes() {
     assert(has_klass_gap(), "only applicable to compressed klass pointers");
     return klass_offset_in_bytes() + sizeof(narrowKlass);

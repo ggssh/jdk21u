@@ -33,6 +33,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/gcPolicyCounters.hpp"
 #include "gc/shared/gcWhen.hpp"
+#include "gc/shared/klassLifetimeMap.hpp"
 #include "gc/shared/preGCValues.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/softRefPolicy.hpp"
@@ -93,6 +94,20 @@ class ParallelScavengeHeap : public CollectedHeap {
 
   WorkerThreads _workers;
 
+  KlassLifetimeMap _klass_lifetime_map;
+
+  class MergeEntryClosure {
+    public:
+    KlassLifetimeMap* _klass_lifetime_map;
+
+    MergeEntryClosure(KlassLifetimeMap* klass_lifetime_map) :
+      _klass_lifetime_map(klass_lifetime_map) {}
+
+    void work(const KlassLifetimeEntry& k, const UIntArray& v){
+      _klass_lifetime_map->add_or_merge(k, v);
+    }
+  };
+
   void initialize_serviceability() override;
 
   void trace_actual_reserved_page_size(const size_t reserved_heap_size, const ReservedSpace rs);
@@ -117,7 +132,8 @@ class ParallelScavengeHeap : public CollectedHeap {
     _eden_pool(nullptr),
     _survivor_pool(nullptr),
     _old_pool(nullptr),
-    _workers("GC Thread", ParallelGCThreads) { }
+    _workers("GC Thread", ParallelGCThreads),
+    _klass_lifetime_map(20) { }
 
   // For use by VM operations
   enum CollectionType {
@@ -127,6 +143,16 @@ class ParallelScavengeHeap : public CollectedHeap {
 
   Name kind() const override {
     return CollectedHeap::Parallel;
+  }
+
+  KlassLifetimeMap* klass_lifetime_map() {
+    return &_klass_lifetime_map;
+  }
+
+  void merge_klass_lifetime_map(KlassLifetimeMap* other_map)  {
+    // _klass_lifetime_map.merge(other_map);
+    MergeEntryClosure cl(klass_lifetime_map());
+    other_map->for_each_closure(&cl);
   }
 
   const char* name() const override {

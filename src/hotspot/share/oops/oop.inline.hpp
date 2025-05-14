@@ -304,12 +304,41 @@ uint oopDesc::age() const {
   }
 }
 
+// yizhe
+uint oopDesc::extend_age() const {
+  assert(!mark().is_marked(), "Attempt to read extend_age from forwarded mark");
+  if (has_displaced_mark()) {
+    return displaced_mark().extend_age();
+  } else {
+    return mark().extend_age();
+  }
+}
+
 void oopDesc::incr_age() {
   assert(!mark().is_marked(), "Attempt to increment age of forwarded mark");
   if (has_displaced_mark()) {
     set_displaced_mark(displaced_mark().incr_age());
   } else {
     set_mark(mark().incr_age());
+  }
+}
+
+// yizhe
+void oopDesc::incr_extend_age() {
+  assert(!mark().is_marked(), "Attempt to increment extend_age of forwarded mark");
+  if (has_displaced_mark()) {
+    set_displaced_mark(displaced_mark().incr_extend_age());
+  } else {
+    set_mark(mark().incr_extend_age());
+  }
+}
+
+void oopDesc::set_extend_age(uint age) {
+  assert(!mark().is_marked(), "Attempt to increment extend_age of forwarded mark");
+  if (has_displaced_mark()) {
+    set_displaced_mark(displaced_mark().set_extend_age(age));
+  } else {
+    set_mark(mark().set_extend_age(age));
   }
 }
 

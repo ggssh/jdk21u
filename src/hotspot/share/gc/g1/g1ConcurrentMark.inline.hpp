@@ -38,6 +38,7 @@
 #include "gc/g1/heapRegion.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/taskqueue.inline.hpp"
+#include "logging/log.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
@@ -78,6 +79,13 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
 
   bool success = _mark_bitmap.par_mark(obj);
   if (success) {
+    // yizhe: todo
+    uint extend_age = obj->extend_age();
+    if (extend_age < markWord::max_extend_age && extend_age >= 15) {
+      // if (extend_age < 15) log_info(gc) ("obj's age < 15");
+      obj->incr_extend_age();
+      task(worker_id)->klass_lifetime_map()->add_or_inc(SymbolHandle(obj->klass()->name()), extend_age);
+    }
     add_to_liveness(worker_id, obj, obj->size());
   }
   return success;
@@ -267,6 +275,7 @@ inline bool G1CMTask::deal_with_reference(T* p) {
   if (obj == nullptr) {
     return false;
   }
+  // uint extend_age = 
   return make_reference_grey(obj);
 }
 

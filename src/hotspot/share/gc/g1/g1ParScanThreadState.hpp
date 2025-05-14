@@ -32,6 +32,7 @@
 #include "gc/g1/g1_globals.hpp"
 #include "gc/shared/ageTable.hpp"
 #include "gc/shared/copyFailedInfo.hpp"
+#include "gc/shared/klassLifetimeMap.hpp"
 #include "gc/shared/partialArrayTaskStepper.hpp"
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
@@ -109,6 +110,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   PreservedMarks* _preserved_marks;
   EvacuationFailedInfo _evacuation_failed_info;
   G1EvacFailureRegions* _evac_failure_regions;
+  KlassLifetimeMap _klass_lifetime_map;
 
   bool inject_evacuation_failure(uint region_idx) EVAC_FAILURE_INJECTOR_RETURN_( return false; );
 
@@ -227,6 +229,8 @@ public:
   inline void remember_reference_into_optional_region(T* p);
 
   inline G1OopStarChunkedList* oops_into_optional_region(const HeapRegion* hr);
+
+  KlassLifetimeMap* klass_lifetime_map() { return &_klass_lifetime_map; }
 };
 
 class G1ParScanThreadStateSet : public StackObj {

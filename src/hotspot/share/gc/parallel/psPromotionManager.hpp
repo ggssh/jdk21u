@@ -28,6 +28,7 @@
 #include "gc/parallel/psPromotionLAB.hpp"
 #include "gc/shared/copyFailedInfo.hpp"
 #include "gc/shared/gcTrace.hpp"
+#include "gc/shared/klassLifetimeMap.hpp"
 #include "gc/shared/preservedMarks.hpp"
 #include "gc/shared/stringdedup/stringDedup.hpp"
 #include "gc/shared/taskqueue.hpp"
@@ -92,6 +93,8 @@ class PSPromotionManager {
   PromotionFailedInfo                 _promotion_failed_info;
 
   StringDedup::Requests _string_dedup_requests;
+
+  KlassLifetimeMap                    _klass_lifetime_map;
 
   // Accessors
   static PSOldGen* old_gen()         { return _old_gen; }
@@ -177,6 +180,10 @@ class PSPromotionManager {
   TASKQUEUE_STATS_ONLY(inline void record_steal(ScannerTask task);)
 
   void push_contents(oop obj);
+
+  KlassLifetimeMap* klass_lifetime_map() {
+    return &_klass_lifetime_map;
+  }
 };
 
 #endif // SHARE_GC_PARALLEL_PSPROMOTIONMANAGER_HPP

@@ -31,6 +31,7 @@
 #include "gc/g1/g1RegionMarkStatsCache.hpp"
 #include "gc/g1/heapRegionSet.hpp"
 #include "gc/shared/gcCause.hpp"
+#include "gc/shared/klassLifetimeMap.hpp"
 #include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
 #include "gc/shared/verifyOption.hpp"
@@ -610,6 +611,8 @@ public:
 
   G1OldTracer* gc_tracer_cm() const { return _gc_tracer_cm; }
 
+  void merge_klass_lifetime_map(KlassLifetimeMap* other_map);
+
 private:
   // Rebuilds the remembered sets for chosen regions in parallel and concurrently
   // to the application. Also scrubs dead objects to ensure region is parsable.
@@ -701,6 +704,8 @@ private:
   double                      _termination_start_time_ms;
 
   TruncatedSeq                _marking_step_diff_ms;
+
+  KlassLifetimeMap            _klass_lifetime_map;
 
   // Updates the local fields after this task has claimed
   // a new region to scan
@@ -842,6 +847,10 @@ public:
   Pair<size_t, size_t> flush_mark_stats_cache();
   // Prints statistics associated with this task
   void print_stats();
+
+  KlassLifetimeMap* klass_lifetime_map() {
+    return &_klass_lifetime_map;
+  }
 };
 
 // Class that's used to to print out per-region liveness

@@ -1235,6 +1235,7 @@ G1CollectedHeap::G1CollectedHeap() :
   _old_set("Old Region Set", new OldRegionSetChecker()),
   _humongous_set("Humongous Region Set", new HumongousRegionSetChecker()),
   _bot(nullptr),
+  _klass_lifetime_map(20),
   _listener(),
   _numa(G1NUMA::create()),
   _hrm(),
@@ -1475,6 +1476,7 @@ jint G1CollectedHeap::initialize() {
 
   // Create the G1ConcurrentMark data structure and thread.
   // (Must do this late, so that "max_[reserved_]regions" is defined.)
+  // yyz
   _cm = new G1ConcurrentMark(this, bitmap_storage);
   _cm_thread = _cm->cm_thread();
 
@@ -1540,6 +1542,8 @@ void G1CollectedHeap::stop() {
   // Stop all concurrent threads. We do this to make sure these threads
   // do not continue to execute and access resources (e.g. logging)
   // that are destroyed during shutdown.
+  // yizhe
+  // klass_lifetime_map()->print_all();
   _cr->stop();
   _service_thread->stop();
   _cm_thread->stop();
