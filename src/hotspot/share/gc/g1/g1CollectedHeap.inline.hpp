@@ -84,7 +84,7 @@ G1EvacStats* G1CollectedHeap::alloc_buffer_stats(G1HeapRegionAttr dest) {
     case G1HeapRegionAttr::Young:
       return &_survivor_evac_stats;
     case G1HeapRegionAttr::Old:
-    case G1HeapRegionAttr::DataStructure:
+    // case G1HeapRegionAttr::DataStructure:
       return &_old_evac_stats;
     default:
       ShouldNotReachHere();

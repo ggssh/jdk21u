@@ -1052,8 +1052,8 @@ void G1YoungCollector::collect() {
 
   G1YoungGCVerifierMark vm(this);
 
-  PrintRegionStatsClosure prsc;
-  _g1h->heap_region_iterate(&prsc);
+  // PrintRegionStatsClosure prsc;
+  // _g1h->heap_region_iterate(&prsc);
   {
     // Actual collection work starts and is executed (only) in this scope.
 
@@ -1088,7 +1088,7 @@ void G1YoungCollector::collect() {
 
     policy()->record_young_collection_end(_concurrent_operation_is_full_mark, evacuation_failed());
   }
-  _g1h->heap_region_iterate(&prsc);
+  // _g1h->heap_region_iterate(&prsc);
 
   TASKQUEUE_STATS_ONLY(_g1h->task_queues()->print_and_reset_taskqueue_stats("Oop Queue");)
 }

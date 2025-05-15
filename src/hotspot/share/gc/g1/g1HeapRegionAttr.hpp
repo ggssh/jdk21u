@@ -57,8 +57,7 @@ public:
   static const region_type_t NotInCSet     = -1;    // The region is not in the collection set.
   static const region_type_t Young         =  0;    // The region is in the collection set and a young region.
   static const region_type_t Old           =  1;    // The region is in the collection set and an old region.
-  static const region_type_t DataStructure =  2;
-  static const region_type_t Num           =  3;
+  static const region_type_t Num           =  2;
 
   G1HeapRegionAttr(region_type_t type = NotInCSet, bool remset_is_tracked = false) :
     _remset_is_tracked(remset_is_tracked), _type(type) {

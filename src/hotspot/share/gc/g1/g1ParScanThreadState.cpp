@@ -511,7 +511,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
     static uint prev_region_index = 0;
     HeapRegion* to_region = _g1h->heap_region_containing(obj_ptr);
     if(to_region->hrm_index() != prev_region_index){
-      log_info(gc)("to region %u", to_region->hrm_index());
+      // log_info(gc)("to region %u", to_region->hrm_index());
       prev_region_index = to_region->hrm_index();
     }
   }
