@@ -1275,9 +1275,9 @@ void G1Policy::record_concurrent_mark_cleanup_end(bool has_rebuilt_remembered_se
 void G1Policy::abandon_collection_set_candidates() {
   // Clear remembered sets of remaining candidate regions and the actual candidate
   // set.
-  for (HeapRegion* r : *candidates()) {
-    r->rem_set()->clear_locked(true /* only_cardset */);
-  }
+  // for (HeapRegion* r : *candidates()) {
+  //   r->rem_set()->clear_locked(true /* only_cardset */);
+  // }
   _collection_set->abandon_all_candidates();
 }
 
