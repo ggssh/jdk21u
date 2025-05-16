@@ -330,6 +330,7 @@ private:
   bool contains_card(uint card_region, uint card_in_region);
 
   // Testing API
+public:
   class CardClosure {
   public:
     virtual void do_card(uint region_idx, uint card_idx) = 0;
