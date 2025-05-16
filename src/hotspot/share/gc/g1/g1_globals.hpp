@@ -106,6 +106,8 @@
           "initial value of InitiatingHeapOccupancyPercent. The policy "    \
           "attempts to start marking in time based on application "         \
           "behavior.")                                                      \
+  product(bool, G1AlwaysTrackOld, false,                                    \
+          "Always track the old regions' remset ")                          \
                                                                             \
   product(size_t, G1AdaptiveIHOPNumInitialSamples, 3, EXPERIMENTAL,         \
           "How many completed time periods from concurrent start to first " \
