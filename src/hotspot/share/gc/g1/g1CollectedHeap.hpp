@@ -1382,6 +1382,8 @@ public:
 
   // Used to print information about locations in the hs_err file.
   bool print_location(outputStream* st, void* addr) const override;
+
+  void print_region_types();
 };
 
 // Scoped object that performs common pre- and post-gc heap printing operations.

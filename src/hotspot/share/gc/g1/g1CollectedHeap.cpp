@@ -3147,3 +3147,34 @@ void G1CollectedHeap::finish_codecache_marking_cycle() {
   CodeCache::on_gc_marking_cycle_finish();
   CodeCache::arm_all_nmethods();
 }
+
+class PrintHeapRegionTypeClosure: public HeapRegionClosure {
+public:
+  bool do_heap_region(HeapRegion* r) {
+    if(r->data_structure() != nullptr){
+      if(r->is_humongous()){
+        log_info(gc)("Region %u : Humongous Data", r->hrm_index());
+
+      } else if(r->is_old()){
+        log_info(gc)("Region %u : Old Data", r->hrm_index());
+      }
+    } else {
+      if(r->is_humongous()){
+        log_info(gc)("Region %u : Humongous", r->hrm_index());
+
+      } else if(r->is_old()){
+        log_info(gc)("Region %u : Old", r->hrm_index());
+      } else if(r->is_young()){
+        log_info(gc)("Region %u : Young", r->hrm_index());
+      } else {
+        log_info(gc)("Region %u : Free", r->hrm_index());
+      }
+    }
+    return false;
+  }
+};
+
+void G1CollectedHeap::print_heap_region_types() {
+  PrintHeapRegionTypeClosure cl;
+  heap_region_iterate(&cl);
+}
