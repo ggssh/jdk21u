@@ -33,6 +33,8 @@
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
 #include "utilities/ticks.hpp"
+#include "logging/logStream.hpp"
+
 
 // A G1RemSet provides ways of iterating over pointers into a selected
 // collection set.
@@ -135,6 +137,31 @@ public:
 
   // Print accumulated summary info from the last time called.
   void print_periodic_summary_info(const char* header, uint period_count, bool show_thread_times);
+
+  void log_remset();
+};
+
+class ScanRegionRemsetClosure;
+
+class ScanRemsetClosure : public G1CardSet::CardClosure {
+  ScanRegionRemsetClosure* _cl;
+  public:
+    ScanRemsetClosure(ScanRegionRemsetClosure* cl):_cl(cl){}
+    virtual void do_card(uint region_idx, uint card_idx);
+};
+
+class ScanRegionRemsetClosure : public HeapRegionClosure {
+  G1CollectedHeap* _g1h;
+  bool* _incoming_regions;
+  uint _num_regions;
+  LogStream _ls;
+  bool has_incoming = false;
+
+public:
+  ScanRegionRemsetClosure(G1CollectedHeap* g1h);
+  ~ScanRegionRemsetClosure();
+  virtual bool do_heap_region(HeapRegion* r);
+  void do_incoming_region(uint region_idx);
 };
 
 #endif // SHARE_GC_G1_G1REMSET_HPP

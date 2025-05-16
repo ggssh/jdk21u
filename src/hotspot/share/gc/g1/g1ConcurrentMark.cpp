@@ -964,6 +964,11 @@ void G1ConcurrentMark::scan_root_regions() {
   // scan_in_progress() will have been set to true only if there was
   // at least one root region to scan. So, if it's false, we
   // should not attempt to do any further work.
+
+  if(G1LogRemset){
+    _g1h->rem_set()->log_remset();
+  }
+
   if (root_regions()->scan_in_progress()) {
     assert(!has_aborted(), "Aborting before root region scanning is finished not supported.");
 

@@ -78,6 +78,10 @@ public:
   template <class CardOrRangeVisitor>
   inline void iterate_for_merge(CardOrRangeVisitor& cl);
 
+  void iterate_cards(G1CardSet::CardClosure& cl){
+    _card_set.iterate_cards(cl);
+  }
+
   size_t occupied() {
     return _card_set.occupied();
   }

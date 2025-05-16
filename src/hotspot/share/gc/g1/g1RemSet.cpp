@@ -58,6 +58,7 @@
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/stack.inline.hpp"
 #include "utilities/ticks.hpp"
+#include "logging/logStream.hpp"
 #include CPU_HEADER(gc/g1/g1Globals)
 
 // Collects information about the overall heap root scan progress during an evacuation.
@@ -1598,4 +1599,49 @@ void G1RemSet::print_summary_info() {
     LogStream ls(log.trace());
     current.print_on(&ls, true /* show_thread_times*/);
   }
+}
+
+ScanRegionRemsetClosure::ScanRegionRemsetClosure(G1CollectedHeap* g1h):_ls(LogTarget(Info, gc, heap)()){
+  _g1h = g1h;
+  _num_regions = _g1h->num_regions();
+  _incoming_regions = NEW_C_HEAP_ARRAY(bool, _num_regions, mtGC);
+  
+  // for(uint i = 0; i < _num_regions; i++){
+  //   _incoming_regions[i] = false;
+  // }
+  // LogTarget(Info, gc, heap) lt;
+  // _ls = LogStream(lt);
+}
+
+ScanRegionRemsetClosure::~ScanRegionRemsetClosure(){
+  FREE_C_HEAP_ARRAY(bool, _incoming_regions);
+}
+
+bool ScanRegionRemsetClosure::do_heap_region(HeapRegion* r){
+  ScanRemsetClosure cl(this);
+  memset((void*)_incoming_regions, 0, sizeof(bool)*_num_regions);
+  has_incoming = false;
+  r->rem_set()->iterate_cards(cl);
+  if(has_incoming){
+    _ls.print("into Region %u", r->hrm_index());
+    _ls.print_cr("");
+  }
+  return false;
+}
+
+void ScanRegionRemsetClosure::do_incoming_region(uint region_idx){
+  has_incoming = true;
+  if(!_incoming_regions[region_idx]){
+    _ls.print("%u, ", region_idx);
+  }
+  _incoming_regions[region_idx] = true;
+}
+
+void ScanRemsetClosure::do_card(uint region_idx, uint card_idx){
+  _cl->do_incoming_region(region_idx);
+}
+
+void G1RemSet::log_remset(){
+  ScanRegionRemsetClosure cl(_g1h);
+  _g1h->heap_region_iterate(&cl);
 }

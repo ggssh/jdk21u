@@ -109,6 +109,9 @@
   product(bool, G1AlwaysTrackOld, false,                                    \
           "Always track the old regions' remset ")                          \
                                                                             \
+  product(bool, G1LogRemset, false,                                         \
+          "G1 log remset ")                                                 \
+                                                                            \
   product(size_t, G1AdaptiveIHOPNumInitialSamples, 3, EXPERIMENTAL,         \
           "How many completed time periods from concurrent start to first " \
           "mixed gc are required to use the input values for prediction "   \
