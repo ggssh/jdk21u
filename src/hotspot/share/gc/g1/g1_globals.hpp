@@ -106,11 +106,16 @@
           "initial value of InitiatingHeapOccupancyPercent. The policy "    \
           "attempts to start marking in time based on application "         \
           "behavior.")                                                      \
+                                                                            \
   product(bool, G1DisableConcMarking, false,                                \
           "Completely disable concurrent marking, mixed gc will also be"    \
           "disabled.")                                                      \
+                                                                            \
   product(bool, G1UseSTWMarking, false,                                     \
           "Use stop-the-world-concurrent marking")                          \
+                                                                            \
+  product(bool, G1ProfileLifeTime, false,                                   \
+          "Profile klass's lifetime")                                       \
                                                                             \
   product(size_t, G1AdaptiveIHOPNumInitialSamples, 3, EXPERIMENTAL,         \
           "How many completed time periods from concurrent start to first " \

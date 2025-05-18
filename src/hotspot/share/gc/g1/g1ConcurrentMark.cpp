@@ -465,7 +465,9 @@ void G1ConcurrentMark::reset() {
   for (uint i = 0; i < _max_num_tasks; ++i) {
     _tasks[i]->reset(mark_bitmap());
     // todo
-    _tasks[i]->klass_lifetime_map()->clear();
+    if (G1ProfileLifeTime) {
+      _tasks[i]->klass_lifetime_map()->clear();
+    }
   }
 
   uint max_reserved_regions = _g1h->max_reserved_regions();

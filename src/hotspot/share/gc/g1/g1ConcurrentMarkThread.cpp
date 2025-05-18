@@ -272,7 +272,9 @@ bool G1ConcurrentMarkThread::phase_clear_bitmap_for_next_mark() {
   G1ConcPhaseTimer p(_cm, "Concurrent Cleanup for Next Mark");
   _cm->cleanup_for_next_mark();
   for (size_t i = 0; i < _cm->_max_num_tasks; i++) {
-    _cm->merge_klass_lifetime_map(_cm->task(i)->klass_lifetime_map());
+    if (G1ProfileLifeTime) {
+      _cm->merge_klass_lifetime_map(_cm->task(i)->klass_lifetime_map());
+    }
     // _cm->task(i)->klass_lifetime_map()->print_all();
   }
   return _cm->has_aborted();

@@ -118,7 +118,9 @@ G1ParScanThreadState::G1ParScanThreadState(G1CollectedHeap* g1h,
 
 size_t G1ParScanThreadState::flush_stats(size_t* surviving_young_words, uint num_workers) {
   // yizhe
-  _g1h->merge_klass_lifetime_map(klass_lifetime_map());
+  if (G1ProfileLifeTime) {
+    _g1h->merge_klass_lifetime_map(klass_lifetime_map());
+  }
   // klass_lifetime_map()->clear();
   _rdc_local_qset.flush();
   flush_numa_stats();
@@ -521,12 +523,13 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
       // yizhe
       // if (obj->is_unlocked()) {
+      if (G1ProfileLifeTime) {
         uint extend_age = obj->extend_age();
-        // if (extend_age > 13) log_info(gc) ("klass: %s extend_age: %u", obj->klass()->name()->as_C_string(), extend_age);
         if (extend_age < markWord::max_extend_age) {
           obj->incr_extend_age();
           klass_lifetime_map()->add_or_inc(SymbolHandle(obj->klass()->name()), extend_age);
         }
+      }
     } else {
       update_bot_after_copying(obj, word_sz);
     }
