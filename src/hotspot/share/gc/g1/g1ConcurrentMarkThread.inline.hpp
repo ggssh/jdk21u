@@ -28,6 +28,8 @@
 #include "gc/g1/g1ConcurrentMarkThread.hpp"
 
 #include "gc/g1/g1ConcurrentMark.hpp"
+#include "runtime/mutexLocker.hpp"
+#include "gc/g1/g1_globals.hpp"
 
   // Total virtual time so far.
 inline double G1ConcurrentMarkThread::vtime_accum() {
