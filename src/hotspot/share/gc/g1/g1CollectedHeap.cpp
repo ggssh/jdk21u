@@ -3174,7 +3174,7 @@ public:
   }
 };
 
-void G1CollectedHeap::print_heap_region_types() {
+void G1CollectedHeap::print_region_types() {
   PrintHeapRegionTypeClosure cl;
   heap_region_iterate(&cl);
 }

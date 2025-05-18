@@ -94,7 +94,8 @@ G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1Data
     _data_structure(data_structure),
     _alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Old), this),
     // _plab_data(),
-    _retained_old_region(nullptr) { 
+    _retained_old_region(nullptr),
+    _regions_lock(Mutex::nosafepoint, "regions lock") { 
     
     // size_t _tolerated_refills = 0;
     

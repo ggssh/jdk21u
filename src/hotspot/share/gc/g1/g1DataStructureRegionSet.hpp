@@ -29,6 +29,8 @@
 #include "gc/g1/g1Allocator.hpp"
 #include "utilities/linkedlist.hpp"
 #include "oops/symbolHandle.hpp"
+#include "runtime/mutexLocker.hpp"
+
 
 enum G1DataStructureNodeType {
     KlassNode,
@@ -89,6 +91,7 @@ private:
     OldDataStructureGCAllocRegion _alloc_region;
     // G1PLABAllocator::PLABData _plab_data;
     HeapRegion* _retained_old_region;
+    Mutex _regions_lock;
 
 public:
     G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure);
@@ -97,10 +100,12 @@ public:
     }
 
     void add_region(HeapRegion* region) {
+        MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
         _regions.add(region);
     }
 
     void remove_region(HeapRegion* region) {
+        MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
         _regions.remove(region);
     }
 
@@ -109,6 +114,7 @@ public:
     }
 
     bool region_in(HeapRegion* region){
+        MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
         return _regions.find(region) != nullptr;
     }
 

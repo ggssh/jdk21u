@@ -90,7 +90,7 @@ void G1Allocator::release_mutator_alloc_regions() {
 }
 
 bool G1Allocator::is_retained_old_region(HeapRegion* hr) {
-  return _retained_old_gc_alloc_region == hr;
+  return _retained_old_gc_alloc_region == hr || _data_structure_manager->is_retained_old_region(hr);
 }
 
 void G1Allocator::reuse_retained_old_region(G1EvacInfo* evacuation_info,

@@ -108,6 +108,8 @@
           "behavior.")                                                      \
   product(bool, G1AlwaysTrackOld, false,                                    \
           "Always track the old regions' remset ")                          \
+  product(bool, G1CollectRegionClass, false,                                \
+          "Always track the old regions' remset ")                          \
                                                                             \
   product(bool, G1LogRemset, false,                                         \
           "G1 log remset ")                                                 \

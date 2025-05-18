@@ -81,7 +81,9 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
   if (success) {
     add_to_liveness(worker_id, obj, obj->size());
     x += obj->klass()->name()->identity_hash();
-    task(worker_id)->region_class_hash_map()->add_or_inc(hr, obj->klass()->name(), 1, obj->size());
+    if(G1CollectRegionClass){
+      task(worker_id)->region_class_hash_map()->add_or_inc(hr, obj->klass()->name(), 1, obj->size());
+    }
   }
   return success;
 }

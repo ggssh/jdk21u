@@ -321,7 +321,9 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
 
   _cm->merge_region_class();
 
-  g1h->region_class_hash_map()->print_all();
+  if(G1CollectRegionClass){
+    g1h->region_class_hash_map()->print_all();
+  }
 
 }
 

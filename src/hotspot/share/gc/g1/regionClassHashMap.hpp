@@ -33,9 +33,9 @@ private:
     }
 
     static void print_entries(HeapRegion* region, SymbolHandle& obj_class, size_t& count, size_t& size) {
-        log_info(gc)("Region %u %s contains %s : count %zu size %zu",
+        log_info(gc)("Region %u contains %s : count %zu size %zu",
                      region->hrm_index(),
-                     region->is_old_or_humongous() ? "(old)" : "(young)",
+                    //  region->is_old_or_humongous() ? "(old)" : "(young)",
                      obj_class->as_C_string(),
                      count, size);
     }
