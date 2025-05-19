@@ -411,6 +411,7 @@ void G1ParScanThreadState::report_promotion_event(G1HeapRegionAttr const dest_at
 
 NOINLINE
 HeapWord* G1ParScanThreadState::allocate_copy_slow(G1HeapRegionAttr* dest_attr,
+                                                   oop from_obj,
                                                    oop old,
                                                    size_t word_sz,
                                                    uint age,
@@ -426,6 +427,9 @@ HeapWord* G1ParScanThreadState::allocate_copy_slow(G1HeapRegionAttr* dest_attr,
                                                            node_index,
                                                            data_structure);
     if (obj_ptr == nullptr) {
+      if(data_structure == nullptr){
+        data_structure = _plab_allocator->data_structure_region_set(from_obj, old);
+      }
       obj_ptr = allocate_in_next_plab(dest_attr,
                                       word_sz,
                                       plab_refill_failed,
@@ -487,7 +491,10 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   uint node_index = from_region->node_index();
 
   // HeapWord* obj_ptr = _plab_allocator->plab_allocate(dest_attr, word_sz, node_index);
-  G1DataStructureRegionSet* target_data_structure = _plab_allocator->data_structure_region_set(from_obj, old);
+  G1DataStructureRegionSet* target_data_structure = nullptr;
+  if(dest_attr.is_old()){
+    target_data_structure = _plab_allocator->data_structure_region_set(from_obj, old);
+  }
   // if(target_data_structure != nullptr){
   //   if(from_obj != nullptr){
   //     log_info(gc)("found data structure obj %s -> %s", from_obj->klass()->name()->as_C_string(), old->klass()->name()->as_C_string());
@@ -501,7 +508,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
   // PLAB allocations should succeed most of the time, so we'll
   // normally check against null once and that's it.
   if (obj_ptr == nullptr) {
-    obj_ptr = allocate_copy_slow(&dest_attr, old, word_sz, age, node_index, target_data_structure);
+    obj_ptr = allocate_copy_slow(&dest_attr, from_obj, old, word_sz, age, node_index, target_data_structure);
     if (obj_ptr == nullptr) {
       // This will either forward-to-self, or detect that someone else has
       // installed a forwarding pointer.

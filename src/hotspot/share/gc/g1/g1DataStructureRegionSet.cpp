@@ -89,13 +89,14 @@ void G1DataStructure::add_edge(Symbol* from, Symbol* to) {
 }
 
 
-G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure) :
+G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure, uint id) :
     _regions(),
     _data_structure(data_structure),
     _alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Old), this),
     // _plab_data(),
     _retained_old_region(nullptr),
-    _regions_lock(Mutex::nosafepoint, "regions lock") { 
+    _regions_lock(Mutex::nosafepoint, "regions lock"),
+    _id(id) { 
     
     // size_t _tolerated_refills = 0;
     

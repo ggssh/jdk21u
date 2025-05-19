@@ -3156,7 +3156,7 @@ public:
         log_info(gc)("Region %u : Humongous Data", r->hrm_index());
 
       } else if(r->is_old()){
-        log_info(gc)("Region %u : Old Data", r->hrm_index());
+        log_info(gc)("Region %u : Old Data (%u)", r->hrm_index(), r->data_structure()->id());
       }
     } else {
       if(r->is_humongous()){

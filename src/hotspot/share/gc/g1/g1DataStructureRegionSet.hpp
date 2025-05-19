@@ -92,11 +92,12 @@ private:
     // G1PLABAllocator::PLABData _plab_data;
     HeapRegion* _retained_old_region;
     Mutex _regions_lock;
+    uint _id;
 
 public:
-    G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure);
+    G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure, uint id);
     ~G1DataStructureRegionSet() {
-        delete _data_structure;
+        // delete _data_structure;
     }
 
     void add_region(HeapRegion* region) {
@@ -135,6 +136,10 @@ public:
 
     bool is_retained_old_region(HeapRegion* hr) {
         return _retained_old_region == hr;
+    }
+
+    uint id() const {
+        return _id;
     }
 
 };

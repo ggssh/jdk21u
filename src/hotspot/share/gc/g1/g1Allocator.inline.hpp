@@ -118,6 +118,13 @@ inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, 
       PLABData* plab_data = nullptr;
       bool success = _data_structure_plab_map->get(data_structure, plab_data);
       assert(success, "PLABData not found for data structure");
+      if(!success){
+        size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;
+        plab_data = new G1PLABAllocator::PLABData();
+        plab_data->initialize(alloc_buffers_length(G1HeapRegionAttr::Old), _g1h->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
+        _data_structure_plab_map->insert(data_structure, plab_data);
+        // ShouldNotReachHere();
+      }
       return plab_data->_alloc_buffer[0];
     }
     return _dest_data[dest]._alloc_buffer[0];

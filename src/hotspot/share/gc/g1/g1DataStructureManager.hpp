@@ -48,9 +48,18 @@ typedef HashMap<G1DataStructureRegionSet*, G1PLABAllocator::PLABData*, DataStruc
 class G1DataStructureManager : public CHeapObj<mtGC> {
 private:
     LinkedListImpl<G1DataStructureRegionSet*> _data_structures;
+    LinkedListImpl<G1DataStructure*> _data_structure_types;
+
+    G1DataStructure* get_data_structure_by_root(Symbol* root_symbol);
+    uint _present_id;
+    G1Allocator* _allocator;
+    G1EvacInfo* _evacuation_info;
+    Mutex _data_structures_lock;
 
 public:
-    G1DataStructureRegionSet* get_data_structure_by_root(Symbol* root_symbol);
+    G1DataStructureManager() : _data_structures(), _data_structure_types(), _present_id(0), 
+        _allocator(nullptr), _evacuation_info(nullptr), _data_structures_lock(Mutex::nosafepoint, "data_structures lock") {}
+    
     G1DataStructureRegionSet* get_data_structure(oop from_oop, oop to_oop);
     void init_data_structure_alloc_regions(G1Allocator* allocator, G1EvacInfo* evacuation_info);
     void release_data_structure_alloc_regions();

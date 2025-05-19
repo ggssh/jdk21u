@@ -1090,5 +1090,10 @@ void G1YoungCollector::collect() {
   }
   // _g1h->heap_region_iterate(&prsc);
 
+  // if(G1LogRemset){
+  //   _g1h->rem_set()->log_remset();
+  //   _g1h->print_region_types();
+  // }
+
   TASKQUEUE_STATS_ONLY(_g1h->task_queues()->print_and_reset_taskqueue_stats("Oop Queue");)
 }
