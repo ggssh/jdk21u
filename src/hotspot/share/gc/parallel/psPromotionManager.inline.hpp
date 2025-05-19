@@ -277,7 +277,7 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
     uint extend_age = new_obj->extend_age();
     if (extend_age < markWord::max_extend_age) {
       new_obj->incr_extend_age();
-      klass_lifetime_map()->add_or_inc(SymbolHandle(new_obj->klass()->name()), extend_age);
+      klass_lifetime_map()->add_or_inc(new_obj->klass()->name(), extend_age);
     }
 
     // Do the size comparison first with new_obj_size, which we

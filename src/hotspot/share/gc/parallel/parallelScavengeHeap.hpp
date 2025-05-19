@@ -40,6 +40,8 @@
 #include "gc/shared/strongRootsScope.hpp"
 #include "gc/shared/workerThread.hpp"
 #include "logging/log.hpp"
+#include "oops/symbol.hpp"
+#include "oops/symbolHandle.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/ostream.hpp"
 
@@ -103,7 +105,7 @@ class ParallelScavengeHeap : public CollectedHeap {
     MergeEntryClosure(KlassLifetimeMap* klass_lifetime_map) :
       _klass_lifetime_map(klass_lifetime_map) {}
 
-    void work(const KlassLifetimeEntry& k, const UIntArray& v){
+    void work(SymbolHandle& k, UIntArray& v){
       _klass_lifetime_map->add_or_merge(k, v);
     }
   };

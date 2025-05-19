@@ -1544,7 +1544,9 @@ void G1CollectedHeap::stop() {
   // do not continue to execute and access resources (e.g. logging)
   // that are destroyed during shutdown.
   // yizhe
-  // klass_lifetime_map()->print_all();
+  if (G1ProfileLifeTime) {
+    klass_lifetime_map()->print_all();
+  }
   _cr->stop();
   _service_thread->stop();
   _cm_thread->stop();

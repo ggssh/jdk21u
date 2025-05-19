@@ -1064,7 +1064,7 @@ void G1YoungCollector::collect() {
     jtm.report_pause_type(collector_state()->young_gc_pause_type(_concurrent_operation_is_full_mark));
 
     if (G1ProfileLifeTime) {
-      _g1h->klass_lifetime_map()->print_all();
+      // _g1h->klass_lifetime_map()->print_all();
     }
     // _g1h->klass_lifetime_map()->clear();
     policy()->record_young_collection_end(_concurrent_operation_is_full_mark, evacuation_failed());

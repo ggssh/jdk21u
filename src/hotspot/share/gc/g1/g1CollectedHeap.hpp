@@ -204,7 +204,7 @@ private:
     MergeEntryClosure(KlassLifetimeMap* klass_lifetime_map) :
       _klass_lifetime_map(klass_lifetime_map) {}
 
-    void work(const KlassLifetimeEntry& k, const UIntArray& v){
+    void work(SymbolHandle& k, UIntArray& v){
       _klass_lifetime_map->add_or_merge(k, v);
     }
   };

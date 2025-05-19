@@ -85,7 +85,7 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
       uint extend_age = obj->extend_age();
       if (extend_age < markWord::max_extend_age && extend_age >= 15) {
         obj->incr_extend_age();
-        task(worker_id)->klass_lifetime_map()->add_or_inc(SymbolHandle(obj->klass()->name()), extend_age);
+        task(worker_id)->klass_lifetime_map()->add_or_inc(obj->klass()->name(), extend_age);
       }
     }
     add_to_liveness(worker_id, obj, obj->size());

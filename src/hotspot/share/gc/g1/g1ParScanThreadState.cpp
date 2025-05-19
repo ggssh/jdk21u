@@ -527,7 +527,7 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
         uint extend_age = obj->extend_age();
         if (extend_age < markWord::max_extend_age) {
           obj->incr_extend_age();
-          klass_lifetime_map()->add_or_inc(SymbolHandle(obj->klass()->name()), extend_age);
+          klass_lifetime_map()->add_or_inc(obj->klass()->name(), extend_age);
         }
       }
     } else {
