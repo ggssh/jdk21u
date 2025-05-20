@@ -53,7 +53,14 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure(oop from_oo
         if (from_region->data_structure() != nullptr) {
             G1DataStructureRegionSet* data_structure = from_region->data_structure();
             if (data_structure->find_edge(from_symbol, to_symbol) != nullptr) {
+                // log_info(gc)("found %s to %s", from_symbol->as_C_string(), to_symbol->as_C_string());
                 return data_structure;
+            }
+        } else {
+            LinkedListNode<G1DataStructure*>* p = _data_structure_types.head();
+            data_structure_type = *p->data();
+            if(data_structure_type->find_edge(from_symbol, to_symbol) != nullptr) {
+                // log_info(gc)("found outer %s to %s", from_symbol->as_C_string(), to_symbol->as_C_string());
             }
         }
     }
@@ -156,6 +163,7 @@ void G1DataStructureManager::initialize_predefined_data_structures() {
     Symbol* tuple3 = SymbolTable::new_symbol("scala/Tuple3");
     Symbol* l_d = SymbolTable::new_symbol("[D");
     Symbol* l_i = SymbolTable::new_symbol("[I");
+    Symbol* d = SymbolTable::new_symbol("java/lang/Double");
     // Symbol* DenseVector = SymbolTable::new_symbol("org/apache/spark/mllib/linalg/DenseVector");
     // Symbol* SparseVector = SymbolTable::new_symbol("org/apache/spark/mllib/linalg/SparseVector");
     // Symbol* VectorWithNorm = SymbolTable::new_symbol("org/apache/spark/mllib/clustering/VectorWithNorm");
@@ -177,6 +185,9 @@ void G1DataStructureManager::initialize_predefined_data_structures() {
     data_structure->add_edge(l_tuple3, tuple3);
     data_structure->add_edge(tuple3, l_d);
     data_structure->add_edge(tuple3, l_i);
+    data_structure->add_edge(tuple3, d);
+
+    
     // data_structure->add_edge(DenseVector, l_d);
     // data_structure->add_edge(SparseVector, l_d);
     // data_structure->add_edge(SparseVector, l_i);
@@ -189,38 +200,40 @@ void G1DataStructureManager::initialize_predefined_data_structures() {
 
 // void G1DataStructureManager::initialize_predefined_data_structures() {
 
-//     // // 'edu/stanford/nlp/parser/lexparser/ExhaustivePCFGParser',
-//     // // 'edu/stanford/nlp/parser/lexparser/LexicalizedParserQuery',
-//     // // '[[I',
-//     // // '[I',
-//     // // '[[[F',
-//     // // '[[F',
-//     // // '[F',
-//     // // 'edu/stanford/nlp/ie/crf/CRFClassifier',
+//     // 'edu/stanford/nlp/parser/lexparser/ExhaustivePCFGParser',
+//     // 'edu/stanford/nlp/parser/lexparser/LexicalizedParserQuery',
+//     // '[[I',
+//     // '[I',
+//     // '[[[F',
+//     // '[[F',
+//     // '[F',
+//     // 'edu/stanford/nlp/ie/crf/CRFClassifier',
 
-//     // Symbol* ExhaustivePCFGParser = SymbolTable::new_symbol("edu/stanford/nlp/parser/lexparser/ExhaustivePCFGParser");
-//     // Symbol* LexicalizedParserQuery = SymbolTable::new_symbol("edu/stanford/nlp/parser/lexparser/LexicalizedParserQuery");
-//     // Symbol* CRFClassifier = SymbolTable::new_symbol("edu/stanford/nlp/ie/crf/CRFClassifier");
-//     // Symbol* ll_i = SymbolTable::new_symbol("[[I");
-//     // Symbol* ll_f = SymbolTable::new_symbol("[[F");
-//     // Symbol* lll_f = SymbolTable::new_symbol("[[[F");
-//     // Symbol* l_f = SymbolTable::new_symbol("[F");
-//     // Symbol* l_i = SymbolTable::new_symbol("[I");
+//     Symbol* ExhaustivePCFGParser = SymbolTable::new_symbol("edu/stanford/nlp/parser/lexparser/ExhaustivePCFGParser");
+//     Symbol* LexicalizedParserQuery = SymbolTable::new_symbol("edu/stanford/nlp/parser/lexparser/LexicalizedParserQuery");
+//     Symbol* CRFClassifier = SymbolTable::new_symbol("edu/stanford/nlp/ie/crf/CRFClassifier");
+//     Symbol* ll_i = SymbolTable::new_symbol("[[I");
+//     Symbol* ll_f = SymbolTable::new_symbol("[[F");
+//     Symbol* lll_f = SymbolTable::new_symbol("[[[F");
+//     Symbol* l_f = SymbolTable::new_symbol("[F");
+//     Symbol* l_i = SymbolTable::new_symbol("[I");
 
-//     // G1DataStructure* data_structure = new G1DataStructure();
+//     G1DataStructure* data_structure = new G1DataStructure();
 //     // data_structure->add_root(LexicalizedParserQuery);
-//     // data_structure->add_root(CRFClassifier);
+//     data_structure->add_root(CRFClassifier);
+//     data_structure->add_root(lll_f);
 
 //     // data_structure->add_edge(LexicalizedParserQuery, ExhaustivePCFGParser);
 //     // data_structure->add_edge(ExhaustivePCFGParser, ll_i);
 //     // data_structure->add_edge(ExhaustivePCFGParser, lll_f);
 //     // data_structure->add_edge(ll_i, l_i);
-//     // data_structure->add_edge(lll_f, ll_f);
-//     // data_structure->add_edge(ll_f, l_f);
-//     // data_structure->add_edge(CRFClassifier, ll_f);
+//     data_structure->add_edge(lll_f, ll_f);
+//     data_structure->add_edge(ll_f, l_f);
+//     data_structure->add_edge(CRFClassifier, ll_f);
 
 //     // G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
 //     // _data_structures.add(data_structure_region_set);
+//     _data_structure_types.add(data_structure);
 // }
 
 

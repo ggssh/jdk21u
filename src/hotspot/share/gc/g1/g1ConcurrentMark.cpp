@@ -1371,9 +1371,15 @@ class G1ReclaimEmptyRegionsTask : public WorkerTask {
         hr->set_containing_set(nullptr);
         if (hr->is_humongous()) {
           _humongous_regions_removed++;
+          log_info(gc)("free humongous region %u", hr->hrm_index());
           _g1h->free_humongous_region(hr, _local_cleanup_list);
         } else {
           _old_regions_removed++;
+          if(hr->data_structure() != nullptr){
+            log_info(gc)("free old data structure region %u id %u", hr->hrm_index(), hr->data_structure()->id());
+          } else {
+            log_info(gc)("free old region %u", hr->hrm_index());
+          }
           _g1h->free_region(hr, _local_cleanup_list);
         }
         hr->clear_cardtable();

@@ -3154,13 +3154,22 @@ public:
     if(r->data_structure() != nullptr){
       if(r->is_humongous()){
         log_info(gc)("Region %u : Humongous Data", r->hrm_index());
-
+        // if(r->is_starts_humongous()){
+        //   log_info(gc)("%s", cast_to_oop(r->bottom())->klass()->name()->as_C_string());
+        // } else {
+        //   log_info(gc)("continue humongous");
+        // }
       } else if(r->is_old()){
         log_info(gc)("Region %u : Old Data (%u)", r->hrm_index(), r->data_structure()->id());
       }
     } else {
       if(r->is_humongous()){
         log_info(gc)("Region %u : Humongous", r->hrm_index());
+        // if(r->is_starts_humongous()){
+        //   log_info(gc)("%s", cast_to_oop(r->bottom())->klass()->name()->as_C_string());
+        // } else {
+        //   log_info(gc)("continue humongous");
+        // }
 
       } else if(r->is_old()){
         log_info(gc)("Region %u : Old", r->hrm_index());
