@@ -95,6 +95,10 @@ public:
   static size_t static_mem_size() {
     return _static_mem_size;
   }
+
+  static uint max_reserved_regions() {
+    return _max_reserved_regions;
+  }
 };
 
 #endif // SHARE_GC_G1_G1FROMCARDCACHE_HPP
