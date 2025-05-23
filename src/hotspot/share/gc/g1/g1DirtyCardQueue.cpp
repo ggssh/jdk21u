@@ -609,3 +609,7 @@ size_t G1DirtyCardQueueSet::mutator_refinement_threshold() const {
 void G1DirtyCardQueueSet::set_mutator_refinement_threshold(size_t value) {
   Atomic::store(&_mutator_refinement_threshold, value);
 }
+
+bool G1DirtyCardQueueSet::empty(){
+  return _completed.empty();
+}

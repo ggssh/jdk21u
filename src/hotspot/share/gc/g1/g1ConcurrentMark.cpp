@@ -1246,6 +1246,7 @@ void G1ConcurrentMark::remark() {
   verify_during_pause(G1HeapVerifier::G1VerifyRemark, VerifyLocation::RemarkBefore);
 
   {
+
     uint active_workers = _g1h->workers()->active_workers();
     set_concurrency_and_phase(active_workers, false /* concurrent */);
     // Leave _parallel_marking_threads at it's
@@ -1260,6 +1261,9 @@ void G1ConcurrentMark::remark() {
 
     G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
     _g1h->workers()->run_task(&refineTask);
+
+    G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
+    log_info(gc)("num cards %lu, empty %s", dcqs.num_cards(), dcqs.empty()? "true" : "false");
   }
 
   
