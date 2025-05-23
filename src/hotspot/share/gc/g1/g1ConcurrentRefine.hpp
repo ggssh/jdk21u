@@ -211,7 +211,8 @@ public:
   // Updates stats.
   bool try_refinement_step(uint worker_id,
                            size_t stop_at,
-                           G1ConcurrentRefineStats* stats);
+                           G1ConcurrentRefineStats* stats,
+                           bool concurrent = true);
 
   // Iterate over all concurrent refinement threads applying the given closure.
   void threads_do(ThreadClosure *tc);
