@@ -203,7 +203,8 @@ class G1DirtyCardQueueSet: public PtrQueueSet {
   // processed. Updates stats.
   bool refine_buffer(BufferNode* node,
                      uint worker_id,
-                     G1ConcurrentRefineStats* stats);
+                     G1ConcurrentRefineStats* stats,
+                     bool concurrent = true);
 
   // Deal with buffer after a call to refine_buffer.  If fully processed,
   // deallocate the buffer.  Otherwise, record it as paused.
@@ -266,7 +267,8 @@ public:
   // the remainder.
   bool refine_completed_buffer_concurrently(uint worker_id,
                                             size_t stop_at,
-                                            G1ConcurrentRefineStats* stats);
+                                            G1ConcurrentRefineStats* stats,
+                                            bool concurrent = true);
 
   // If a full collection is happening, reset per-thread refinement stats and
   // partial logs, and release completed logs. The full collection will make

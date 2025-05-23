@@ -345,6 +345,7 @@ class G1RefineBufferedCards : public StackObj {
   const uint _worker_id;
   G1ConcurrentRefineStats* _stats;
   G1RemSet* const _g1rs;
+  bool _concurrent;
 
   static inline int compare_card(const CardTable::CardValue* p1,
                                  const CardTable::CardValue* p2) {
@@ -402,7 +403,7 @@ class G1RefineBufferedCards : public StackObj {
     bool result = true;
     size_t i = start_index;
     for ( ; i < _node_buffer_size; ++i) {
-      if (SuspendibleThreadSet::should_yield()) {
+      if (_concurrent && SuspendibleThreadSet::should_yield()) {
         redirty_unrefined_cards(i);
         result = false;
         break;
@@ -424,13 +425,15 @@ public:
   G1RefineBufferedCards(BufferNode* node,
                         size_t node_buffer_size,
                         uint worker_id,
-                        G1ConcurrentRefineStats* stats) :
+                        G1ConcurrentRefineStats* stats,
+                        bool concurrent) :
     _node(node),
     _node_buffer(reinterpret_cast<CardTable::CardValue**>(BufferNode::make_buffer_from_node(node))),
     _node_buffer_size(node_buffer_size),
     _worker_id(worker_id),
     _stats(stats),
-    _g1rs(G1CollectedHeap::heap()->rem_set()) {}
+    _g1rs(G1CollectedHeap::heap()->rem_set()),
+    _concurrent(concurrent) {}
 
   bool refine() {
     size_t first_clean_index = clean_cards();
@@ -454,12 +457,14 @@ public:
 
 bool G1DirtyCardQueueSet::refine_buffer(BufferNode* node,
                                         uint worker_id,
-                                        G1ConcurrentRefineStats* stats) {
+                                        G1ConcurrentRefineStats* stats,
+                                        bool concurrent) {
   Ticks start_time = Ticks::now();
   G1RefineBufferedCards buffered_cards(node,
                                        buffer_size(),
                                        worker_id,
-                                       stats);
+                                       stats,
+                                       concurrent);
   bool result = buffered_cards.refine();
   stats->inc_refinement_time(Ticks::now() - start_time);
   return result;
@@ -517,7 +522,8 @@ void G1DirtyCardQueueSet::handle_completed_buffer(BufferNode* new_node,
 
 bool G1DirtyCardQueueSet::refine_completed_buffer_concurrently(uint worker_id,
                                                                size_t stop_at,
-                                                               G1ConcurrentRefineStats* stats) {
+                                                               G1ConcurrentRefineStats* stats,
+                                                               bool concurrent) {
   // Not enough cards to trigger processing.
   if (Atomic::load(&_num_cards) <= stop_at) return false;
 

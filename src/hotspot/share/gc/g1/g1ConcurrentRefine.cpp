@@ -451,7 +451,13 @@ uint G1ConcurrentRefine::worker_id_offset() {
 
 bool G1ConcurrentRefine::try_refinement_step(uint worker_id,
                                              size_t stop_at,
-                                             G1ConcurrentRefineStats* stats) {
-  uint adjusted_id = worker_id + worker_id_offset();
-  return _dcqs.refine_completed_buffer_concurrently(adjusted_id, stop_at, stats);
+                                             G1ConcurrentRefineStats* stats,
+                                             bool concurrent) {
+  uint adjusted_id;
+  if(concurrent){
+    adjusted_id = worker_id + worker_id_offset();
+  } else {
+    adjusted_id = worker_id;
+  }
+  return _dcqs.refine_completed_buffer_concurrently(adjusted_id, stop_at, stats, concurrent);
 }

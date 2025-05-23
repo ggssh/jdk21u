@@ -46,6 +46,8 @@
 #include "gc/g1/heapRegionManager.hpp"
 #include "gc/g1/heapRegionRemSet.inline.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
+#include "gc/g1/g1ParRefineTask.hpp"
+#include "gc/g1/g1FlushLogBufferBatchTask.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
@@ -1242,6 +1244,25 @@ void G1ConcurrentMark::remark() {
   double start = os::elapsedTime();
 
   verify_during_pause(G1HeapVerifier::G1VerifyRemark, VerifyLocation::RemarkBefore);
+
+  {
+    uint active_workers = _g1h->workers()->active_workers();
+    set_concurrency_and_phase(active_workers, false /* concurrent */);
+    // Leave _parallel_marking_threads at it's
+    // value originally calculated in the G1ConcurrentMark
+    // constructor and pass values of the active workers
+    // through the task.
+
+    
+
+    G1FlushLogBufferBatchTask cl;
+    _g1h->run_batch_task(&cl);
+
+    G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
+    _g1h->workers()->run_task(&refineTask);
+  }
+
+  
 
   {
     GCTraceTime(Debug, gc, phases) debug("Finalize Marking", _gc_timer_cm);
