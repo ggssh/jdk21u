@@ -378,6 +378,7 @@ HeapRegion* OldDataStructureGCAllocRegion::allocate_new_region(size_t word_size,
   if (new_region != nullptr) {
     // log_info(gc)("use region %u as data structure region", new_region->hrm_index());
     new_region->set_data_structure(_data_structure_region_set);
+    new_region->set_collect_as_a_whole(true);
     _data_structure_region_set->add_region(new_region);
   } else {
     // log_info(gc)("use region null as data structure region");

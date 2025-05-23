@@ -223,6 +223,11 @@ inline void G1CMTask::abort_marking_if_regular_check_fail() {
 }
 
 inline bool G1CMTask::make_reference_grey(oop obj) {
+  HeapRegion* r = _g1h->heap_region_containing(obj);
+  if(r->collect_as_a_whole()){
+    r->set_region_alive(true);
+  }
+
   if (!_cm->mark_in_bitmap(_worker_id, obj)) {
     return false;
   }
@@ -244,7 +249,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // be visited when a task is scanning the region and will also
   // be pushed on the stack. So, some duplicate work, but no
   // correctness problems.
-  if (is_below_finger(obj, global_finger)) {
+  if (is_below_finger(obj, global_finger) && !r->region_alive()) {
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_oop(obj);
     if (obj->is_typeArray()) {
       // Immediately process arrays of primitive types, rather

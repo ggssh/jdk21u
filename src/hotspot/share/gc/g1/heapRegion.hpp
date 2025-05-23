@@ -584,6 +584,8 @@ public:
 
 private:
   G1DataStructureRegionSet* _data_structure_region_set;
+  bool _region_alive;
+  bool _collect_as_a_whole;
 
 public:
   inline G1DataStructureRegionSet* data_structure(){
@@ -592,6 +594,22 @@ public:
 
   inline void set_data_structure(G1DataStructureRegionSet* data_structure){
     _data_structure_region_set = data_structure;
+  }
+
+  inline void set_region_alive(bool region_alive){
+    _region_alive = region_alive;
+  }
+
+  inline bool region_alive(){
+    return _region_alive;
+  }
+
+  inline void set_collect_as_a_whole(bool collect_as_a_whole){
+    _collect_as_a_whole = collect_as_a_whole;
+  }
+
+  inline bool collect_as_a_whole(){
+    return _collect_as_a_whole;
   }
 };
 

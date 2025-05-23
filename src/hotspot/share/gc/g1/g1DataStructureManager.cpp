@@ -76,6 +76,8 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure(oop from_oo
 
                     data_structure->add_region(from_region);
                     from_region->set_data_structure(data_structure);
+                    from_region->set_collect_as_a_whole(true);
+
 
                     for(uint i = from_region->hrm_index() + 1; i < g1h->max_regions(); i++){
                         HeapRegion* hr = g1h->region_at_or_null(i);
@@ -84,6 +86,7 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure(oop from_oo
                         }
                         data_structure->add_region(hr);
                         hr->set_data_structure(data_structure);
+                        hr->set_collect_as_a_whole(true);
                     }
                     return data_structure;
                 } else {
