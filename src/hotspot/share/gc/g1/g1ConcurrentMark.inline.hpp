@@ -26,7 +26,8 @@
 #define SHARE_GC_G1_G1CONCURRENTMARK_INLINE_HPP
 
 #include "gc/g1/g1ConcurrentMark.hpp"
-
+#include "gc/g1/g1DataStructureRegionSet.hpp"
+#include "gc/g1/g1DataStructureRegionSet.inline.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
 #include "gc/g1/g1ConcurrentMarkObjArrayProcessor.inline.hpp"
@@ -90,7 +91,7 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
     return success;
   }
 
-  G1DataStructureRegionSet* data_structure_instance = _g1h->data_structure_region_set_for(obj);
+  G1DataStructureRegionSet* data_structure_instance = hr->data_structure();
   if(data_structure_instance != nullptr) {
     return data_structure_instance->set_alive_par();
   }
@@ -183,11 +184,11 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       _words_scanned += _objArray_processor.process_slice(task_entry.slice());
     } else if (task_entry.is_data_structure_instance()){
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
-      data_structure_instance->scan_cards([&](uint region_idx, G1CardTable::CardValue left, G1CardTable::CardValue right){
+      data_structure_instance->scan_cards([&](uint region_idx, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
         size_t num_cards = right - left;
         HeapWord* const card_start = _ct->addr_for(left);
         HeapWord* scan_end = card_start + (num_cards << BOTConstants::log_card_size_in_words());
-        MemRegion mr(card_start scan_end);
+        MemRegion mr(card_start, scan_end);
         process_data_structure_out_cards(region_idx, mr);
       });
     } else {

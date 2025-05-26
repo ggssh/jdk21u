@@ -97,7 +97,7 @@ public:
   }
 };
 
-class G1ScanDataStructureOutCardClosure : public OopClosure {
+class G1ScanDataStructureOutCardClosure : public OopIterateClosure {
   G1CMTask* _cm_task;
   oop _from_oop;
   Klass* _from_klass;
@@ -107,7 +107,7 @@ class G1ScanDataStructureOutCardClosure : public OopClosure {
   // Symbol* _from_klass_name;
 public:
   G1ScanDataStructureOutCardClosure(G1CollectedHeap* g1h, G1CMTask* cm_task) :
-        OopClosure(), _cm_task(cm_task) { }
+        OopIterateClosure(), _cm_task(cm_task) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
@@ -124,6 +124,12 @@ public:
   //     // _from_klass_name = SymbolHandle();
   //   }
   // }
+
+  virtual bool do_metadata() { return false; }
+  virtual void do_klass(Klass* k) { ShouldNotReachHere(); }
+  virtual void do_cld(ClassLoaderData* cld) { ShouldNotReachHere(); }
+  virtual void do_method(Method* m) { ShouldNotReachHere(); }
+  virtual void do_nmethod(nmethod* nm) { ShouldNotReachHere(); }
 };
 
 // Used during Optional RS scanning to make sure we trim the queues in a timely manner.

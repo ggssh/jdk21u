@@ -1870,7 +1870,7 @@ void G1ConcurrentMark::finalize_marking() {
   print_stats();
 }
 
-class G1CMRemarkTask : public WorkerTask {
+class G1CMRemarkDataStructureTask : public WorkerTask {
   G1ConcurrentMark* _cm;
 public:
   void work(uint worker_id) {
@@ -1896,7 +1896,7 @@ public:
     task->record_end_time();
   }
 
-  G1CMRemarkTask(G1ConcurrentMark* cm, uint active_workers) :
+  G1CMRemarkDataStructureTask(G1ConcurrentMark* cm, uint active_workers) :
     WorkerTask("Par Remark"), _cm(cm) {
     _cm->terminator()->reset_for_reuse(active_workers);
   }
@@ -1918,7 +1918,7 @@ void G1ConcurrentMark::finalize_data_structure_marking() {
   {
     StrongRootsScope srs(active_workers);
 
-    G1CMRemarkTask remarkTask(this, active_workers);
+    G1CMRemarkDataStructureTask remarkTask(this, active_workers);
     // We will start all available threads, even if we decide that the
     // active_workers will be fewer. The extra ones will just bail out
     // immediately.
@@ -2546,7 +2546,7 @@ void G1CMTask::process_data_structure_out_cards(uint region_idx, MemRegion mr){
   // _pss->trim_queue_partially();
 
   drain_local_queue(true);
-  return scanned_to;
+  // return scanned_to;
 }
 
 bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry) {
@@ -2753,7 +2753,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // Otherwise, let's iterate over the bitmap of the part of the region
       // that is left.
       // If the iteration is successful, give up the region.
-      G1DataStructureRegionSet* data_structure_instance = _curr_region->data_structure_instance();
+      G1DataStructureRegionSet* data_structure_instance = _curr_region->data_structure();
       if(data_structure_instance != nullptr) {
         giveup_current_region();
       }
@@ -2987,6 +2987,7 @@ G1CMTask::G1CMTask(uint worker_id,
   _objArray_processor(this),
   _worker_id(worker_id),
   _g1h(G1CollectedHeap::heap()),
+  _ct(G1CollectedHeap::heap()->card_table()),
   _cm(cm),
   _mark_bitmap(nullptr),
   _task_queue(task_queue),
@@ -3178,10 +3179,10 @@ G1PrintRegionLivenessInfoClosure::~G1PrintRegionLivenessInfoClosure() {
 }
 
 
-BuildReverseRemsetClosure::BuildReverseRemsetClosure(G1CollectedHeap* g1h):_ls(LogTarget(Info, gc, heap)()){
+BuildReverseRemsetClosure::BuildReverseRemsetClosure(G1CollectedHeap* g1h){
   _g1h = g1h;
-  _ds_manager = g1h->data_structure_manager();
   _ct = g1h->card_table();
+  _ds_manager = g1h->data_structure_manager();
   // _num_regions = _g1h->num_regions();
   // _incoming_regions = NEW_C_HEAP_ARRAY(bool, _num_regions, mtGC);
   
@@ -3197,7 +3198,7 @@ BuildReverseRemsetClosure::~BuildReverseRemsetClosure(){
 }
 
 bool BuildReverseRemsetClosure::do_heap_region(HeapRegion* r){
-  BuildRegionReverseRemsetClosure cl(this, _ds_manager, r);
+  BuildRegionReverseRemsetClosure cl(_g1h, this, _ds_manager, _g1h->card_table(), r);
   // memset((void*)_incoming_regions, 0, sizeof(bool)*_num_regions);
   // has_incoming = false;
   r->rem_set()->iterate_cards(cl);
@@ -3225,14 +3226,14 @@ void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
     return;
   }
 
-  if(_to_Region->data_structure() == data_structure_instance){
+  if(_to_region->data_structure() == data_structure_instance){
     // two regions belong to the same data structure instance, no need to track inner remset
     return;
   }
 
   size_t region_base_idx = (size_t)region_idx << HeapRegion::LogCardsPerRegion;
   size_t card_global_idx = region_base_idx + card_idx;
-  G1CardTable::CardValue cv = _ct->byte_for_index(card_global_idx);
+  G1CardTable::CardValue* cv = _ct->byte_for_index(card_global_idx);
   data_structure_instance->add_out_card(cv);
 
   // _cl->do_incoming_region(region_idx);

@@ -31,6 +31,8 @@
 #include "gc/g1/g1RegionMarkStatsCache.hpp"
 #include "gc/g1/heapRegionSet.hpp"
 #include "gc/g1/regionClassHashMap.hpp"
+#include "gc/g1/g1CardTable.hpp"
+#include "gc/g1/g1CardSet.hpp"
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/taskTerminator.hpp"
 #include "gc/shared/taskqueue.hpp"
@@ -52,6 +54,7 @@ class G1RegionToSpaceMapper;
 class G1SurvivorRegions;
 class ThreadClosure;
 class G1DataStructureRegionSet;
+class G1DataStructureManager;
 
 // This is a container class for either an oop or a continuation address for
 // mark stack entries. Both are pushed onto the mark stack.
@@ -92,10 +95,10 @@ public:
 
   G1DataStructureRegionSet* data_structure_instance() const {
     assert(is_data_structure_instance, "Trying to read oop " PTR_FORMAT " as data structure", p2i(_holder));
-    return (HeapWord*)((uintptr_t)_holder & ~DataStructureBit);
+    return (G1DataStructureRegionSet*)((uintptr_t)_holder & ~DataStructureBit);
   }
 
-  bool is_oop() const { return !is_array_slice(); && !is_data_structure_instance(); }
+  bool is_oop() const { return !is_array_slice() && !is_data_structure_instance(); }
   bool is_array_slice() const { return ((uintptr_t)_holder & ArraySliceBit) != 0; }
   bool is_data_structure_instance() const { return ((uintptr_t)_holder & DataStructureBit) != 0; }
   bool is_null() const { return _holder == nullptr; }
@@ -300,6 +303,7 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   friend class G1CMKeepAliveAndDrainClosure;
   friend class G1CMRefProcProxyTask;
   friend class G1CMRemarkTask;
+  friend class G1CMRemarkDataStructureTask;
   friend class G1CMRootRegionScanTask;
   friend class G1CMTask;
   friend class G1ConcurrentMarkThread;
@@ -387,6 +391,8 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
                            VerifyLocation location);
 
   void finalize_marking();
+  void finalize_data_structure_marking();
+
 
   void weak_refs_work();
 
@@ -653,6 +659,7 @@ private:
 
   uint                        _worker_id;
   G1CollectedHeap*            _g1h;
+  G1CardTable*                _ct;
   G1ConcurrentMark*           _cm;
   G1CMBitMap*                 _mark_bitmap;
   // the task queue of this task
@@ -910,17 +917,19 @@ public:
 class BuildReverseRemsetClosure;
 
 class BuildRegionReverseRemsetClosure : public G1CardSet::CardClosure {
+  G1CollectedHeap* _g1h;
   BuildReverseRemsetClosure* _cl;
   G1DataStructureManager* _ds_manager;
-  HeapRegion* _to_region;
   G1CardTable* _ct;
+  HeapRegion* _to_region;
 
 public:
-  BuildRegionReverseRemsetClosure(BuildReverseRemsetClosure* cl, 
+  BuildRegionReverseRemsetClosure(G1CollectedHeap* g1h,
+                                  BuildReverseRemsetClosure* cl, 
                                   G1DataStructureManager* ds_manager,
                                   G1CardTable* ct,
                                   HeapRegion* to_region
-                                ): _cl(cl), _ds_manager(ds_manager), _ct(ct), _to_region(to_region){}
+    ): _g1h(g1h), _cl(cl), _ds_manager(ds_manager), _ct(ct), _to_region(to_region){}
 
   virtual void do_card(uint region_idx, uint card_idx);
 };

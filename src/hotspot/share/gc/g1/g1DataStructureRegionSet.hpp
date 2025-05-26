@@ -27,6 +27,9 @@
 
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/g1Allocator.hpp"
+// #include "gc/g1/g1CollectedHeap.hpp"
+// #include "gc/g1/g1CollectedHeap.inline.hpp"
+#include "gc/g1/g1CardTable.hpp"
 #include "utilities/linkedlist.hpp"
 #include "oops/symbolHandle.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -84,10 +87,9 @@ public:
 };
 
 
-
 class G1DataStructureRegionSet : public CHeapObj<mtGC> {
 private:
-    static int compare(G1CardTable::CardValue*& left, G1CardTable::CardValue*& right){
+    static int compare(G1CardTable::CardValue* const& left, G1CardTable::CardValue* const& right){
         return (uintptr_t)left - (uintptr_t)right;
     }
     LinkedListImpl<HeapRegion*> _regions;
@@ -168,46 +170,46 @@ public:
         if(_is_alive){
             return false;
         }
-        bool val = Atomic::cmpxchg(_is_alive, false, true);
+        bool val = Atomic::cmpxchg(&_is_alive, false, true);
         if(!val){
             return true;
         }
         return false;
     }
 
-    template<typename Func>
-    void scan_cards(Func&& f){
-        HeapRegion* present_region = nullptr;
-        LinkedListNode<G1CardTable::CardValue*>* p = _out_cards.head();
-        G1CardTable::CardValue* left = nullptr, right = nullptr;
+    template<typename Func> void scan_cards(Func&& f);
+    // void scan_cards(Func&& f){
+    //     HeapRegion* present_region = nullptr;
+    //     LinkedListNode<G1CardTable::CardValue*>* p = _out_cards.head();
+    //     G1CardTable::CardValue* left = nullptr, *right = nullptr;
 
-        G1CollectedHeap* g1h = G1CollectedHeap::heap();
-        G1CardTable* ct = g1h->card_table();
+    //     G1CollectedHeap* g1h = G1CollectedHeap::heap();
+    //     G1CardTable* ct = g1h->card_table();
 
-        if(p != nullptr){
-            left = *p->data();
-            right = *p->data();
-            present_region = g1h->heap_region_containing(ct->addr_for(left));
-            assert(present_region->data_structure == this);
-        } else {
-            return;
-        }
+    //     if(p != nullptr){
+    //         left = *p->data();
+    //         right = *p->data();
+    //         present_region = g1h->heap_region_containing(ct->addr_for(left));
+    //         assert(present_region->data_structure == this);
+    //     } else {
+    //         return;
+    //     }
         
-        while (p != nullptr) {
-            G1CardTable::CardValue* present = *p->data();
-            HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
-            assert(region->data_structure == this);
-            if(region != present_region || present - right != 1){
-                f(present_region->hrm_index(), left, right + 1);
-                left = present;
-                right = present;
-                present_region = region;
-            } else {
-                right = present;
-            }
-        }
-        f(present_region->hrm_index(), left, right + 1);
-    }
+    //     while (p != nullptr) {
+    //         G1CardTable::CardValue* present = *p->data();
+    //         HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
+    //         assert(region->data_structure == this);
+    //         if(region != present_region || present - right != 1){
+    //             f(present_region->hrm_index(), left, right + 1);
+    //             left = present;
+    //             right = present;
+    //             present_region = region;
+    //         } else {
+    //             right = present;
+    //         }
+    //     }
+    //     f(present_region->hrm_index(), left, right + 1);
+    // }
 
 };
 
