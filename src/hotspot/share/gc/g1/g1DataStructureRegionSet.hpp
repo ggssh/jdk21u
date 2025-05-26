@@ -84,15 +84,21 @@ public:
 };
 
 
+
 class G1DataStructureRegionSet : public CHeapObj<mtGC> {
 private:
+    static int compare(G1CardTable::CardValue*& left, G1CardTable::CardValue*& right){
+        return (uintptr_t)left - (uintptr_t)right;
+    }
     LinkedListImpl<HeapRegion*> _regions;
+    SortedLinkedList<G1CardTable::CardValue*, compare> _out_cards;
     G1DataStructure* _data_structure;
     OldDataStructureGCAllocRegion _alloc_region;
     // G1PLABAllocator::PLABData _plab_data;
     HeapRegion* _retained_old_region;
     Mutex _regions_lock;
     uint _id;
+    volatile bool _is_alive;
 
 public:
     G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure, uint id);
@@ -140,6 +146,67 @@ public:
 
     uint id() const {
         return _id;
+    }
+
+    void clear_out_cards(){
+        _out_cards.clear();
+    }
+
+    void add_out_card(G1CardTable::CardValue* card) {
+        _out_cards.add(card);
+    }
+
+    bool is_alive(){
+        return _is_alive;
+    }
+
+    void set_alive(bool is_alive){
+        _is_alive = is_alive;
+    }
+
+    bool set_alive_par(){
+        if(_is_alive){
+            return false;
+        }
+        bool val = Atomic::cmpxchg(_is_alive, false, true);
+        if(!val){
+            return true;
+        }
+        return false;
+    }
+
+    template<typename Func>
+    void scan_cards(Func&& f){
+        HeapRegion* present_region = nullptr;
+        LinkedListNode<G1CardTable::CardValue*>* p = _out_cards.head();
+        G1CardTable::CardValue* left = nullptr, right = nullptr;
+
+        G1CollectedHeap* g1h = G1CollectedHeap::heap();
+        G1CardTable* ct = g1h->card_table();
+
+        if(p != nullptr){
+            left = *p->data();
+            right = *p->data();
+            present_region = g1h->heap_region_containing(ct->addr_for(left));
+            assert(present_region->data_structure == this);
+        } else {
+            return;
+        }
+        
+        while (p != nullptr) {
+            G1CardTable::CardValue* present = *p->data();
+            HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
+            assert(region->data_structure == this);
+            if(region != present_region || present - right != 1){
+                f(present_region->hrm_index(), left, right + 1);
+                left = present;
+                right = present;
+                present_region = region;
+            } else {
+                right = present;
+            }
+        }
+        f(present_region->hrm_index(), left, right + 1);
     }
 
 };

@@ -78,6 +78,7 @@ public:
     };
 
     void delete_plab_map(DataPLABMap* plab_map);
+    void initialize_at_conc_start();
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

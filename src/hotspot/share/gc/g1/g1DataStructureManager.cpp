@@ -304,3 +304,15 @@ void G1DataStructureManager::delete_plab_map(DataPLABMap* plab_map) {
     plab_map->forEachClosure(&cl);
     delete plab_map;
 }
+
+void G1DataStructureManager::initialize_at_conc_start(){
+    MutexLocker ml(&_data_structures_lock, Mutex::_safepoint_check_flag);
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    _allocator = nullptr;
+    _evacuation_info = nullptr;
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        data_structure->set_alive(false);
+        p = p->next();
+    }
+}

@@ -1279,6 +1279,10 @@ void G1ConcurrentMark::remark() {
     finalize_marking();
   }
 
+  {
+    finalize_data_structure_marking();
+  }
+
   double mark_work_end = os::elapsedTime();
 
   bool const mark_finished = !has_overflown();
@@ -1834,6 +1838,71 @@ public:
 };
 
 void G1ConcurrentMark::finalize_marking() {
+  ResourceMark rm;
+
+  _g1h->ensure_parsability(false);
+
+  // this is remark, so we'll use up all active threads
+  uint active_workers = _g1h->workers()->active_workers();
+  set_concurrency_and_phase(active_workers, false /* concurrent */);
+  // Leave _parallel_marking_threads at it's
+  // value originally calculated in the G1ConcurrentMark
+  // constructor and pass values of the active workers
+  // through the task.
+
+  {
+    StrongRootsScope srs(active_workers);
+
+    G1CMRemarkTask remarkTask(this, active_workers);
+    // We will start all available threads, even if we decide that the
+    // active_workers will be fewer. The extra ones will just bail out
+    // immediately.
+    _g1h->workers()->run_task(&remarkTask);
+  }
+
+  SATBMarkQueueSet& satb_mq_set = G1BarrierSet::satb_mark_queue_set();
+  guarantee(has_overflown() ||
+            satb_mq_set.completed_buffers_num() == 0,
+            "Invariant: has_overflown = %s, num buffers = " SIZE_FORMAT,
+            BOOL_TO_STR(has_overflown()),
+            satb_mq_set.completed_buffers_num());
+
+  print_stats();
+}
+
+class G1CMRemarkTask : public WorkerTask {
+  G1ConcurrentMark* _cm;
+public:
+  void work(uint worker_id) {
+    G1CMTask* task = _cm->task(worker_id);
+    task->record_start_time();
+    task->set_data_structure_to_mark_stack(true);
+
+    {
+      ResourceMark rm;
+
+      G1RemarkThreadsClosure threads_f(G1CollectedHeap::heap(), task);
+      Threads::possibly_parallel_threads_do(true /* is_par */, &threads_f);
+    }
+
+    do {
+      task->do_marking_step(1000000000.0 /* something very large */,
+                            true         /* do_termination       */,
+                            false        /* is_serial            */);
+    } while (task->has_aborted() && !_cm->has_overflown());
+    // If we overflow, then we do not want to restart. We instead
+    // want to abort remark and do concurrent marking again.
+    task->set_data_structure_to_mark_stack(false);
+    task->record_end_time();
+  }
+
+  G1CMRemarkTask(G1ConcurrentMark* cm, uint active_workers) :
+    WorkerTask("Par Remark"), _cm(cm) {
+    _cm->terminator()->reset_for_reuse(active_workers);
+  }
+};
+
+void G1ConcurrentMark::finalize_data_structure_marking() {
   ResourceMark rm;
 
   _g1h->ensure_parsability(false);
@@ -2464,6 +2533,22 @@ void G1CMTask::print_stats() {
                        hits, misses, percent_of(hits, hits + misses));
 }
 
+void G1CMTask::process_data_structure_out_cards(uint region_idx, MemRegion mr){
+  HeapRegion* const card_region = _g1h->region_at(region_idx);
+  G1ScanDataStructureOutCardClosure card_cl(_g1h, this);
+
+  // HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful<true>(mr, &card_cl);
+  HeapWord* const scanned_to = card_region->oops_on_memregion_seq_iterate_careful<true>(mr, &card_cl);
+
+  // assert(scanned_to != nullptr, "Should be able to scan range");
+  // assert(scanned_to >= mr.end(), "Scanned to " PTR_FORMAT " less than range " PTR_FORMAT, p2i(scanned_to), p2i(mr.end()));
+
+  // _pss->trim_queue_partially();
+
+  drain_local_queue(true);
+  return scanned_to;
+}
+
 bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry) {
   return _task_queues->steal(worker_id, task_entry);
 }
@@ -2668,6 +2753,11 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // Otherwise, let's iterate over the bitmap of the part of the region
       // that is left.
       // If the iteration is successful, give up the region.
+      G1DataStructureRegionSet* data_structure_instance = _curr_region->data_structure_instance();
+      if(data_structure_instance != nullptr) {
+        giveup_current_region();
+      }
+      
       if (mr.is_empty()) {
         giveup_current_region();
         abort_marking_if_regular_check_fail();
@@ -2921,7 +3011,9 @@ G1CMTask::G1CMTask(uint worker_id,
   _elapsed_time_ms(0.0),
   _termination_time_ms(0.0),
   _termination_start_time_ms(0.0),
-  _marking_step_diff_ms()
+  _marking_step_diff_ms(),
+  _region_class_hash_map(),
+  _data_structure_to_mark_stack(false)
 {
   guarantee(task_queue != nullptr, "invariant");
 
@@ -3083,4 +3175,65 @@ G1PrintRegionLivenessInfoClosure::~G1PrintRegionLivenessInfoClosure() {
                          percent_of(_total_live_bytes, _total_capacity_bytes),
                          bytes_to_mb(_total_remset_bytes),
                          bytes_to_mb(_total_code_roots_bytes));
+}
+
+
+BuildReverseRemsetClosure::BuildReverseRemsetClosure(G1CollectedHeap* g1h):_ls(LogTarget(Info, gc, heap)()){
+  _g1h = g1h;
+  _ds_manager = g1h->data_structure_manager();
+  _ct = g1h->card_table();
+  // _num_regions = _g1h->num_regions();
+  // _incoming_regions = NEW_C_HEAP_ARRAY(bool, _num_regions, mtGC);
+  
+  // for(uint i = 0; i < _num_regions; i++){
+  //   _incoming_regions[i] = false;
+  // }
+  // LogTarget(Info, gc, heap) lt;
+  // _ls = LogStream(lt);
+}
+
+BuildReverseRemsetClosure::~BuildReverseRemsetClosure(){
+  // FREE_C_HEAP_ARRAY(bool, _incoming_regions);
+}
+
+bool BuildReverseRemsetClosure::do_heap_region(HeapRegion* r){
+  BuildRegionReverseRemsetClosure cl(this, _ds_manager, r);
+  // memset((void*)_incoming_regions, 0, sizeof(bool)*_num_regions);
+  // has_incoming = false;
+  r->rem_set()->iterate_cards(cl);
+  // if(has_incoming){
+  //   _ls.print("into Region %u", r->hrm_index());
+  //   _ls.print_cr("");
+  // }
+  return false;
+}
+
+// void BuildReverseRemsetClosure::do_incoming_region(uint region_idx){
+//   has_incoming = true;
+//   if(!_incoming_regions[region_idx]){
+//     _ls.print("%u, ", region_idx);
+//   }
+//   _incoming_regions[region_idx] = true;
+// }
+
+void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
+  HeapRegion* region = _g1h->region_at(region_idx);
+  G1DataStructureRegionSet* data_structure_instance = region->data_structure();
+
+  if(data_structure_instance == nullptr){
+    // only track remset from data structure instances
+    return;
+  }
+
+  if(_to_Region->data_structure() == data_structure_instance){
+    // two regions belong to the same data structure instance, no need to track inner remset
+    return;
+  }
+
+  size_t region_base_idx = (size_t)region_idx << HeapRegion::LogCardsPerRegion;
+  size_t card_global_idx = region_base_idx + card_idx;
+  G1CardTable::CardValue cv = _ct->byte_for_index(card_global_idx);
+  data_structure_instance->add_out_card(cv);
+
+  // _cl->do_incoming_region(region_idx);
 }

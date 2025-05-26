@@ -85,6 +85,15 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
       task(worker_id)->region_class_hash_map()->add_or_inc(hr, obj->klass()->name(), 1, obj->size());
     }
   }
+
+  if(!success) {
+    return success;
+  }
+
+  G1DataStructureRegionSet* data_structure_instance = _g1h->data_structure_region_set_for(obj);
+  if(data_structure_instance != nullptr) {
+    return data_structure_instance->set_alive_par();
+  }
   return success;
 }
 
@@ -172,6 +181,15 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
   if (scan) {
     if (task_entry.is_array_slice()) {
       _words_scanned += _objArray_processor.process_slice(task_entry.slice());
+    } else if (task_entry.is_data_structure_instance()){
+      G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
+      data_structure_instance->scan_cards([&](uint region_idx, G1CardTable::CardValue left, G1CardTable::CardValue right){
+        size_t num_cards = right - left;
+        HeapWord* const card_start = _ct->addr_for(left);
+        HeapWord* scan_end = card_start + (num_cards << BOTConstants::log_card_size_in_words());
+        MemRegion mr(card_start scan_end);
+        process_data_structure_out_cards(region_idx, mr);
+      });
     } else {
       oop obj = task_entry.obj();
       if (G1CMObjArrayProcessor::should_be_sliced(obj)) {
@@ -224,13 +242,21 @@ inline void G1CMTask::abort_marking_if_regular_check_fail() {
 
 inline bool G1CMTask::make_reference_grey(oop obj) {
   HeapRegion* r = _g1h->heap_region_containing(obj);
-  if(r->collect_as_a_whole()){
-    r->set_region_alive(true);
-  }
+  // if(r->collect_as_a_whole()){
+  //   r->set_region_alive(true);
+  // }
+
+  G1DataStructureRegionSet* data_structure_instance = r->data_structure();
 
   if (!_cm->mark_in_bitmap(_worker_id, obj)) {
     return false;
   }
+
+  // if(data_structure_instance != nullptr){
+  //   if(!data_structure_instance->set_alive_par(true)){
+  //     return false;
+  //   }
+  // }
 
   // No OrderAccess:store_load() is needed. It is implicit in the
   // CAS done in G1CMBitMap::parMark() call in the routine above.
@@ -249,7 +275,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // be visited when a task is scanning the region and will also
   // be pushed on the stack. So, some duplicate work, but no
   // correctness problems.
-  if (is_below_finger(obj, global_finger) && !r->region_alive()) {
+  if (is_below_finger(obj, global_finger) && data_structure_instance == nullptr) {
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_oop(obj);
     if (obj->is_typeArray()) {
       // Immediately process arrays of primitive types, rather
@@ -266,6 +292,10 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
     } else {
       push(entry);
     }
+  } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
+    //hua: todo
+    G1TaskQueueEntry entry = G1TaskQueueEntry::from_data_structure_instance(data_structure_instance);
+    push(entry);
   }
   return true;
 }

@@ -51,6 +51,7 @@ class G1OldTracer;
 class G1RegionToSpaceMapper;
 class G1SurvivorRegions;
 class ThreadClosure;
+class G1DataStructureRegionSet;
 
 // This is a container class for either an oop or a continuation address for
 // mark stack entries. Both are pushed onto the mark stack.
@@ -59,11 +60,15 @@ private:
   void* _holder;
 
   static const uintptr_t ArraySliceBit = 1;
+  static const uintptr_t DataStructureBit = 1 << 1;
 
   G1TaskQueueEntry(oop obj) : _holder(obj) {
     assert(_holder != nullptr, "Not allowed to set null task queue element");
   }
   G1TaskQueueEntry(HeapWord* addr) : _holder((void*)((uintptr_t)addr | ArraySliceBit)) { }
+
+  G1TaskQueueEntry(G1DataStructureRegionSet* data_structure_instance) 
+    : _holder((void*)((uintptr_t)data_structure_instance | DataStructureBit)) {}
 public:
 
   G1TaskQueueEntry() : _holder(nullptr) { }
@@ -71,9 +76,11 @@ public:
 
   static G1TaskQueueEntry from_slice(HeapWord* what) { return G1TaskQueueEntry(what); }
   static G1TaskQueueEntry from_oop(oop obj) { return G1TaskQueueEntry(obj); }
+  static G1TaskQueueEntry from_data_structure_instance(G1DataStructureRegionSet* data_structure_instance)
+    { return G1TaskQueueEntry(data_structure_instance); }
 
   oop obj() const {
-    assert(!is_array_slice(), "Trying to read array slice " PTR_FORMAT " as oop", p2i(_holder));
+    assert(!is_array_slice() && !is_data_structure_instance(), "Trying to read array slice " PTR_FORMAT " as oop", p2i(_holder));
     return cast_to_oop(_holder);
   }
 
@@ -82,8 +89,15 @@ public:
     return (HeapWord*)((uintptr_t)_holder & ~ArraySliceBit);
   }
 
-  bool is_oop() const { return !is_array_slice(); }
+
+  G1DataStructureRegionSet* data_structure_instance() const {
+    assert(is_data_structure_instance, "Trying to read oop " PTR_FORMAT " as data structure", p2i(_holder));
+    return (HeapWord*)((uintptr_t)_holder & ~DataStructureBit);
+  }
+
+  bool is_oop() const { return !is_array_slice(); && !is_data_structure_instance(); }
   bool is_array_slice() const { return ((uintptr_t)_holder & ArraySliceBit) != 0; }
+  bool is_data_structure_instance() const { return ((uintptr_t)_holder & DataStructureBit) != 0; }
   bool is_null() const { return _holder == nullptr; }
 };
 
@@ -707,6 +721,9 @@ private:
 
   RegionClassHashMap         _region_class_hash_map;
 
+  // if set, put data structure to mark stack, otherwise, only set is_marked
+  bool                       _data_structure_to_mark_stack; 
+
   // Updates the local fields after this task has claimed
   // a new region to scan
   void setup_for_region(HeapRegion* hr);
@@ -743,6 +760,7 @@ private:
   bool is_below_finger(oop obj, HeapWord* global_finger) const;
 
   template<bool scan> void process_grey_task_entry(G1TaskQueueEntry task_entry);
+  void process_data_structure_out_cards(uint region_idx, MemRegion mr);
 public:
   // Apply the closure on the given area of the objArray. Return the number of words
   // scanned.
@@ -851,6 +869,14 @@ public:
   RegionClassHashMap* region_class_hash_map() {
     return &_region_class_hash_map;
   }
+
+  bool data_structure_to_mark_stack(){
+    return _data_structure_to_mark_stack;
+  }
+
+  void set_data_structure_to_mark_stack(bool data_structure_to_mark_stack){
+    _data_structure_to_mark_stack = data_structure_to_mark_stack;
+  }
 };
 
 // Class that's used to to print out per-region liveness
@@ -879,4 +905,37 @@ public:
   virtual bool do_heap_region(HeapRegion* r);
   ~G1PrintRegionLivenessInfoClosure();
 };
+
+
+class BuildReverseRemsetClosure;
+
+class BuildRegionReverseRemsetClosure : public G1CardSet::CardClosure {
+  BuildReverseRemsetClosure* _cl;
+  G1DataStructureManager* _ds_manager;
+  HeapRegion* _to_region;
+  G1CardTable* _ct;
+
+public:
+  BuildRegionReverseRemsetClosure(BuildReverseRemsetClosure* cl, 
+                                  G1DataStructureManager* ds_manager,
+                                  G1CardTable* ct,
+                                  HeapRegion* to_region
+                                ): _cl(cl), _ds_manager(ds_manager), _ct(ct), _to_region(to_region){}
+
+  virtual void do_card(uint region_idx, uint card_idx);
+};
+
+class BuildReverseRemsetClosure : public HeapRegionClosure {
+  G1CollectedHeap* _g1h;
+  G1DataStructureManager* _ds_manager;
+  G1CardTable* _ct;
+
+public:
+  BuildReverseRemsetClosure(G1CollectedHeap* g1h);
+  ~BuildReverseRemsetClosure();
+  virtual bool do_heap_region(HeapRegion* r);
+  // void do_incoming_region(uint region_idx);
+};
+
+
 #endif // SHARE_GC_G1_G1CONCURRENTMARK_HPP

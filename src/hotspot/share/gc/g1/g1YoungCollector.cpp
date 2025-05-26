@@ -1062,6 +1062,10 @@ void G1YoungCollector::collect() {
     // other trivial setup above).
     policy()->record_young_collection_start();
 
+    if (_g1h->collector_state()->in_concurrent_start_gc()){
+      _g1h->data_structure_manager()->initialize_at_conc_start();
+    }
+
     pre_evacuate_collection_set(jtm.evacuation_info());
 
     G1ParScanThreadStateSet per_thread_states(_g1h,

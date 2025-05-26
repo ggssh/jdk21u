@@ -97,6 +97,35 @@ public:
   }
 };
 
+class G1ScanDataStructureOutCardClosure : public OopClosure {
+  G1CMTask* _cm_task;
+  oop _from_oop;
+  Klass* _from_klass;
+  // SymbolHandle _from_klass_name;
+  // Symbol* _from_klass_name;
+  // size_t _array_acc;
+  // Symbol* _from_klass_name;
+public:
+  G1ScanDataStructureOutCardClosure(G1CollectedHeap* g1h, G1CMTask* cm_task) :
+        OopClosure(), _cm_task(cm_task) { }
+
+  template <class T> void do_oop_work(T* p);
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
+  // void set_from_oop(oop from_oop) {
+  //   _from_oop = from_oop;
+  //   if( from_oop != nullptr && from_oop->klass() != nullptr){
+  //     // log_info(gc)("handle 1");
+  //     _from_klass_name = from_oop->klass()->name();
+  //     // _from_klass_name = SymbolHandle(k->name());
+  //   } else {
+  //     // log_info(gc)("handle 2");
+  //     _from_klass_name = nullptr;
+  //     // _from_klass_name = SymbolHandle();
+  //   }
+  // }
+};
+
 // Used during Optional RS scanning to make sure we trim the queues in a timely manner.
 class G1ScanRSForOptionalClosure : public OopClosure {
   G1CollectedHeap* _g1h;

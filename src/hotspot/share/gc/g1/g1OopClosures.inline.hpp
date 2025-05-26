@@ -193,6 +193,39 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
   }
 }
 
+template <class T>
+inline void G1ScanDataStructureOutCardClosure::do_oop_work(T* p) {
+  _cm_task->deal_with_reference(p);
+  // static uint x = 0;
+  // T o = RawAccess<>::oop_load(p);
+  // if (CompressedOops::is_null(o)) {
+  //   return;
+  // }
+  // oop obj = CompressedOops::decode_not_null(o);
+
+  // // check_obj_during_refinement(p, obj);
+
+  // // assert(!_g1h->is_in_cset((HeapWord*)p),
+  // //        "Oop originates from " PTR_FORMAT " (region: %u) which is in the collection set.",
+  // //        p2i(p), _g1h->addr_to_region(p));
+
+  // const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
+  // if (region_attr.is_in_cset()) {
+
+  //   // Since the source is always from outside the collection set, here we implicitly know
+
+  //   // if(_from_oop != nullptr && _from_oop->klass() != nullptr){
+  //   //   // _par_scan_state->reference_hash_map()->add_or_inc(_from_klass_name, obj->klass()->name(), 1, obj->size());
+  //   //   _par_scan_state->reference_hash_map()->add_or_inc(_from_oop->klass()->name(), obj->klass()->name(), 1, obj->size());
+  //   // }
+  //   prefetch_and_push(p, obj, _from_oop);
+  //   _heap_roots_found++;
+  // } else if (!HeapRegion::is_in_same_region(p, obj)) {
+  //   handle_non_cset_obj_common(region_attr, p, obj);
+  //   _par_scan_state->enqueue_card_if_tracked(region_attr, p, obj);
+  // }
+}
+
 
 template <class T>
 inline void G1ScanRSForOptionalClosure::do_oop_work(T* p) {
