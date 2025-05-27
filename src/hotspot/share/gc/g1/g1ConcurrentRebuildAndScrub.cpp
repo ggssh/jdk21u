@@ -177,9 +177,9 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
     // Scan the given region from bottom to parsable_bottom. Returns whether marking has
     // been aborted.
     bool scan_and_scrub_to_pb(HeapRegion* hr, HeapWord* start, HeapWord* const limit) {
-
+      bool all_alive = hr->data_structure() != nullptr && hr->data_structure()->is_alive();
       while (start < limit) {
-        if (_bitmap->is_marked(start)) {
+        if (all_alive || _bitmap->is_marked(start)) {
           //  Live object, need to scan to rebuild remembered sets for this object.
           start += scan_object(hr, start);
         } else {
@@ -201,7 +201,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
     bool scan_from_pb_to_tars(HeapRegion* hr, HeapWord* start, HeapWord* const limit) {
 
       while (start < limit) {
-        start += scan_object(hr, start);
+        start += scan_object(hr, start); 
         // Avoid stalling safepoints and stop iteration if mark cycle has been aborted.
         bool mark_aborted = yield_if_necessary();
         if (mark_aborted) {

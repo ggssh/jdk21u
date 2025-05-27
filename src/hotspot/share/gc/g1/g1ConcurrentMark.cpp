@@ -1235,6 +1235,20 @@ public:
   }
 };
 
+class UpdateDataStructureLiveSize : public HeapRegionClosure {
+public:
+  bool do_heap_region(HeapRegion* r) {
+    if(r->data_structure() != nullptr) {
+      if(!r->data_structure()->is_alive()) {
+        if(r->top_at_mark_start() != r->top()) {
+          r->data_structure()->set_alive(true);
+        }
+      }
+    }
+    return false;
+  }
+}
+
 void G1ConcurrentMark::remark() {
   assert_at_safepoint_on_vm_thread();
 
@@ -1306,6 +1320,11 @@ void G1ConcurrentMark::remark() {
     _g1h->verifier()->verify_bitmap_clear(true /* above_tams_only */);
 
     {
+      UpdateDataStructureLiveSize cl;
+      _g1h->heap_region_iterate(&cl);
+    }
+
+    {
       GCTraceTime(Debug, gc, phases) debug("Update Remembered Set Tracking Before Rebuild", _gc_timer_cm);
 
       uint const workers_by_capacity = (_g1h->num_regions() + G1UpdateRemSetTrackingBeforeRebuildTask::RegionsPerThread - 1) /
@@ -1350,7 +1369,10 @@ void G1ConcurrentMark::remark() {
       G1ObjectCountIsAliveClosure is_alive(_g1h);
       _gc_tracer_cm->report_object_count_after_gc(&is_alive, _g1h->workers());
     }
+
+    
   } else {
+    ShouldNotReachHere();
     // We overflowed.  Restart concurrent marking.
     _restart_for_overflow = true;
 
@@ -1577,10 +1599,12 @@ public:
       // when G1CMTask::do_marking_step() returns without setting the
       // has_aborted() flag that the marking step has completed.
       do {
+        _task->set_data_structure_to_mark_stack(true);
         double mark_step_duration_ms = G1ConcMarkStepDurationMillis;
         _task->do_marking_step(mark_step_duration_ms,
                                false      /* do_termination */,
                                _is_serial);
+        _task->set_data_structure_to_mark_stack(false);
       } while (_task->has_aborted() && !_cm->has_overflown());
       _ref_counter = _ref_counter_limit;
     }
@@ -1622,10 +1646,12 @@ class G1CMDrainMarkingStackClosure : public VoidClosure {
       // one of which is reaching the specified time target.) It is only
       // when G1CMTask::do_marking_step() returns without setting the
       // has_aborted() flag that the marking step has completed.
-
+      _task->set_data_structure_to_mark_stack(true);
       _task->do_marking_step(1000000000.0 /* something very large */,
                              true         /* do_termination */,
                              _is_serial);
+      _task->set_data_structure_to_mark_stack(false);
+      
     } while (_task->has_aborted() && !_cm->has_overflown());
   }
 };
