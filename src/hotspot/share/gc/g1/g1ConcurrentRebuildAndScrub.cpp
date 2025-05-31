@@ -83,8 +83,9 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         return;
       }
       HeapRegion* hr = _g1h->heap_region_containing(obj);
+      HeapWord* const pb = hr->parsable_bottom_acquire();
       if(hr->data_structure() == nullptr){
-        if(!_bitmap->is_marked(obj) && !hr->obj_allocated_since_marking_start(obj)){
+        if(!_bitmap->is_marked(obj) && cast_from_oop<HeapWord*>(obj) < pb){
           ShouldNotReachHere();
         }
       }
@@ -148,7 +149,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       do {
         MemRegion mr(start, MIN2(start + ProcessingYieldLimitInWords, limit));
         obj->oop_iterate(&_rebuild_closure, mr);
-        // obj->oop_iterate(&_verify_closure);
+        obj->oop_iterate(&_verify_closure);
 
         // Update processed words and yield, for humongous objects we will yield
         // after each chunk.
@@ -188,7 +189,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       } else {
         // Object smaller than yield limit, process it fully.
         obj->oop_iterate(&_rebuild_closure);
-        // obj->oop_iterate(&_verify_closure);
+        obj->oop_iterate(&_verify_closure);
         // Update how much we have processed. Yield check in main loop
         // will handle this case.
         add_processed_words(obj_size);

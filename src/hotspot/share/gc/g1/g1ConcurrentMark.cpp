@@ -1125,6 +1125,9 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public WorkerTask {
       if (selected_for_rebuild) {
         _num_regions_selected_for_rebuild++;
       }
+      // if(hr->data_structure() != nullptr){
+      //   log_info(gc)("update data structure hr %u", hr->hrm_index());
+      // }
       _cm->update_top_at_rebuild_start(hr);
     }
 
@@ -1432,7 +1435,7 @@ class G1ReclaimEmptyRegionsTask : public WorkerTask {
         hr->set_containing_set(nullptr);
         if (hr->is_humongous()) {
           _humongous_regions_removed++;
-          log_info(gc)("free humongous region %u", hr->hrm_index());
+          // log_info(gc)("free humongous region %u %s", hr->hrm_index(), cast_to_oop(hr->bottom())->klass()->name()->as_C_string());
           _g1h->free_humongous_region(hr, _local_cleanup_list);
         } else {
           _old_regions_removed++;
