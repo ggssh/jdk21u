@@ -337,6 +337,8 @@ public:
   };
 
   void iterate_cards(CardClosure& cl);
+  void iterate_cards_safepoint(CardClosure& cl);
+
 
 public:
   G1CardSetConfiguration* config() const { return _config; }

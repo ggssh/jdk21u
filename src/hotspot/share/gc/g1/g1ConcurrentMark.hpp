@@ -94,7 +94,7 @@ public:
 
 
   G1DataStructureRegionSet* data_structure_instance() const {
-    assert(is_data_structure_instance, "Trying to read oop " PTR_FORMAT " as data structure", p2i(_holder));
+    assert(is_data_structure_instance(), "Trying to read oop " PTR_FORMAT " as data structure", p2i(_holder));
     return (G1DataStructureRegionSet*)((uintptr_t)_holder & ~DataStructureBit);
   }
 

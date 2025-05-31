@@ -52,7 +52,10 @@ G1GCPhaseTimes::G1GCPhaseTimes(STWGCTimer* gc_timer, uint max_gc_threads) :
   assert(max_gc_threads > 0, "Must have some GC threads");
 
   _gc_par_phases[RetireTLABsAndFlushLogs] = new WorkerDataArray<double>("RetireTLABsAndFlushLogs", "JT Retire TLABs And Flush Logs (ms):", max_gc_threads);
+  _gc_par_phases[FlushLogsBeforeDataStructure] = new WorkerDataArray<double>("RetireTLABsAndFlushLogs", "JT Retire TLABs And Flush Logs (ms):", max_gc_threads);
   _gc_par_phases[NonJavaThreadFlushLogs] = new WorkerDataArray<double>("NonJavaThreadFlushLogs", "Non-JT Flush Logs (ms):", max_gc_threads);
+  _gc_par_phases[NonJavaThreadFlushLogsBeforeDataStructure] = new WorkerDataArray<double>("RetireTLABsAndFlushLogs", "JT Retire TLABs And Flush Logs (ms):", max_gc_threads);
+
 
   _gc_par_phases[GCWorkerStart] = new WorkerDataArray<double>("GCWorkerStart", "GC Worker Start (ms):", max_gc_threads);
   _gc_par_phases[ExtRootScan] = new WorkerDataArray<double>("ExtRootScan", "Ext Root Scanning (ms):", max_gc_threads);

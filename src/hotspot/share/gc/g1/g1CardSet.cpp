@@ -973,6 +973,11 @@ void G1CardSet::iterate_cards(CardClosure& cl) {
   iterate_containers(&cl2);
 }
 
+void G1CardSet::iterate_cards_safepoint(CardClosure& cl) {
+  G1CardSetContainersClosure<CardClosure, G1ContainerCardsClosure> cl2(this, cl);
+  iterate_containers(&cl2, true);
+}
+
 bool G1CardSet::occupancy_less_or_equal_to(size_t limit) const {
   return occupied() <= limit;
 }

@@ -96,7 +96,7 @@ G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1Data
     _alloc_region(heap->alloc_buffer_stats(G1HeapRegionAttr::Old), this),
     // _plab_data(),
     _retained_old_region(nullptr),
-    _regions_lock(Mutex::nosafepoint, "regions lock"),
+    _regions_lock(Mutex::service-2, "regions lock"),
     _id(id),
     _is_alive(false) { 
     

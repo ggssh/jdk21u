@@ -65,11 +65,43 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
 
   const bool _should_rebuild_remset;
 
+  class G1VerifyDataStructureRefClosure : public ClaimMetadataVisitingOopIterateClosure {
+    G1CollectedHeap* _g1h;
+    G1ConcurrentMark* _cm;
+    G1CMBitMap* _bitmap;
+    uint _worker_id;
+    oop _from_oop;
+  public:
+    G1VerifyDataStructureRefClosure(G1CollectedHeap* g1h, G1ConcurrentMark* cm, uint worker_id) :
+      ClaimMetadataVisitingOopIterateClosure(0),
+      _g1h(g1h), _cm(cm), _bitmap(_cm->mark_bitmap()), _worker_id(worker_id), _from_oop(nullptr) { }
+    
+    template <class T>
+    inline void do_oop_work(T* p) {
+      oop obj = RawAccess<MO_RELAXED>::oop_load(p);
+      if (obj == nullptr) {
+        return;
+      }
+      HeapRegion* hr = _g1h->heap_region_containing(obj);
+      if(hr->data_structure() == nullptr){
+        if(!_bitmap->is_marked(obj) && !hr->obj_allocated_since_marking_start(obj)){
+          ShouldNotReachHere();
+        }
+      }
+    }
+
+    virtual void do_oop(      oop* p) { do_oop_work(p); }
+    virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+
+    void set_from_oop(oop from_oop){ _from_oop = from_oop; }
+  };
+
   class G1RebuildRSAndScrubRegionClosure : public HeapRegionClosure {
     G1ConcurrentMark* _cm;
-    const G1CMBitMap* _bitmap;
+    G1CMBitMap* _bitmap;
 
     G1RebuildRemSetClosure _rebuild_closure;
+    G1VerifyDataStructureRefClosure _verify_closure;
 
     const bool _should_rebuild_remset;
 
@@ -116,6 +148,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       do {
         MemRegion mr(start, MIN2(start + ProcessingYieldLimitInWords, limit));
         obj->oop_iterate(&_rebuild_closure, mr);
+        // obj->oop_iterate(&_verify_closure);
 
         // Update processed words and yield, for humongous objects we will yield
         // after each chunk.
@@ -155,6 +188,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       } else {
         // Object smaller than yield limit, process it fully.
         obj->oop_iterate(&_rebuild_closure);
+        // obj->oop_iterate(&_verify_closure);
         // Update how much we have processed. Yield check in main loop
         // will handle this case.
         add_processed_words(obj_size);
@@ -181,6 +215,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       while (start < limit) {
         if (all_alive || _bitmap->is_marked(start)) {
           //  Live object, need to scan to rebuild remembered sets for this object.
+          // _bitmap->mark(start);
           start += scan_object(hr, start);
         } else {
           // Found dead object (which klass has potentially been unloaded). Scrub to next
@@ -274,6 +309,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       _cm(cm),
       _bitmap(_cm->mark_bitmap()),
       _rebuild_closure(G1CollectedHeap::heap(), worker_id),
+      _verify_closure(G1CollectedHeap::heap(), G1CollectedHeap::heap()->concurrent_mark(), worker_id),
       _should_rebuild_remset(should_rebuild_remset),
       _processed_words(0) { }
 

@@ -47,7 +47,7 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
         left = *p->data();
         right = *p->data();
         present_region = g1h->heap_region_containing(ct->addr_for(left));
-        assert(present_region->data_structure == this);
+        assert(present_region->data_structure() == this, "must be");
     } else {
         return;
     }
@@ -55,7 +55,7 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
     while (p != nullptr) {
         G1CardTable::CardValue* present = *p->data();
         HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
-        assert(region->data_structure == this);
+        assert(region->data_structure() == this, "must be");
         if(region != present_region || present - right != 1){
             f(present_region->hrm_index(), left, right + 1);
             left = present;
@@ -64,6 +64,7 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
         } else {
             right = present;
         }
+        p = p->next();
     }
     f(present_region->hrm_index(), left, right + 1);
 }

@@ -55,6 +55,10 @@ inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
     return true;
   }
 
+  if(hr->data_structure() != nullptr && hr->data_structure()->is_alive()){
+    return true;
+  }
+
   // All objects that are marked are live.
   return _g1h->is_marked(obj);
 }
@@ -93,6 +97,7 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
 
   G1DataStructureRegionSet* data_structure_instance = hr->data_structure();
   if(data_structure_instance != nullptr) {
+    // log_info(gc)("set data structure alive %u", data_structure_instance->id());
     return data_structure_instance->set_alive_par();
   }
   return success;
@@ -125,10 +130,10 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
 inline void G1CMTask::scan_task_entry(G1TaskQueueEntry task_entry) { process_grey_task_entry<true>(task_entry); }
 
 inline void G1CMTask::push(G1TaskQueueEntry task_entry) {
-  assert(task_entry.is_array_slice() || _g1h->is_in_reserved(task_entry.obj()), "invariant");
-  assert(task_entry.is_array_slice() || !_g1h->is_on_master_free_list(
+  assert(task_entry.is_array_slice() || task_entry.is_data_structure_instance() || _g1h->is_in_reserved(task_entry.obj()), "invariant");
+  assert(task_entry.is_array_slice() || task_entry.is_data_structure_instance() || !_g1h->is_on_master_free_list(
               _g1h->heap_region_containing(task_entry.obj())), "invariant");
-  assert(task_entry.is_array_slice() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())), "invariant");
+  assert(task_entry.is_array_slice() || task_entry.is_data_structure_instance() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())), "invariant");
 
   if (!_task_queue->push(task_entry)) {
     // The local task queue looks full. We need to push some entries
@@ -176,7 +181,7 @@ inline bool G1CMTask::is_below_finger(oop obj, HeapWord* global_finger) const {
 template<bool scan>
 inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
   assert(scan || (task_entry.is_oop() && task_entry.obj()->is_typeArray()), "Skipping scan of grey non-typeArray");
-  assert(task_entry.is_array_slice() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())),
+  assert(task_entry.is_array_slice() || task_entry.is_data_structure_instance() || _mark_bitmap->is_marked(cast_from_oop<HeapWord*>(task_entry.obj())),
          "Any stolen object should be a slice or marked");
 
   if (scan) {
@@ -184,6 +189,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
       _words_scanned += _objArray_processor.process_slice(task_entry.slice());
     } else if (task_entry.is_data_structure_instance()){
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
+      log_info(gc)("handle data structure instance %u", data_structure_instance->id());
       data_structure_instance->scan_cards([&](uint region_idx, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
         size_t num_cards = right - left;
         HeapWord* const card_start = _ct->addr_for(left);

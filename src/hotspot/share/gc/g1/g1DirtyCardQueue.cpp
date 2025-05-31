@@ -190,12 +190,12 @@ G1DirtyCardQueueSet::PausedBuffers::PausedList::~PausedList() {
 #endif // ASSERT
 
 bool G1DirtyCardQueueSet::PausedBuffers::PausedList::is_next() const {
-  assert_not_at_safepoint();
+  // assert_not_at_safepoint();
   return _safepoint_id == SafepointSynchronize::safepoint_id();
 }
 
 void G1DirtyCardQueueSet::PausedBuffers::PausedList::add(BufferNode* node) {
-  assert_not_at_safepoint();
+  // assert_not_at_safepoint();
   assert(is_next(), "precondition");
   BufferNode* old_head = Atomic::xchg(&_head, node);
   if (old_head == nullptr) {
@@ -223,7 +223,7 @@ G1DirtyCardQueueSet::PausedBuffers::~PausedBuffers() {
 #endif // ASSERT
 
 void G1DirtyCardQueueSet::PausedBuffers::add(BufferNode* node) {
-  assert_not_at_safepoint();
+  // assert_not_at_safepoint();
   PausedList* plist = Atomic::load_acquire(&_plist);
   if (plist == nullptr) {
     // Try to install a new next list.
@@ -240,7 +240,7 @@ void G1DirtyCardQueueSet::PausedBuffers::add(BufferNode* node) {
 }
 
 G1DirtyCardQueueSet::HeadTail G1DirtyCardQueueSet::PausedBuffers::take_previous() {
-  assert_not_at_safepoint();
+  // assert_not_at_safepoint();
   PausedList* previous;
   {
     // Deal with plist in a critical section, to prevent it from being
@@ -277,7 +277,7 @@ G1DirtyCardQueueSet::HeadTail G1DirtyCardQueueSet::PausedBuffers::take_all() {
 }
 
 void G1DirtyCardQueueSet::record_paused_buffer(BufferNode* node) {
-  assert_not_at_safepoint();
+  // assert_not_at_safepoint();
   assert(node->next() == nullptr, "precondition");
   // Ensure there aren't any paused buffers from a previous safepoint.
   enqueue_previous_paused_buffers();
@@ -298,7 +298,7 @@ void G1DirtyCardQueueSet::enqueue_paused_buffers_aux(const HeadTail& paused) {
 }
 
 void G1DirtyCardQueueSet::enqueue_previous_paused_buffers() {
-  assert_not_at_safepoint();
+  // assert_not_at_safepoint();
   enqueue_paused_buffers_aux(_paused.take_previous());
 }
 
@@ -459,6 +459,7 @@ bool G1DirtyCardQueueSet::refine_buffer(BufferNode* node,
                                         uint worker_id,
                                         G1ConcurrentRefineStats* stats,
                                         bool concurrent) {
+  // log_info(gc)("refine buffer %s", concurrent?"concurrent":"pause");
   Ticks start_time = Ticks::now();
   G1RefineBufferedCards buffered_cards(node,
                                        buffer_size(),
@@ -530,7 +531,7 @@ bool G1DirtyCardQueueSet::refine_completed_buffer_concurrently(uint worker_id,
   BufferNode* node = get_completed_buffer();
   if (node == nullptr) return false; // Didn't get a buffer to process.
 
-  bool fully_processed = refine_buffer(node, worker_id, stats);
+  bool fully_processed = refine_buffer(node, worker_id, stats, concurrent);
   handle_refined_buffer(node, fully_processed);
   return true;
 }

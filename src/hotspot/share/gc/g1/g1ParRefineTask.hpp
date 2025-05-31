@@ -40,7 +40,9 @@ public:
     void work(uint worker_id) {
 
         // G1CollectedHeap* g1h = G1CollectedHeap::heap();
+        log_info(gc)("before try_refinement_step");
         while(_cr->try_refinement_step(worker_id, 0, _refinement_stats_array[worker_id], false));
+        log_info(gc)("after try_refinement_step");
     }
 };
   

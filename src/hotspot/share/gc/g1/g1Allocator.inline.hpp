@@ -117,7 +117,7 @@ inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, 
     if (data_structure != nullptr) {
       PLABData* plab_data = nullptr;
       bool success = _data_structure_plab_map->get(data_structure, plab_data);
-      assert(success, "PLABData not found for data structure");
+      // assert(success, "PLABData not found for data structure");
       if(!success){
         size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;
         plab_data = new G1PLABAllocator::PLABData();

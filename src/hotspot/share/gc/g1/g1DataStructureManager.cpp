@@ -306,13 +306,23 @@ void G1DataStructureManager::delete_plab_map(DataPLABMap* plab_map) {
 }
 
 void G1DataStructureManager::initialize_at_conc_start(){
-    MutexLocker ml(&_data_structures_lock, Mutex::_safepoint_check_flag);
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
     _allocator = nullptr;
     _evacuation_info = nullptr;
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
+        log_info(gc)("set data structure not alive %u", data_structure->id());
         data_structure->set_alive(false);
+        p = p->next();
+    }
+}
+
+void G1DataStructureManager::data_structures_instances_iterate(G1DataStructureRegionSetClosure* cl){
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        cl->do_data_structure_instance(data_structure);
         p = p->next();
     }
 }

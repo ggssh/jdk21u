@@ -213,5 +213,10 @@ public:
 
 };
 
+class G1DataStructureRegionSetClosure : public Closure {
+public:
+    virtual void do_data_structure_instance(G1DataStructureRegionSet* data_structure_instance) = 0;
+};    
+
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP
  

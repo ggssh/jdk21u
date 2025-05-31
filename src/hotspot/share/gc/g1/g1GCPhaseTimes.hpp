@@ -46,6 +46,8 @@ class G1GCPhaseTimes : public CHeapObj<mtGC> {
 
  public:
   enum GCParPhases {
+    NonJavaThreadFlushLogsBeforeDataStructure,
+    FlushLogsBeforeDataStructure,
     RetireTLABsAndFlushLogs,
     NonJavaThreadFlushLogs,
     GCWorkerStart,

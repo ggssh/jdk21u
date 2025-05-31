@@ -1438,7 +1438,7 @@ inline void check_card_ptr(CardTable::CardValue* card_ptr, G1CardTable* ct) {
 }
 
 bool G1RemSet::clean_card_before_refine(CardValue** const card_ptr_addr) {
-  assert(!SafepointSynchronize::is_at_safepoint(), "Only call concurrently");
+  // assert(!SafepointSynchronize::is_at_safepoint(), "Only call concurrently");
 
   CardValue* card_ptr = *card_ptr_addr;
   // Find the start address represented by the card.
@@ -1512,7 +1512,7 @@ bool G1RemSet::clean_card_before_refine(CardValue** const card_ptr_addr) {
 
 void G1RemSet::refine_card_concurrently(CardValue* const card_ptr,
                                         const uint worker_id) {
-  assert(!_g1h->is_gc_active(), "Only call concurrently");
+  // assert(!_g1h->is_gc_active(), "Only call concurrently");
   check_card_ptr(card_ptr, _ct);
 
   // Construct the MemRegion representing the card.
@@ -1644,6 +1644,7 @@ void ScanRemsetClosure::do_card(uint region_idx, uint card_idx){
 }
 
 void G1RemSet::log_remset(){
+  log_info(gc)("log remset");
   ScanRegionRemsetClosure cl(_g1h);
   _g1h->heap_region_iterate(&cl);
 }

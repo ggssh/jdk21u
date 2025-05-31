@@ -68,7 +68,7 @@
  
  public:
    JavaThreadFlushLogs() :
-     G1AbstractSubTask(G1GCPhaseTimes::RetireTLABsAndFlushLogs),
+     G1AbstractSubTask(G1GCPhaseTimes::FlushLogsBeforeDataStructure),
      _claimer(ThreadsPerWorker),
      _local_tlab_stats(nullptr),
      _local_refinement_stats(nullptr),
@@ -136,7 +136,7 @@
    } _tc;
  
  public:
-   NonJavaThreadFlushLogs() : G1AbstractSubTask(G1GCPhaseTimes::NonJavaThreadFlushLogs), _tc() { }
+   NonJavaThreadFlushLogs() : G1AbstractSubTask(G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure), _tc() { }
  
    void do_work(uint worker_id) override {
      Threads::non_java_threads_do(&_tc);
