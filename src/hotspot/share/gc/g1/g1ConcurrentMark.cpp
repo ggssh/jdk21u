@@ -969,7 +969,7 @@ void G1ConcurrentMark::scan_root_regions() {
 
   if(G1LogRemset){
     // _g1h->rem_set()->log_remset();
-    // _g1h->print_region_types();
+    _g1h->print_region_types();
   }
 
   if (root_regions()->scan_in_progress()) {
@@ -1294,10 +1294,10 @@ void G1ConcurrentMark::remark() {
     log_info(gc)("num cards %lu, empty %s", dcqs.num_cards(), dcqs.empty()? "true" : "false");
   }
 
-  // if(G1LogRemset){
-  //   _g1h->rem_set()->log_remset();
-  //   _g1h->print_region_types();
-  // }
+  if(G1LogRemset){
+    // _g1h->rem_set()->log_remset();
+    _g1h->print_region_types();
+  }
 
   {
     log_info(gc)("before build reverse remset");
@@ -1366,9 +1366,9 @@ void G1ConcurrentMark::remark() {
       reclaim_empty_regions();
     }
 
-    {
-      _g1h->data_structure_manager()->remove_dead_instances();
-    }
+    // {
+    //   _g1h->data_structure_manager()->remove_dead_instances();
+    // }
 
     // Clean out dead classes
     if (ClassUnloadingWithConcurrentMark) {
