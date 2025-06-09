@@ -94,6 +94,7 @@ private:
     }
     LinkedListImpl<HeapRegion*> _regions;
     SortedLinkedList<G1CardTable::CardValue*, compare> _out_cards;
+    SortedLinkedList<G1CardTable::CardValue*, compare> _out_cards_data;
     G1DataStructure* _data_structure;
     OldDataStructureGCAllocRegion _alloc_region;
     // G1PLABAllocator::PLABData _plab_data;
@@ -159,11 +160,17 @@ public:
     }
 
     void clear_out_cards(){
+        log_info(gc)("out cards %lu, out cards data %lu", _out_cards.size(), _out_cards_data.size());
         _out_cards.clear();
+        _out_cards_data.clear();
     }
 
     void add_out_card(G1CardTable::CardValue* card) {
         _out_cards.add(card);
+    }
+
+    void add_out_card_data(G1CardTable::CardValue* card) {
+        _out_cards_data.add(card);
     }
 
     bool is_alive(){
