@@ -285,6 +285,7 @@ void G1DataStructureManager::initialize_predefined_data_structures() {
 
 
 DataPLABMap* G1DataStructureManager::create_and_initialize_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills){
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
     DataPLABMap* plab_map = new DataPLABMap();
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
     while (p != nullptr) {
@@ -319,6 +320,7 @@ void G1DataStructureManager::initialize_at_conc_start(){
 }
 
 void G1DataStructureManager::data_structures_instances_iterate(G1DataStructureRegionSetClosure* cl){
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
@@ -328,10 +330,48 @@ void G1DataStructureManager::data_structures_instances_iterate(G1DataStructureRe
 }
 
 void G1DataStructureManager::clear_all_out_cards(){
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
         data_structure->clear_out_cards();
         p = p->next();
+    }
+}
+
+void G1DataStructureManager::clear_all_instances() {
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        delete data_structure;
+    }
+    _data_structures.clear();
+    _present_id = 0;
+}
+
+void G1DataStructureManager::remove_instance(G1DataStructureRegionSet* data_structure) {
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
+    if (_data_structures.remove(data_structure)) {
+        log_info(gc)("remove data structure %u", data_structure->id());
+        delete data_structure;
+    } else {
+        log_info(gc)("data structure %u not found", data_structure->id());
+    }
+}
+
+void G1DataStructureManager::remove_dead_instances() {
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        if (!data_structure->is_alive()) {
+            log_info(gc)("remove dead data structure %u", data_structure->id());
+            p = p->next();
+            _data_structures.remove(data_structure);
+            delete data_structure;
+        } else {
+            p = p->next();
+        }
     }
 }

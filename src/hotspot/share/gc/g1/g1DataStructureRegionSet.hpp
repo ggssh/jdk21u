@@ -104,9 +104,10 @@ private:
 
 public:
     G1DataStructureRegionSet(G1CollectedHeap* heap, G1DataStructure* data_structure, uint id);
-    ~G1DataStructureRegionSet() {
-        // delete _data_structure;
-    }
+    ~G1DataStructureRegionSet();
+
+    void clear_regions();
+
 
     void add_region(HeapRegion* region) {
         MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);

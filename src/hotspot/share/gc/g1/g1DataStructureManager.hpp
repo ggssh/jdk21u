@@ -81,6 +81,9 @@ public:
     void initialize_at_conc_start();
     void data_structures_instances_iterate(G1DataStructureRegionSetClosure* closure);
     void clear_all_out_cards();
+    void clear_all_instances();
+    void remove_instance(G1DataStructureRegionSet* data_structure_instance);
+    void remove_dead_instances();
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

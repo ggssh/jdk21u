@@ -39,6 +39,8 @@
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
+#include "gc/g1/g1DataStructureManager.hpp"
+#include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/preservedMarks.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
@@ -223,6 +225,10 @@ void G1FullCollector::collect() {
   }
 
   phase5_reset_metadata();
+
+  {
+    _heap->data_structure_manager()->clear_all_instances();
+  }
 
   G1CollectedHeap::finish_codecache_marking_cycle();
 }

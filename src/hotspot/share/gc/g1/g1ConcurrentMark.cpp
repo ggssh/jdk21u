@@ -1364,6 +1364,10 @@ void G1ConcurrentMark::remark() {
       reclaim_empty_regions();
     }
 
+    {
+      _g1h->data_structure_manager()->remove_dead_instances();
+    }
+
     // Clean out dead classes
     if (ClassUnloadingWithConcurrentMark) {
       GCTraceTime(Debug, gc, phases) debug("Purge Metaspace", _gc_timer_cm);

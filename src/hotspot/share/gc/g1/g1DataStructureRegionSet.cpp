@@ -132,3 +132,20 @@ void G1DataStructureRegionSet::init_data_structure_alloc_region(G1Allocator* all
 void G1DataStructureRegionSet::release_data_structure_alloc_region() {
     _retained_old_region = _alloc_region.release();
 }
+
+void G1DataStructureRegionSet::clear_regions()
+{
+    MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
+    LinkedListNode<HeapRegion*>* p = _regions.head();
+    while (p != nullptr) {
+        HeapRegion* region = *p->data();
+        region->set_data_structure(nullptr);
+        p = p->next();
+    }
+    _regions.clear();
+}
+
+G1DataStructureRegionSet::~G1DataStructureRegionSet(){
+    clear_regions();
+    delete _alloc_region;
+}
