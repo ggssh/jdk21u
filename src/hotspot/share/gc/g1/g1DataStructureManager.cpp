@@ -345,6 +345,7 @@ void G1DataStructureManager::clear_all_instances() {
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
         delete data_structure;
+        p = p->next();
     }
     _data_structures.clear();
     _present_id = 0;

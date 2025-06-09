@@ -139,6 +139,7 @@ void G1DataStructureRegionSet::clear_regions()
     LinkedListNode<HeapRegion*>* p = _regions.head();
     while (p != nullptr) {
         HeapRegion* region = *p->data();
+        // log_info(gc)("remove data structure region %p  from data structure %p", region, this);
         region->set_data_structure(nullptr);
         p = p->next();
     }
@@ -147,5 +148,4 @@ void G1DataStructureRegionSet::clear_regions()
 
 G1DataStructureRegionSet::~G1DataStructureRegionSet(){
     clear_regions();
-    delete _alloc_region;
 }

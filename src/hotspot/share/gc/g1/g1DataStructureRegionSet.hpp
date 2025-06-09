@@ -111,7 +111,14 @@ public:
 
     void add_region(HeapRegion* region) {
         MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
+        // log_info(gc)("add region %p to data structure %p", region, this);
         _regions.add(region);
+        // LinkedListNode<HeapRegion*>* p = _regions.head();
+        // while (p != nullptr) {
+        //     region = *p->data();
+        //     log_info(gc)("present data structure region %p", region);
+        //     p = p->next();
+        // }
     }
 
     void remove_region(HeapRegion* region) {
