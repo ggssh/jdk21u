@@ -273,7 +273,7 @@ HeapWord* ParallelScavengeHeap::mem_allocate(
   // limit is being exceeded as checked below.
   *gc_overhead_limit_was_exceeded = false;
 
-  HeapWord* result = !UseParallelFullMarkCompactGC ? young_gen()->allocate(size)
+  HeapWord* result = !UseParallelFullMarkCompactGC && (PretenureSizeThreshold == 0 || size <= (PretenureSizeThreshold >> 3)) ? young_gen()->allocate(size)
                                                    : old_gen()->allocate(size);
 
   uint loop_count = 0;
@@ -296,7 +296,7 @@ HeapWord* ParallelScavengeHeap::mem_allocate(
       MutexLocker ml(Heap_lock);
       gc_count = total_collections();
 
-      result = !UseParallelFullMarkCompactGC ? young_gen()->allocate(size)
+      result = !UseParallelFullMarkCompactGC && (PretenureSizeThreshold == 0 || size <= (PretenureSizeThreshold >> 3)) ? young_gen()->allocate(size)
                                              : old_gen()->allocate(size);
       if (result != nullptr) {
         return result;

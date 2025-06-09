@@ -363,7 +363,7 @@ public:
     _should_rebuild_remset(should_rebuild_remset) { }
 
   void work(uint worker_id) {
-    SuspendibleThreadSetJoiner sts_join;
+    SuspendibleThreadSetJoiner sts_join(!G1UseSTWMarking);
 
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     G1RebuildRSAndScrubRegionClosure cl(_cm, _should_rebuild_remset, worker_id);

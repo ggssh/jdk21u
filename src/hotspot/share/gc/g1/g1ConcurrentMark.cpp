@@ -667,7 +667,7 @@ public:
   { }
 
   void work(uint worker_id) {
-    SuspendibleThreadSetJoiner sts_join(_suspendible);
+    SuspendibleThreadSetJoiner sts_join(!G1UseSTWMarking && _suspendible);
     G1CollectedHeap::heap()->heap_region_par_iterate_from_worker_offset(&_cl, &_hr_claimer, worker_id);
   }
 
@@ -874,7 +874,7 @@ public:
     double start_vtime = os::elapsedVTime();
 
     {
-      SuspendibleThreadSetJoiner sts_join;
+      SuspendibleThreadSetJoiner sts_join(!G1UseSTWMarking);
 
       assert(worker_id < _cm->active_tasks(), "invariant");
 
@@ -1806,7 +1806,7 @@ public:
 void G1ConcurrentMark::preclean() {
   assert(G1UseReferencePrecleaning, "Precleaning must be enabled.");
 
-  SuspendibleThreadSetJoiner joiner;
+  SuspendibleThreadSetJoiner joiner(!G1UseSTWMarking);
 
   BarrierEnqueueDiscoveredFieldClosure enqueue;
 

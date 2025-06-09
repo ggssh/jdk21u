@@ -308,6 +308,11 @@ uint G1Policy::calculate_young_desired_length(size_t pending_cards, size_t rs_le
 // can be satisfied without using up reserve regions, do so, otherwise eat into
 // the reserve, giving away at most what the heap sizer allows.
 uint G1Policy::calculate_young_target_length(uint desired_young_length) const {
+  if(!UseAdaptiveSizePolicy){
+    return desired_young_length;
+  }
+
+
   uint allocated_young_length = _g1h->young_regions_count();
 
   uint receiving_additional_eden;
@@ -1126,6 +1131,10 @@ void G1Policy::print_age_table() {
 }
 
 uint G1Policy::calculate_young_max_length(uint target_young_length) const {
+  if(!UseAdaptiveSizePolicy) {
+    return target_young_length;
+  }
+
   uint expansion_region_num = 0;
   if (GCLockerEdenExpansionPercent > 0) {
     double perc = GCLockerEdenExpansionPercent / 100.0;
@@ -1150,7 +1159,9 @@ void G1Policy::update_survivors_policy() {
   uint const desired_max_survivor_regions = ceil(max_survivor_regions_d);
   size_t const survivor_size = desired_survivor_size(desired_max_survivor_regions);
 
-  _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(survivor_size);
+  if(UseAdaptiveSizePolicy) {
+    _tenuring_threshold = _survivors_age_table.compute_tenuring_threshold(survivor_size);
+  }
   if (UsePerfData) {
     _policy_counters->tenuring_threshold()->set_value(_tenuring_threshold);
     _policy_counters->desired_survivor_size()->set_value(survivor_size * oopSize);
@@ -1198,6 +1209,10 @@ void G1Policy::decide_on_concurrent_start_pause() {
 
   // We should not be starting a concurrent start pause if the concurrent mark
   // thread is terminating.
+  if(G1DisableConcMarking){
+    return;
+  }
+
   if (_g1h->concurrent_mark_is_terminating()) {
     return;
   }
@@ -1377,6 +1392,10 @@ void G1Policy::abort_time_to_mixed_tracking() {
 }
 
 bool G1Policy::next_gc_should_be_mixed(const char* no_candidates_str) const {
+  if (G1DisableMixedGC){
+    return false;
+  }
+  
   if (!candidates()->has_more_marking_candidates()) {
     if (no_candidates_str != nullptr) {
       log_debug(gc, ergo)("%s (candidate old regions not available)", no_candidates_str);

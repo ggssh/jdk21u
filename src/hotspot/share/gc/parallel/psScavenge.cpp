@@ -458,7 +458,9 @@ bool PSScavenge::invoke_no_policy() {
     // We'll use the promotion manager again later.
     PSPromotionManager* promotion_manager = PSPromotionManager::vm_thread_promotion_manager();
     {
-      GCTraceTime(Debug, gc, phases) tm("Scavenge", &_gc_timer);
+      // GCTraceTime(Debug, gc, phases) tm("Scavenge", &_gc_timer);
+      GCTraceTime(Info, gc) tm("Scavenge", &_gc_timer);
+
 
       ScavengeRootsTask task(old_gen, active_workers);
       ParallelScavengeHeap::heap()->workers().run_task(&task);
@@ -466,7 +468,9 @@ bool PSScavenge::invoke_no_policy() {
 
     // Process reference objects discovered during scavenge
     {
-      GCTraceTime(Debug, gc, phases) tm("Reference Processing", &_gc_timer);
+      // GCTraceTime(Debug, gc, phases) tm("Reference Processing", &_gc_timer);
+      GCTraceTime(Info, gc) tm("Reference Processing", &_gc_timer);
+
 
       reference_processor()->set_active_mt_degree(active_workers);
       ReferenceProcessorStats stats;
@@ -482,7 +486,9 @@ bool PSScavenge::invoke_no_policy() {
     assert(promotion_manager->stacks_empty(),"stacks should be empty at this point");
 
     {
-      GCTraceTime(Debug, gc, phases) tm("Weak Processing", &_gc_timer);
+      // GCTraceTime(Debug, gc, phases) tm("Weak Processing", &_gc_timer);
+      GCTraceTime(Info, gc) tm("Weak Processing", &_gc_timer);
+
       PSAdjustWeakRootsClosure root_closure;
       WeakProcessor::weak_oops_do(&ParallelScavengeHeap::heap()->workers(), &_is_alive_closure, &root_closure, 1);
     }
