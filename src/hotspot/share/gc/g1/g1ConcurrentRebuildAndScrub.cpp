@@ -149,7 +149,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       do {
         MemRegion mr(start, MIN2(start + ProcessingYieldLimitInWords, limit));
         obj->oop_iterate(&_rebuild_closure, mr);
-        obj->oop_iterate(&_verify_closure);
+        // obj->oop_iterate(&_verify_closure);
 
         // Update processed words and yield, for humongous objects we will yield
         // after each chunk.
@@ -189,7 +189,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       } else {
         // Object smaller than yield limit, process it fully.
         obj->oop_iterate(&_rebuild_closure);
-        obj->oop_iterate(&_verify_closure);
+        // obj->oop_iterate(&_verify_closure);
         // Update how much we have processed. Yield check in main loop
         // will handle this case.
         add_processed_words(obj_size);
@@ -204,6 +204,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
 
       HeapWord* scrub_end = _bitmap->get_next_marked_addr(scrub_start, limit);
       hr->fill_range_with_dead_objects(scrub_start, scrub_end);
+      // log_info(gc)("scrub %p to %p", scrub_start, scrub_end);
 
       // Return the next object to handle.
       return scrub_end;
@@ -213,6 +214,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
     // been aborted.
     bool scan_and_scrub_to_pb(HeapRegion* hr, HeapWord* start, HeapWord* const limit) {
       bool all_alive = hr->data_structure() != nullptr && hr->data_structure()->is_alive();
+      // bool all_alive = false;
       while (start < limit) {
         if (all_alive || _bitmap->is_marked(start)) {
           //  Live object, need to scan to rebuild remembered sets for this object.
@@ -255,7 +257,12 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       log_trace(gc, marking)("Scrub and rebuild region: " HR_FORMAT " pb: " PTR_FORMAT " TARS: " PTR_FORMAT,
                              HR_FORMAT_PARAMS(hr), p2i(pb), p2i(_cm->top_at_rebuild_start(hr->hrm_index())));
 
-      if (scan_and_scrub_to_pb(hr, hr->bottom(), pb)) {
+      bool no_need_to_scrub = hr->data_structure() != nullptr && hr->data_structure()->is_alive();
+      // if(hr->data_structure() != nullptr && hr->data_structure()->is_alive()){
+      //   return false;
+      // }
+
+      if (!no_need_to_scrub && scan_and_scrub_to_pb(hr, hr->bottom(), pb)) {
         log_trace(gc, marking)("Scan and scrub aborted for region: %u", hr->hrm_index());
         return true;
       }
@@ -265,7 +272,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       hr->note_end_of_scrubbing();
 
       // Rebuild from TAMS (= parsable_bottom) to TARS.
-      if (scan_from_pb_to_tars(hr, pb, _cm->top_at_rebuild_start(hr->hrm_index()))) {
+      if (!no_need_to_scrub && scan_from_pb_to_tars(hr, pb, _cm->top_at_rebuild_start(hr->hrm_index()))) {
         log_trace(gc, marking)("Rebuild aborted for region: %u (%s)", hr->hrm_index(), hr->get_short_type_str());
         return true;
       }

@@ -67,8 +67,9 @@
    };
  
  public:
-   JavaThreadFlushLogs() :
-     G1AbstractSubTask(G1GCPhaseTimes::FlushLogsBeforeDataStructure),
+//  G1GCPhaseTimes::FlushLogsBeforeDataStructure
+   JavaThreadFlushLogs(G1GCPhaseTimes::GCParPhases _tag) :
+     G1AbstractSubTask(_tag),
      _claimer(ThreadsPerWorker),
      _local_tlab_stats(nullptr),
      _local_refinement_stats(nullptr),
@@ -136,7 +137,8 @@
    } _tc;
  
  public:
-   NonJavaThreadFlushLogs() : G1AbstractSubTask(G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure), _tc() { }
+//  G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure
+   NonJavaThreadFlushLogs(G1GCPhaseTimes::GCParPhases _tag) : G1AbstractSubTask(_tag), _tc() { }
  
    void do_work(uint worker_id) override {
      Threads::non_java_threads_do(&_tc);
@@ -149,11 +151,11 @@
    G1ConcurrentRefineStats refinement_stats() const { return _tc._refinement_stats; }
  };
  
- G1FlushLogBufferBatchTask::G1FlushLogBufferBatchTask() :
+ G1FlushLogBufferBatchTask::G1FlushLogBufferBatchTask(G1GCPhaseTimes::GCParPhases _tag1, G1GCPhaseTimes::GCParPhases _tag2) :
    G1BatchedTask("Pre Evacuate Prepare", G1CollectedHeap::heap()->phase_times()),
    _old_pending_cards(G1BarrierSet::dirty_card_queue_set().num_cards()),
-   _java_retire_task(new JavaThreadFlushLogs()),
-   _non_java_retire_task(new NonJavaThreadFlushLogs()) {
+   _java_retire_task(new JavaThreadFlushLogs(_tag1)),
+   _non_java_retire_task(new NonJavaThreadFlushLogs(_tag2)) {
  
    // Disable mutator refinement until concurrent refinement decides otherwise.
    G1BarrierSet::dirty_card_queue_set().set_mutator_refinement_threshold(SIZE_MAX);

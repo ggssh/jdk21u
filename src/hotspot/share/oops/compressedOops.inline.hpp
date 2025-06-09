@@ -31,6 +31,7 @@
 #include "oops/oop.hpp"
 #include "utilities/align.hpp"
 #include "utilities/globalDefinitions.hpp"
+#include "logging/log.hpp"
 
 // Functions for encoding and decoding compressed oops.
 // If the oops are compressed, the type passed to these overloaded functions
@@ -128,6 +129,22 @@ inline Klass* CompressedKlassPointers::decode_raw(narrowKlass v) {
 
 inline Klass* CompressedKlassPointers::decode_raw(narrowKlass v, address narrow_base) {
   return (Klass*)((uintptr_t)narrow_base +((uintptr_t)v << shift()));
+}
+
+inline Klass* CompressedKlassPointers::decode_not_null(const narrowKlass* v) {
+  return decode_not_null(v, base());
+}
+
+inline Klass* CompressedKlassPointers::decode_not_null(const narrowKlass* pv, address narrow_base) {
+  narrowKlass v = *pv;
+  assert(!is_null(v), "narrow klass value can never be zero");
+  Klass* result = decode_raw(v, narrow_base);
+  if(!check_alignment(result)){
+    log_info(gc)("wrong obj %p", pv);
+    ShouldNotReachHere();
+  }
+  assert(check_alignment(result), "address not aligned: " PTR_FORMAT, p2i(result));
+  return result;
 }
 
 inline Klass* CompressedKlassPointers::decode_not_null(narrowKlass v) {

@@ -57,7 +57,7 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
         HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
         assert(region->data_structure() == this, "must be");
         if(region != present_region || present - right != 1){
-            f(present_region->hrm_index(), left, right + 1);
+            f(present_region, left, right + 1);
             left = present;
             right = present;
             present_region = region;
@@ -66,7 +66,10 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
         }
         p = p->next();
     }
-    f(present_region->hrm_index(), left, right + 1);
+    // if(!MemRegion(present_region->bottom(), present_region->top()).contains(MemRegion(ct->addr_for(left), ct->addr_for(right + 1)))){
+    //     log_info(gc)("%p %p %p %p", present_region->bottom(), present_region->top(), ct->addr_for(left), ct->addr_for(right + 1));
+    // }
+    f(present_region, left, right + 1);
 }
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

@@ -12,9 +12,13 @@ class G1FlushLogBufferBatchTask : public G1BatchedTask {
     // References to the tasks to retain access to statistics.
     JavaThreadFlushLogs* _java_retire_task;
     NonJavaThreadFlushLogs* _non_java_retire_task;
+
+    G1GCPhaseTimes::GCParPhases _tag1;
+    G1GCPhaseTimes::GCParPhases _tag2;
+
   
   public:
-    G1FlushLogBufferBatchTask();
+    G1FlushLogBufferBatchTask(G1GCPhaseTimes::GCParPhases _tag1, G1GCPhaseTimes::GCParPhases _tag2);
     ~G1FlushLogBufferBatchTask();
 };
 

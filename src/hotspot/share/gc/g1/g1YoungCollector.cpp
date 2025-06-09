@@ -47,6 +47,8 @@
 #include "gc/g1/g1YoungGCPostEvacuateTasks.hpp"
 #include "gc/g1/g1YoungGCPreEvacuateTasks.hpp"
 #include "gc/g1/g1_globals.hpp"
+#include "gc/g1/g1ParRefineTask.hpp"
+#include "gc/g1/g1FlushLogBufferBatchTask.hpp"
 #include "gc/shared/concurrentGCBreakpoints.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/gcTimer.hpp"
@@ -1066,6 +1068,8 @@ void G1YoungCollector::collect() {
       _g1h->data_structure_manager()->initialize_at_conc_start();
     }
 
+
+
     pre_evacuate_collection_set(jtm.evacuation_info());
 
     G1ParScanThreadStateSet per_thread_states(_g1h,
@@ -1097,6 +1101,58 @@ void G1YoungCollector::collect() {
   // if(G1LogRemset){
   //   _g1h->rem_set()->log_remset();
   //   _g1h->print_region_types();
+  // }
+
+  // {
+
+  //   uint active_workers = _g1h->workers()->active_workers();
+  //   // set_concurrency_and_phase(active_workers, false /* concurrent */);
+  //   // Leave _parallel_marking_threads at it's
+  //   // value originally calculated in the G1ConcurrentMark
+  //   // constructor and pass values of the active workers
+  //   // through the task.
+  //   G1FlushLogBufferBatchTask cl(G1GCPhaseTimes::FlushLogsBeforeDataStructure1, G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure1);
+  //   _g1h->run_batch_task(&cl);
+
+  //   // G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
+  //   G1ParRefineTask refineTask(_g1h->concurrent_refine(), active_workers);
+  //   _g1h->workers()->run_task(&refineTask);
+
+  //   G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
+  //   log_info(gc)("num cards %lu, empty %s", dcqs.num_cards(), dcqs.empty()? "true" : "false");
+  // }
+
+  // if(G1LogRemset){
+  //   log_info(gc)("before young start");
+  //   _g1h->rem_set()->log_remset();
+  //   _g1h->print_region_types();
+  //   log_info(gc)("before young end");
+  // }
+
+  // // {
+
+  // //   uint active_workers = _g1h->workers()->active_workers();
+  // //   // set_concurrency_and_phase(active_workers, false /* concurrent */);
+  // //   // Leave _parallel_marking_threads at it's
+  // //   // value originally calculated in the G1ConcurrentMark
+  // //   // constructor and pass values of the active workers
+  // //   // through the task.
+  // //   G1FlushLogBufferBatchTask cl(G1GCPhaseTimes::FlushLogsBeforeDataStructure2, G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure2);
+  // //   _g1h->run_batch_task(&cl);
+
+  // //   // G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
+  // //   G1ParRefineTask refineTask(_g1h->concurrent_refine(), active_workers);
+  // //   _g1h->workers()->run_task(&refineTask);
+
+  // //   G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
+  // //   log_info(gc)("num cards %lu, empty %s", dcqs.num_cards(), dcqs.empty()? "true" : "false");
+  // // }
+
+  // if(G1LogRemset){
+  //   log_info(gc)("after young start");
+  //   _g1h->rem_set()->log_remset();
+  //   _g1h->print_region_types();
+  //   log_info(gc)("after young end");
   // }
 
   TASKQUEUE_STATS_ONLY(_g1h->task_queues()->print_and_reset_taskqueue_stats("Oop Queue");)

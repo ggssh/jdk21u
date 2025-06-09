@@ -99,6 +99,8 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
   if(data_structure_instance != nullptr) {
     // log_info(gc)("set data structure alive %u", data_structure_instance->id());
     return data_structure_instance->set_alive_par();
+    // data_structure_instance->set_alive_par();
+    // log_info(gc)("set data structure alive");
   }
   return success;
 }
@@ -190,12 +192,18 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     } else if (task_entry.is_data_structure_instance()){
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
       log_info(gc)("handle data structure instance %u", data_structure_instance->id());
-      data_structure_instance->scan_cards([&](uint region_idx, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
+      data_structure_instance->scan_cards([&](HeapRegion* hr, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
         size_t num_cards = right - left;
         HeapWord* const card_start = _ct->addr_for(left);
-        HeapWord* scan_end = card_start + (num_cards << BOTConstants::log_card_size_in_words());
-        MemRegion mr(card_start, scan_end);
-        process_data_structure_out_cards(region_idx, mr);
+        HeapWord* card_end = card_start + (num_cards << BOTConstants::log_card_size_in_words());
+        // if(card_start >= hr->top()){
+        //   log_info(gc)("wrong memregion card_start %p card_end %p top %p, region %u", card_start, scan_end, hr->top(), hr->hrm_index());
+        // }
+        HeapWord* scan_end = MIN2(card_end, hr->top());
+        if(card_start < scan_end){
+          MemRegion mr(card_start, MIN2(scan_end, hr->top()));
+          process_data_structure_out_cards(hr->hrm_index(), mr);
+        }
       });
     } else {
       oop obj = task_entry.obj();
@@ -282,7 +290,9 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // be visited when a task is scanning the region and will also
   // be pushed on the stack. So, some duplicate work, but no
   // correctness problems.
+  // if (is_below_finger(obj, global_finger)) {
   if (is_below_finger(obj, global_finger) && data_structure_instance == nullptr) {
+
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_oop(obj);
     if (obj->is_typeArray()) {
       // Immediately process arrays of primitive types, rather
@@ -299,7 +309,9 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
     } else {
       push(entry);
     }
+  // }
   } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
+  // if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
     //hua: todo
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_data_structure_instance(data_structure_instance);
     push(entry);
@@ -314,6 +326,9 @@ inline bool G1CMTask::deal_with_reference(T* p) {
   if (obj == nullptr) {
     return false;
   }
+  // if(_g1h->heap_region_containing(obj)->is_humongous()){
+  //   log_info(gc)("region %u into humongous %u", _g1h->heap_region_containing((HeapWord*)p)->hrm_index(), _g1h->heap_region_containing(obj)->hrm_index());
+  // }
   return make_reference_grey(obj);
 }
 

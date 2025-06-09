@@ -968,8 +968,8 @@ void G1ConcurrentMark::scan_root_regions() {
   // should not attempt to do any further work.
 
   if(G1LogRemset){
-    _g1h->rem_set()->log_remset();
-    _g1h->print_region_types();
+    // _g1h->rem_set()->log_remset();
+    // _g1h->print_region_types();
   }
 
   if (root_regions()->scan_in_progress()) {
@@ -1280,11 +1280,12 @@ void G1ConcurrentMark::remark() {
 
     
 
-    G1FlushLogBufferBatchTask cl;
+    G1FlushLogBufferBatchTask cl(G1GCPhaseTimes::FlushLogsBeforeDataStructure, G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure);
     _g1h->run_batch_task(&cl);
 
     log_info(gc)("before par refine task");
-    G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
+    // G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
+    G1ParRefineTask refineTask(_g1h->concurrent_refine(), active_workers);
     _g1h->workers()->run_task(&refineTask);
     log_info(gc)("after par refine task");
 
@@ -1292,6 +1293,11 @@ void G1ConcurrentMark::remark() {
     G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
     log_info(gc)("num cards %lu, empty %s", dcqs.num_cards(), dcqs.empty()? "true" : "false");
   }
+
+  // if(G1LogRemset){
+  //   _g1h->rem_set()->log_remset();
+  //   _g1h->print_region_types();
+  // }
 
   {
     BuildReverseRemsetClosure cl(_g1h);
@@ -1396,6 +1402,8 @@ void G1ConcurrentMark::remark() {
     reset_marking_for_restart();
   }
 
+  _g1h->data_structure_manager()->clear_all_out_cards();
+
   // Statistics
   double now = os::elapsedTime();
   _remark_mark_times.add((mark_work_end - start) * 1000.0);
@@ -1434,6 +1442,7 @@ class G1ReclaimEmptyRegionsTask : public WorkerTask {
         _freed_bytes += hr->used();
         hr->set_containing_set(nullptr);
         if (hr->is_humongous()) {
+          // ResourceMark rm;
           _humongous_regions_removed++;
           // log_info(gc)("free humongous region %u %s", hr->hrm_index(), cast_to_oop(hr->bottom())->klass()->name()->as_C_string());
           _g1h->free_humongous_region(hr, _local_cleanup_list);
@@ -2745,7 +2754,7 @@ bool G1ConcurrentMark::try_stealing(uint worker_id, G1TaskQueueEntry& task_entry
 void G1CMTask::do_marking_step(double time_target_ms,
                                bool do_termination,
                                bool is_serial) {
-  log_info(gc)("begin do_marking_step");
+  // log_info(gc)("begin do_marking_step");
   assert(time_target_ms >= 1.0, "minimum granularity is 1ms");
 
   _start_time_ms = os::elapsedVTime() * 1000.0;
@@ -2833,6 +2842,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
         giveup_current_region();
         abort_marking_if_regular_check_fail();
       } else if (mr.is_empty()) {
+      // if (mr.is_empty()) {
         giveup_current_region();
         abort_marking_if_regular_check_fail();
       } else if (_curr_region->is_humongous() && mr.start() == _curr_region->bottom()) {
@@ -3052,7 +3062,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // ready to restart.
     }
   }
-  log_info(gc)("end do_marking_step");
+  // log_info(gc)("end do_marking_step");
 
 }
 
@@ -3274,6 +3284,8 @@ BuildReverseRemsetClosure::~BuildReverseRemsetClosure(){
 }
 
 bool BuildReverseRemsetClosure::do_heap_region(HeapRegion* r){
+  // _g1h->rem_set()->prepare_region_for_scan(r);
+  r->prepare_remset_for_scan();
   BuildRegionReverseRemsetClosure cl(_g1h, this, _ds_manager, _g1h->card_table(), r);
   // memset((void*)_incoming_regions, 0, sizeof(bool)*_num_regions);
   // has_incoming = false;
@@ -3311,6 +3323,7 @@ void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
   size_t card_global_idx = region_base_idx + card_idx;
   G1CardTable::CardValue* cv = _ct->byte_for_index(card_global_idx);
   // log_info(gc)("add card of region %u to region %u", region->hrm_index(), _to_region->hrm_index());
+  assert((HeapWord*)_ct->byte_for_index(card_global_idx) < region->top(), "card must be smaller than top");
   data_structure_instance->add_out_card(cv);
 
   // _cl->do_incoming_region(region_idx);

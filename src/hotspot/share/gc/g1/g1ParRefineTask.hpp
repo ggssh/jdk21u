@@ -9,7 +9,7 @@
 
 
 class G1ParRefineTask : public WorkerTask {
-    G1ConcurrentMark* _cm;
+    // G1ConcurrentMark* _cm;
     G1ConcurrentRefine* _cr;
     uint _num_workers;
 
@@ -17,9 +17,9 @@ class G1ParRefineTask : public WorkerTask {
 
 
 public:
-    G1ParRefineTask(G1ConcurrentMark* cm, G1ConcurrentRefine* cr, uint num_workers) :
+    G1ParRefineTask(G1ConcurrentRefine* cr, uint num_workers) :
         WorkerTask("par refine"),
-        _cm(cm),
+        // _cm(cm),
         _cr(cr),
         _num_workers(num_workers) { 
         G1FromCardCache::invalidate(0, G1FromCardCache::max_reserved_regions());

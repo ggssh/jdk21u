@@ -80,6 +80,7 @@ public:
     void delete_plab_map(DataPLABMap* plab_map);
     void initialize_at_conc_start();
     void data_structures_instances_iterate(G1DataStructureRegionSetClosure* closure);
+    void clear_all_out_cards();
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

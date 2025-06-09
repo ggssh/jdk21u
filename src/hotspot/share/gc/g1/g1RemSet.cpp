@@ -895,6 +895,25 @@ void G1RemSet::prepare_region_for_scan(HeapRegion* r) {
   }
 }
 
+// void G1RemSet::prepare_region_for_scan_simple(HeapRegion* r) {
+//   uint hrm_index = r->hrm_index();
+
+//   r->prepare_remset_for_scan();
+//   // _scan_state->set_scan_top(hrm_index, r->top());
+
+
+//   // // Only update non-collection set old regions, others must have already been set
+//   // // to null (don't scan) in the initialization.
+//   // if (r->in_collection_set()) {
+//   //   assert_scan_top_is_null(hrm_index);
+//   // } else if (r->is_old_or_humongous()) {
+//   // } else {
+//   //   assert_scan_top_is_null(hrm_index);
+//   //   assert(r->is_free(),
+//   //          "Region %u should be free region but is %s", hrm_index, r->get_type_str());
+//   // }
+// }
+
 void G1RemSet::prepare_for_scan_heap_roots() {
   _scan_state->prepare();
 }
@@ -1183,7 +1202,9 @@ class G1MergeHeapRootsTask : public WorkerTask {
       // implicitly rebuild anything else during eager reclaim. Note that at the moment
       // (and probably never) we do not enter this path if there are other kind of
       // remembered sets for this region.
-      r->rem_set()->clear_locked(true /* only_cardset */);
+      if(!G1AlwaysTrackOld){
+        r->rem_set()->clear_locked(true /* only_cardset */);
+      }
       // Clear_locked() above sets the state to Empty. However we want to continue
       // collecting remembered set entries for humongous regions that were not
       // reclaimed.
@@ -1192,7 +1213,7 @@ class G1MergeHeapRootsTask : public WorkerTask {
       G1HeapRegionAttr region_attr = g1h->region_attr(region_index);
       assert(region_attr.remset_is_tracked(), "must be");
 #endif
-      assert(r->rem_set()->is_empty(), "At this point any humongous candidate remembered set must be empty.");
+      // assert(r->rem_set()->is_empty(), "At this point any humongous candidate remembered set must be empty.");
 
       return false;
     }
@@ -1620,10 +1641,12 @@ ScanRegionRemsetClosure::~ScanRegionRemsetClosure(){
 }
 
 bool ScanRegionRemsetClosure::do_heap_region(HeapRegion* r){
+  // _g1h->rem_set()->prepare_region_for_scan(r);
+  r->prepare_remset_for_scan();
   ScanRemsetClosure cl(this);
   memset((void*)_incoming_regions, 0, sizeof(bool)*_num_regions);
   has_incoming = false;
-  r->rem_set()->iterate_cards(cl);
+  r->rem_set()->iterate_cards_safepoint(cl);
   if(has_incoming){
     _ls.print("into Region %u", r->hrm_index());
     _ls.print_cr("");

@@ -35,6 +35,7 @@
 #include "gc/shared/verifyOption.hpp"
 #include "runtime/mutex.hpp"
 #include "utilities/macros.hpp"
+#include "logging/log.hpp"
 
 class G1CardSetConfiguration;
 class G1CollectedHeap;
@@ -439,7 +440,10 @@ public:
   // Unsets the humongous-related fields on the region.
   void clear_humongous();
 
-  void set_rem_set(HeapRegionRemSet* rem_set) { _rem_set = rem_set; }
+  void set_rem_set(HeapRegionRemSet* rem_set) {
+    log_info(gc)("set remset %u", hrm_index());
+    _rem_set = rem_set; 
+  }
   // If the region has a remembered set, return a pointer to it.
   HeapRegionRemSet* rem_set() const {
     return _rem_set;

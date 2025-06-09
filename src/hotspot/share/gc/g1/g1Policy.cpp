@@ -551,7 +551,11 @@ void G1Policy::record_full_collection_end() {
   // transitions and make sure we start with young GCs after the Full GC.
   collector_state()->set_in_young_only_phase(true);
   collector_state()->set_in_young_gc_before_mixed(false);
-  collector_state()->set_initiate_conc_mark_if_possible(need_to_start_conc_mark("end of Full GC"));
+  bool need = need_to_start_conc_mark("end of Full GC");
+  // if(need){
+  //   log_info(gc)("initiate concurrent 2");
+  // }
+  collector_state()->set_initiate_conc_mark_if_possible(need);
   collector_state()->set_in_concurrent_start_gc(false);
   collector_state()->set_mark_or_rebuild_in_progress(false);
   collector_state()->set_clearing_bitmap(false);
@@ -698,6 +702,7 @@ bool G1Policy::need_to_start_conc_mark(const char* source, size_t alloc_word_siz
   if (about_to_start_mixed_phase()) {
     return false;
   }
+  static int x = 0;
 
   size_t marking_initiating_used_threshold = _ihop_control->get_conc_mark_start_threshold();
 
@@ -711,6 +716,13 @@ bool G1Policy::need_to_start_conc_mark(const char* source, size_t alloc_word_siz
     log_debug(gc, ergo, ihop)("%s occupancy: " SIZE_FORMAT "B allocation request: " SIZE_FORMAT "B threshold: " SIZE_FORMAT "B (%1.2f) source: %s",
                               result ? "Request concurrent cycle initiation (occupancy higher than threshold)" : "Do not request concurrent cycle initiation (still doing mixed collections)",
                               cur_used_bytes, alloc_byte_size, marking_initiating_used_threshold, (double) marking_initiating_used_threshold / _g1h->capacity() * 100, source);
+  }
+  x += 1;
+  if(x > 10 || _g1h->capacity() * 0.8 < _g1h->used_unlocked()){
+    x = 0;
+    return result;
+  } else {
+    return false;
   }
   return result;
 }
@@ -1159,6 +1171,7 @@ bool G1Policy::force_concurrent_start_if_outside_cycle(GCCause::Cause gc_cause) 
                         "GC cause: %s",
                         GCCause::to_string(gc_cause));
     collector_state()->set_initiate_conc_mark_if_possible(true);
+    // log_info(gc)("initiate concurrent 3");
     return true;
   } else {
     log_debug(gc, ergo)("Do not request concurrent cycle initiation "
@@ -1289,6 +1302,7 @@ void G1Policy::maybe_start_marking() {
     // pause we decided to start a cycle but at the beginning of
     // this pause we decided to postpone it. That's OK.
     collector_state()->set_initiate_conc_mark_if_possible(true);
+    // log_info(gc)("initiate concurrent 4");
   }
 }
 

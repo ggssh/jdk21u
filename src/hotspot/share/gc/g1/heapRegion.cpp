@@ -249,7 +249,7 @@ HeapRegion::HeapRegion(uint hrm_index,
 {
   assert(Universe::on_page_boundary(mr.start()) && Universe::on_page_boundary(mr.end()),
          "invalid space boundaries");
-
+  // log_info(gc)("new region %u", hrm_index);
   _rem_set = new HeapRegionRemSet(this, config);
   initialize();
 }

@@ -785,6 +785,7 @@ HeapWord* G1CollectedHeap::attempt_allocation_at_safepoint(size_t word_size,
   } else {
     HeapWord* result = humongous_obj_allocate(word_size);
     if (result != nullptr && policy()->need_to_start_conc_mark("STW humongous allocation")) {
+      // log_info(gc)("initiate concurrent 1");
       collector_state()->set_initiate_conc_mark_if_possible(true);
     }
     return result;
@@ -2669,6 +2670,8 @@ void G1CollectedHeap::free_region(HeapRegion* hr, FreeRegionList* free_list) {
   assert(!hr->is_empty(), "the region should not be empty");
   assert(_hrm.is_available(hr->hrm_index()), "region should be committed");
 
+  // log_info(gc)("free region %u", hr->hrm_index());
+
   // Reset region metadata to allow reuse.
   hr->hr_clear(true /* clear_space */);
   _policy->remset_tracker()->update_at_free(hr);
@@ -3151,9 +3154,11 @@ void G1CollectedHeap::finish_codecache_marking_cycle() {
 class PrintHeapRegionTypeClosure: public HeapRegionClosure {
 public:
   bool do_heap_region(HeapRegion* r) {
+    ResourceMark rm;
     if(r->data_structure() != nullptr){
       if(r->is_humongous()){
         log_info(gc)("Region %u : Humongous Data (%u)", r->hrm_index(), r->data_structure()->id());
+        // log_info(gc)("Region %u : Humongous Data (%u) %s", r->hrm_index(), r->data_structure()->id(), cast_to_oop(r->bottom())->klass()->name()->as_C_string());
         // if(r->is_starts_humongous()){
         //   log_info(gc)("%s", cast_to_oop(r->bottom())->klass()->name()->as_C_string());
         // } else {
@@ -3165,6 +3170,7 @@ public:
     } else {
       if(r->is_humongous()){
         log_info(gc)("Region %u : Humongous", r->hrm_index());
+        // log_info(gc)("Region %u : Humongous %s", r->hrm_index(), cast_to_oop(r->bottom())->klass()->name()->as_C_string());
         // if(r->is_starts_humongous()){
         //   log_info(gc)("%s", cast_to_oop(r->bottom())->klass()->name()->as_C_string());
         // } else {
@@ -3175,10 +3181,13 @@ public:
         log_info(gc)("Region %u : Old", r->hrm_index());
       } else if(r->is_young()){
         log_info(gc)("Region %u : Young", r->hrm_index());
-      } else {
-        log_info(gc)("Region %u : Free", r->hrm_index());
+      } 
+      else {
+        // log_info(gc)("Region %u : Free", r->hrm_index());
+        return false;
       }
     }
+    // log_info(gc)("from %p to %p", r->bottom(), r->end());
     return false;
   }
 };

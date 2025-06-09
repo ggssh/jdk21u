@@ -313,8 +313,13 @@ inline void HeapRegion::note_end_of_marking(size_t marked_bytes) {
       assert(_garbage_bytes != used(), "garbage bytes should not be equal to used");
     }
   } else if (top_at_mark_start() != bottom()) {
+  // if (top_at_mark_start() != bottom()) {
     _garbage_bytes = byte_size(bottom(), top_at_mark_start()) - marked_bytes;
   }
+
+  // if(data_structure() != nullptr) {
+  //   log_info(gc)("data structure region alive %lu", live_bytes());
+  // }
 
   if (needs_scrubbing()) {
     _parsable_bottom = top_at_mark_start();
@@ -633,6 +638,10 @@ template <bool in_gc_pause, class Closure>
 HeapWord* HeapRegion::oops_on_memregion_seq_iterate_careful(MemRegion mr,
                                                             Closure* cl) {
   assert(MemRegion(bottom(), top()).contains(mr), "Card region not in heap region");
+  if(!MemRegion(bottom(), top()).contains(mr)){
+    log_info(gc)("wrong %p %p %p %p", bottom(), top(), mr.start(), mr.end());
+    ShouldNotReachHere();
+  }
 
   // Special handling for humongous regions.
   if (is_humongous()) {

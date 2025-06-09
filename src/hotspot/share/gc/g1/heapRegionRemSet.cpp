@@ -74,6 +74,7 @@ void HeapRegionRemSet::clear(bool only_cardset) {
 }
 
 void HeapRegionRemSet::clear_locked(bool only_cardset) {
+  // log_info(gc)("clear locked %u", _hr->hrm_index());
   if (!only_cardset) {
     _code_roots.clear();
   }
