@@ -974,7 +974,7 @@ void G1ConcurrentMark::scan_root_regions() {
 
   if(G1LogRemset){
     // _g1h->rem_set()->log_remset();
-    _g1h->print_region_types();
+    // _g1h->print_region_types();
   }
 
   if (root_regions()->scan_in_progress()) {
@@ -1301,7 +1301,7 @@ void G1ConcurrentMark::remark() {
 
   if(G1LogRemset){
     // _g1h->rem_set()->log_remset();
-    _g1h->print_region_types();
+    // _g1h->print_region_types();
   }
 
   if(!should_do_detailed_concurrent_gc()){
@@ -2846,7 +2846,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // that is left.
       // If the iteration is successful, give up the region.
       G1DataStructureRegionSet* data_structure_instance = _curr_region->data_structure();
-      if(data_structure_instance != nullptr && !should_do_detailed_concurrent_gc()) {
+      if(data_structure_instance != nullptr && !_cm->should_do_detailed_concurrent_gc()) {
         giveup_current_region();
         abort_marking_if_regular_check_fail();
       } else if (mr.is_empty()) {

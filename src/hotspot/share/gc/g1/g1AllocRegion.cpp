@@ -376,12 +376,12 @@ HeapRegion* OldDataStructureGCAllocRegion::allocate_new_region(size_t word_size,
   assert(!force, "not supported for GC alloc regions");
   HeapRegion* new_region = _g1h->new_gc_alloc_region(word_size, _purpose, _node_index);
   if (new_region != nullptr) {
-    log_info(gc)("use region %u as data structure region", new_region->hrm_index());
+    // log_info(gc)("use region %u as data structure region", new_region->hrm_index());
     new_region->set_data_structure(_data_structure_region_set);
     new_region->set_collect_as_a_whole(true);
     _data_structure_region_set->add_region(new_region);
   } else {
-    log_info(gc)("use region null as data structure region");
+    // log_info(gc)("use region null as data structure region");
 
   }
   return new_region;

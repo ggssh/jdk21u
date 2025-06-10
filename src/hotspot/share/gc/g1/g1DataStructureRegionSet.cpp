@@ -134,9 +134,9 @@ void G1DataStructureRegionSet::init_data_structure_alloc_region(G1Allocator* all
 
 HeapRegion* G1DataStructureRegionSet::release_data_structure_alloc_region() {
     _retained_old_region = _alloc_region.release();
-    if(_retained_old_region != nullptr) {
-        log_info(gc)("release retained old region %u", _retained_old_region->hrm_index());
-    }
+    // if(_retained_old_region != nullptr) {
+    //     log_info(gc)("release retained old region %u", _retained_old_region->hrm_index());
+    // }
     return _retained_old_region;
 }
 
@@ -158,11 +158,12 @@ G1DataStructureRegionSet::~G1DataStructureRegionSet(){
     if(_alloc_region.region_not_null()){
         // _alloc_region.release();
         released = release_data_structure_alloc_region();
-    } else {
-        log_info(gc)("no alloc region to release");
-    }
+    } 
+    // else {
+    //     log_info(gc)("no alloc region to release");
+    // }
     clear_regions();
-    if(released != nullptr){
-        log_info(gc)("released %s", released->data_structure() == nullptr ? "ds" : "normal");
-    }
+    // if(released != nullptr){
+    //     log_info(gc)("released %s", released->data_structure() == nullptr ? "ds" : "normal");
+    // }
 }

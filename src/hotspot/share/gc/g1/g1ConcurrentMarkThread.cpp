@@ -300,13 +300,16 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
 
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
-  if(_g1h->capacity() * 0.7 < _g1h->used_unlocked()){
-    log_info(gc)("do detailed");
-    _cm->set_should_do_detailed_concurrent_gc(true);
-  } else {
-    log_info(gc)("do summary");
-    _cm->set_should_do_detailed_concurrent_gc(false);
-  }
+  // if(g1h->capacity() * 0.7 < g1h->used_unlocked()){
+  //   log_info(gc)("do detailed");
+  //   _cm->set_should_do_detailed_concurrent_gc(true);
+  // } else {
+  //   log_info(gc)("do summary");
+  //   _cm->set_should_do_detailed_concurrent_gc(false);
+  // }
+
+  _cm->set_should_do_detailed_concurrent_gc(true);
+
 
   g1h->region_class_hash_map()->clear();
 

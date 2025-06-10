@@ -303,8 +303,9 @@ inline void HeapRegion::note_start_of_marking() {
 }
 
 inline void HeapRegion::note_end_of_marking(size_t marked_bytes) {
+  G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
   assert_at_safepoint();
-  if(data_structure() != nullptr && !should_do_detailed_concurrent_gc()) {
+  if(data_structure() != nullptr && !cm->should_do_detailed_concurrent_gc()) {
     if(!data_structure()->is_alive()){
       assert(top() == top_at_mark_start(), "TAMS must be at top for dead regions");
       _garbage_bytes = used();
@@ -422,7 +423,7 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
 
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
-  static uint x = 0;
+  // static uint x = 0;
 
   if (obj->is_objArray() || (sr->bottom() < mr.start())) {
     // objArrays are always marked precisely, so limit processing
@@ -432,7 +433,7 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
     // objects.  That should be rare, so not worth checking for;
     // instead let it fall out from the bounded iteration.
     cl->set_from_oop(obj);
-    x += obj->klass()->name()->identity_hash();
+    // x += obj->klass()->name()->identity_hash();
     obj->oop_iterate(cl, mr);
     cl->set_from_oop(nullptr);
     // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
@@ -442,7 +443,7 @@ HeapWord* HeapRegion::do_oops_on_memregion_in_humongous_with_klass(MemRegion mr,
     // obj, then this could be an imprecise mark, and we need to
     // process the entire object.
     cl->set_from_oop(obj);
-    x += obj->klass()->name()->identity_hash();
+    // x += obj->klass()->name()->identity_hash();
     size_t size = obj->oop_iterate_size(cl);
     cl->set_from_oop(nullptr);
     // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
@@ -603,7 +604,7 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
   assert(cur < top(), "must be cur " PTR_FORMAT " top " PTR_FORMAT, p2i(cur), p2i(top()));
 
   // All objects >= pb are parsable. So we can just take object sizes directly.
-  static uint x = 0;
+  // static uint x = 0;
   while (true) {
     oop obj = cast_to_oop(cur);
     // g1h->reference_dictionary()->add_klass(Thread::current(), obj->klass(), obj->klass());
@@ -619,7 +620,7 @@ inline HeapWord* HeapRegion::oops_on_memregion_iterate_with_klass(MemRegion mr, 
     // objArrays are precisely marked, but can still be iterated
     // over in full if completely covered.
     cl->set_from_oop(obj);
-    x += obj->klass()->name()->identity_hash();
+    // x += obj->klass()->name()->identity_hash();
     if (!obj->is_objArray() || (cast_from_oop<HeapWord*>(obj) >= start && cur <= end)) {
       obj->oop_iterate(cl);
     } else {

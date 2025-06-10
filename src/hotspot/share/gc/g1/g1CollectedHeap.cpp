@@ -2698,7 +2698,7 @@ void G1CollectedHeap::free_region(HeapRegion* hr, FreeRegionList* free_list) {
   assert(!hr->is_empty(), "the region should not be empty");
   assert(_hrm.is_available(hr->hrm_index()), "region should be committed");
 
-  log_info(gc)("free region %u", hr->hrm_index());
+  // log_info(gc)("free region %u", hr->hrm_index());
 
   // Reset region metadata to allow reuse.
   hr->hr_clear(true /* clear_space */);

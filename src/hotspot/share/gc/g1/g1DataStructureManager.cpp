@@ -320,7 +320,7 @@ void G1DataStructureManager::initialize_at_conc_start(){
     _evacuation_info = nullptr;
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
-        log_info(gc)("set data structure not alive %u", data_structure->id());
+        // log_info(gc)("set data structure not alive %u", data_structure->id());
         data_structure->set_alive(false);
         p = p->next();
     }

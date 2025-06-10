@@ -43,6 +43,8 @@
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
+  G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
+
   // Check whether the passed in object is null. During discovery the referent
   // may be cleared between the initial check and being passed in here.
   if (obj == nullptr) {
@@ -55,7 +57,7 @@ inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
   if (hr->obj_allocated_since_marking_start(obj)) {
     return true;
   }
-  if(!should_do_detailed_concurrent_gc()) {
+  if(!cm->should_do_detailed_concurrent_gc()) {
     if (hr->data_structure() != nullptr && hr->data_structure()->is_alive()) {
       return true;
     }
@@ -83,11 +85,11 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
   // Can't assert that this is a valid object at this point, since it might be in the process of being copied by another thread.
   assert(!hr->is_continues_humongous(), "Should not try to mark object " PTR_FORMAT " in Humongous continues region %u above TAMS " PTR_FORMAT, p2i(obj), hr->hrm_index(), p2i(hr->top_at_mark_start()));
 
-  static uint x = 0;
+  // static uint x = 0;
   bool success = _mark_bitmap.par_mark(obj);
   if (success) {
     add_to_liveness(worker_id, obj, obj->size());
-    x += obj->klass()->name()->identity_hash();
+    // x += obj->klass()->name()->identity_hash();
     if(G1CollectRegionClass){
       task(worker_id)->region_class_hash_map()->add_or_inc(hr, obj->klass()->name(), 1, obj->size());
     }
@@ -196,7 +198,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     if (task_entry.is_array_slice()) {
       _words_scanned += _objArray_processor.process_slice(task_entry.slice());
     } else if (task_entry.is_data_structure_instance()){
-      if(should_do_detailed_concurrent_gc()){
+      if(_cm->should_do_detailed_concurrent_gc()){
         ShouldNotReachHere();
       }
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
@@ -300,7 +302,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // be pushed on the stack. So, some duplicate work, but no
   // correctness problems.
   // if (is_below_finger(obj, global_finger)) {
-  if (is_below_finger(obj, global_finger) && (should_do_detailed_concurrent_gc() || data_structure_instance == nullptr)) {
+  if (is_below_finger(obj, global_finger) && (_cm->should_do_detailed_concurrent_gc() || data_structure_instance == nullptr)) {
 
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_oop(obj);
     if (obj->is_typeArray()) {
@@ -319,7 +321,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       push(entry);
     }
   // }
-  } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack && !should_do_detailed_concurrent_gc()){
+  } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack && !_cm->should_do_detailed_concurrent_gc()){
   // if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
     //hua: todo
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_data_structure_instance(data_structure_instance);

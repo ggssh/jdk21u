@@ -722,13 +722,13 @@ bool G1Policy::need_to_start_conc_mark(const char* source, size_t alloc_word_siz
                               result ? "Request concurrent cycle initiation (occupancy higher than threshold)" : "Do not request concurrent cycle initiation (still doing mixed collections)",
                               cur_used_bytes, alloc_byte_size, marking_initiating_used_threshold, (double) marking_initiating_used_threshold / _g1h->capacity() * 100, source);
   }
-  x += 1;
-  if(x > 10 || _g1h->capacity() * 0.8 < _g1h->used_unlocked()){
-    x = 0;
-    return result;
-  } else {
-    return false;
-  }
+  // x += 1;
+  // if(x > 10 || _g1h->capacity() * 0.8 < _g1h->used_unlocked()){
+  //   x = 0;
+  //   return result;
+  // } else {
+  //   return false;
+  // }
   return result;
 }
 

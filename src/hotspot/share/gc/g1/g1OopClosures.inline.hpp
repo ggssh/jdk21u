@@ -88,7 +88,7 @@ inline void G1ScanEvacuatedObjClosure::do_oop_work(T* p) {
   }
   oop obj = CompressedOops::decode_not_null(heap_oop);
   const G1HeapRegionAttr region_attr = _g1h->region_attr(obj);
-  static uint x = 0;
+  // static uint x = 0;
   if (region_attr.is_in_cset()) {
     prefetch_and_push(p, obj, _from_oop);
     // if(_from_oop != nullptr && _from_oop->klass() != nullptr){
@@ -164,7 +164,7 @@ inline void G1ConcurrentRefineOopClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1ScanCardClosure::do_oop_work(T* p) {
-  static uint x = 0;
+  // static uint x = 0;
   T o = RawAccess<>::oop_load(p);
   if (CompressedOops::is_null(o)) {
     return;
@@ -195,7 +195,8 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1ScanDataStructureOutCardClosure::do_oop_work(T* p) {
-  if(should_do_detailed_concurrent_gc()){
+  G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
+  if(cm->should_do_detailed_concurrent_gc()){
     ShouldNotReachHere();
   }
   _cm_task->deal_with_reference(p);
