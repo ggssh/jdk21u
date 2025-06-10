@@ -88,6 +88,7 @@ public:
 
 
 class G1DataStructureRegionSet : public CHeapObj<mtGC> {
+    friend class G1DataStructureManager;
 private:
     static int compare(G1CardTable::CardValue* const& left, G1CardTable::CardValue* const& right){
         return (uintptr_t)left - (uintptr_t)right;
@@ -190,6 +191,13 @@ public:
             return true;
         }
         return false;
+    }
+
+    void abandon_alloc_region() {
+        if(_alloc_region.get() != nullptr){
+            ShouldNotReachHere();
+        }
+        _retained_old_region = nullptr;
     }
 
     template<typename Func> void scan_cards(Func&& f);

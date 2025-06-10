@@ -226,9 +226,6 @@ void G1FullCollector::collect() {
 
   phase5_reset_metadata();
 
-  {
-    _heap->data_structure_manager()->clear_all_instances();
-  }
 
   G1CollectedHeap::finish_codecache_marking_cycle();
 }

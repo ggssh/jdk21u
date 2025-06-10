@@ -137,12 +137,19 @@ uint G1DataStructureManager::alloc_count() {
 void G1DataStructureManager::release_data_structure_alloc_regions() {
     MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
-    _allocator = nullptr;
-    _evacuation_info = nullptr;
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
         data_structure->release_data_structure_alloc_region();
         p = p->next();
+    }
+}
+
+void G1DataStructureManager::abandon_data_structure_alloc_regions() {
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        data_structure->abandon_alloc_region();
     }
 }
 

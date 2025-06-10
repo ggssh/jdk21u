@@ -63,6 +63,7 @@ public:
     G1DataStructureRegionSet* get_data_structure(oop from_oop, oop to_oop);
     void init_data_structure_alloc_regions(G1Allocator* allocator, G1EvacInfo* evacuation_info);
     void release_data_structure_alloc_regions();
+    void abandon_data_structure_alloc_regions();
     uint alloc_count();
     bool is_retained_old_region(HeapRegion* hr);
     

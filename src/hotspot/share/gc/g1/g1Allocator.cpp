@@ -198,6 +198,7 @@ void G1Allocator::abandon_gc_alloc_regions() {
   }
   assert(old_gc_alloc_region()->get() == nullptr, "pre-condition");
   _retained_old_gc_alloc_region = nullptr;
+  _data_structure_manager->abandon_data_structure_alloc_regions();
 }
 
 bool G1Allocator::survivor_is_full() const {
