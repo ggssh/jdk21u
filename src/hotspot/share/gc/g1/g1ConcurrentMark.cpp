@@ -3339,3 +3339,7 @@ void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
 
   // _cl->do_incoming_region(region_idx);
 }
+
+G1CMIsAliveClosure::G1CMIsAliveClosure(G1CollectedHeap* g1h) : _g1h(g1h), _cm(g1h->concurrent_mark()) { 
+  
+}

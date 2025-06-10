@@ -88,7 +88,8 @@ void oopDesc::init_mark() {
 
 Klass* oopDesc::klass() const {
   if (UseCompressedClassPointers) {
-    return CompressedKlassPointers::decode_not_null(&_metadata._compressed_klass);
+    return CompressedKlassPointers::decode_not_null(_metadata._compressed_klass);
+    // return CompressedKlassPointers::decode_not_null(&_metadata._compressed_klass);
   } else {
     return _metadata._klass;
   }
