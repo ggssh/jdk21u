@@ -43,8 +43,6 @@
 #include "utilities/bitMap.inline.hpp"
 
 inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
-  G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
-
   // Check whether the passed in object is null. During discovery the referent
   // may be cleared between the initial check and being passed in here.
   if (obj == nullptr) {
@@ -57,7 +55,7 @@ inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
   if (hr->obj_allocated_since_marking_start(obj)) {
     return true;
   }
-  if(!cm->should_do_detailed_concurrent_gc()) {
+  if(!_cm->should_do_detailed_concurrent_gc()) {
     if (hr->data_structure() != nullptr && hr->data_structure()->is_alive()) {
       return true;
     }
@@ -85,11 +83,9 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
   // Can't assert that this is a valid object at this point, since it might be in the process of being copied by another thread.
   assert(!hr->is_continues_humongous(), "Should not try to mark object " PTR_FORMAT " in Humongous continues region %u above TAMS " PTR_FORMAT, p2i(obj), hr->hrm_index(), p2i(hr->top_at_mark_start()));
 
-  // static uint x = 0;
   bool success = _mark_bitmap.par_mark(obj);
   if (success) {
     add_to_liveness(worker_id, obj, obj->size());
-    // x += obj->klass()->name()->identity_hash();
     if(G1CollectRegionClass){
       task(worker_id)->region_class_hash_map()->add_or_inc(hr, obj->klass()->name(), 1, obj->size());
     }
@@ -198,11 +194,11 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     if (task_entry.is_array_slice()) {
       _words_scanned += _objArray_processor.process_slice(task_entry.slice());
     } else if (task_entry.is_data_structure_instance()){
-      if(_cm->should_do_detailed_concurrent_gc()){
-        ShouldNotReachHere();
-      }
+//      if(_cm->should_do_detailed_concurrent_gc()){
+//        ShouldNotReachHere();
+//      }
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
-      log_info(gc)("handle data structure instance %u", data_structure_instance->id());
+//      log_info(gc)("handle data structure instance %u", data_structure_instance->id());
       data_structure_instance->scan_cards([&](HeapRegion* hr, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
         size_t num_cards = right - left;
         HeapWord* const card_start = _ct->addr_for(left);
@@ -277,12 +273,6 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   if (!_cm->mark_in_bitmap(_worker_id, obj)) {
     return false;
   }
-
-  // if(data_structure_instance != nullptr){
-  //   if(!data_structure_instance->set_alive_par(true)){
-  //     return false;
-  //   }
-  // }
 
   // No OrderAccess:store_load() is needed. It is implicit in the
   // CAS done in G1CMBitMap::parMark() call in the routine above.

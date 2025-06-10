@@ -186,8 +186,6 @@ public:
   static inline Klass* decode_raw(narrowKlass v);
   static inline Klass* decode_not_null(narrowKlass v);
   static inline Klass* decode_not_null(narrowKlass v, address base);
-  static inline Klass* decode_not_null(const narrowKlass* v);
-  static inline Klass* decode_not_null(const narrowKlass* v, address base);
   static inline Klass* decode(narrowKlass v);
   static inline narrowKlass encode_not_null(Klass* v);
   static inline narrowKlass encode_not_null(Klass* v, address base);

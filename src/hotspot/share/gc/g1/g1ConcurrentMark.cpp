@@ -690,9 +690,9 @@ void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
   log_debug(gc, ergo)("Running %s with %u workers for " SIZE_FORMAT " work units.", cl.name(), num_workers, num_chunks);
   workers->run_task(&cl, num_workers);
   _g1h->data_structure_manager()->initialize_at_conc_start();
-  log_info(gc)("before clear all out cards");
+//  log_info(gc)("before clear all out cards");
   _g1h->data_structure_manager()->clear_all_out_cards();
-  log_info(gc)("after clear all out cards");
+//  log_info(gc)("after clear all out cards");
   guarantee(may_yield || cl.is_complete(), "Must have completed iteration when not yielding.");
 }
 
@@ -1250,7 +1250,7 @@ public:
       if(!r->data_structure()->is_alive()) {
         if(r->top_at_mark_start() != r->top()) {
           r->data_structure()->set_alive(true);
-          log_info(gc)("set data structure alive %u due to top growth", r->data_structure()->id());
+//          log_info(gc)("set data structure alive %u due to top growth", r->data_structure()->id());
         }
       }
     }
@@ -1288,11 +1288,11 @@ void G1ConcurrentMark::remark() {
     G1FlushLogBufferBatchTask cl(G1GCPhaseTimes::FlushLogsBeforeDataStructure, G1GCPhaseTimes::NonJavaThreadFlushLogsBeforeDataStructure);
     _g1h->run_batch_task(&cl);
 
-    log_info(gc)("before par refine task");
+//    log_info(gc)("before par refine task");
     // G1ParRefineTask refineTask(this, _g1h->concurrent_refine(), active_workers);
     G1ParRefineTask refineTask(_g1h->concurrent_refine(), active_workers);
     _g1h->workers()->run_task(&refineTask);
-    log_info(gc)("after par refine task");
+//    log_info(gc)("after par refine task");
 
 
     G1DirtyCardQueueSet& dcqs = G1BarrierSet::dirty_card_queue_set();
@@ -1305,10 +1305,10 @@ void G1ConcurrentMark::remark() {
   }
 
   if(!should_do_detailed_concurrent_gc()){
-    log_info(gc)("before build reverse remset");
+//    log_info(gc)("before build reverse remset");
     BuildReverseRemsetClosure cl(_g1h);
     _g1h->heap_region_iterate(&cl);
-    log_info(gc)("after build reverse remset");
+//    log_info(gc)("after build reverse remset");
   }
 
   
@@ -1370,9 +1370,9 @@ void G1ConcurrentMark::remark() {
       reclaim_empty_regions();
     }
 
-    // {
-    //   _g1h->data_structure_manager()->remove_dead_instances();
-    // }
+     if(!should_do_detailed_concurrent_gc()){
+       _g1h->data_structure_manager()->remove_dead_instances();
+     }
 
     // Clean out dead classes
     if (ClassUnloadingWithConcurrentMark) {
@@ -1944,7 +1944,7 @@ public:
     if(data_structure_instance->is_alive()){
       if(_present % _active_workers == _worker_id){
         _task->push(G1TaskQueueEntry::from_data_structure_instance(data_structure_instance));
-        log_info(gc)("push data structure instance %u", data_structure_instance->id());
+//        log_info(gc)("push data structure instance %u", data_structure_instance->id());
       }
       _present += 1;
     }
