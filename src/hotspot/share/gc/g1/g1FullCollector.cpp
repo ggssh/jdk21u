@@ -187,7 +187,16 @@ void G1FullCollector::prepare_collection() {
   _heap->verify_before_full_collection();
   if (in_concurrent_cycle) {
     GCTraceTime(Debug, gc) debug("Clear Bitmap");
+    log_info(gc)("before clear bitmap");
     _heap->concurrent_mark()->clear_bitmap(_heap->workers());
+    log_info(gc)("after clear bitmap");
+  }
+
+  {
+    log_info(gc)("before clear instances");
+    _heap->data_structure_manager()->clear_all_instances();
+    log_info(gc)("after clear instances");
+
   }
 
   _heap->gc_prologue(true);
@@ -225,6 +234,11 @@ void G1FullCollector::collect() {
   }
 
   phase5_reset_metadata();
+
+  if(G1LogRemset){
+    _heap->rem_set()->log_remset();
+    // _g1h->print_region_types();
+  }
 
 
   G1CollectedHeap::finish_codecache_marking_cycle();

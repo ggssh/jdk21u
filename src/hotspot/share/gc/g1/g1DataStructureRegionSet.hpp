@@ -150,7 +150,7 @@ public:
     }
 
     void init_data_structure_alloc_region(G1Allocator* allocator, G1EvacInfo* evacuation_info);
-    void release_data_structure_alloc_region();
+    HeapRegion* release_data_structure_alloc_region();
 
     bool is_retained_old_region(HeapRegion* hr) {
         return _retained_old_region == hr;

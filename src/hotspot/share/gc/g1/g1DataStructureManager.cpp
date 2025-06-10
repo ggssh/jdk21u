@@ -350,6 +350,7 @@ void G1DataStructureManager::clear_all_instances() {
     MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
     LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
     while (p != nullptr) {
+        log_info(gc)("delete instance");
         G1DataStructureRegionSet* data_structure = *p->data();
         delete data_structure;
         p = p->next();

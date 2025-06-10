@@ -689,7 +689,9 @@ void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
   log_debug(gc, ergo)("Running %s with %u workers for " SIZE_FORMAT " work units.", cl.name(), num_workers, num_chunks);
   workers->run_task(&cl, num_workers);
   _g1h->data_structure_manager()->initialize_at_conc_start();
+  log_info(gc)("before clear all out cards");
   _g1h->data_structure_manager()->clear_all_out_cards();
+  log_info(gc)("after clear all out cards");
   guarantee(may_yield || cl.is_complete(), "Must have completed iteration when not yielding.");
 }
 

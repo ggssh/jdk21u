@@ -639,6 +639,20 @@ private:
   void rebuild_and_scrub();
 
   uint needs_remembered_set_rebuild() const { return _needs_remembered_set_rebuild; }
+
+private:
+  bool _should_do_detailed_concurrent_gc;
+
+public:
+  // Returns true if we should do detailed concurrent GC logging.
+  bool should_do_detailed_concurrent_gc() const {
+    return _should_do_detailed_concurrent_gc;
+  }
+
+  // Sets whether we should do detailed concurrent GC logging.
+  void set_should_do_detailed_concurrent_gc(bool value) {
+    _should_do_detailed_concurrent_gc = value;
+  }
 };
 
 // A class representing a marking task.
