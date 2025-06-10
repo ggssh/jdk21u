@@ -1,6 +1,9 @@
 #include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
+#include "gc/g1/g1AllocRegion.hpp"
+#include "gc/g1/g1AllocRegion.inline.hpp"
+
 
 G1DataStructureEdge* G1DataStructure::find_edge(Symbol* from, Symbol* to) {
     LinkedListNode<G1DataStructureEdge*>* p = _edges.head();
@@ -147,5 +150,8 @@ void G1DataStructureRegionSet::clear_regions()
 }
 
 G1DataStructureRegionSet::~G1DataStructureRegionSet(){
+    if(_alloc_region.region_not_null()){
+        _alloc_region.release();
+    }
     clear_regions();
 }

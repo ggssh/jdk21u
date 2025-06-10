@@ -200,6 +200,8 @@ public:
              size_t desired_word_size = 0,
              size_t actual_word_size = 0,
              HeapWord* result = nullptr) PRODUCT_RETURN;
+  
+  inline bool region_not_null();
 };
 
 class MutatorAllocRegion : public G1AllocRegion {

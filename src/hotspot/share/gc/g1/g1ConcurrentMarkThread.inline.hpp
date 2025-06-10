@@ -41,10 +41,11 @@ inline double G1ConcurrentMarkThread::vtime_mark_accum() {
 
 inline void G1ConcurrentMarkThread::set_idle() {
   if(G1UseSTWMarking){
-    MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+    MonitorLocker ml(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+    // MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
     assert(_state == FullMark || _state == UndoMark, "must not be starting a new cycle");
     _state = Idle;
-    G1MarkFinished_lock->notify_all();
+    ml.notify_all();
   } else {
     assert(_state == FullMark || _state == UndoMark, "must not be starting a new cycle");
     _state = Idle;

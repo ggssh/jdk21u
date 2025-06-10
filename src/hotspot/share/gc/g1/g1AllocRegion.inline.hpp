@@ -126,6 +126,10 @@ inline HeapWord* G1AllocRegion::attempt_allocation_force(size_t word_size) {
   return nullptr;
 }
 
+inline bool G1AllocRegion::region_not_null(){
+  return _alloc_region != nullptr;
+}
+
 inline HeapWord* MutatorAllocRegion::attempt_retained_allocation(size_t min_word_size,
                                                                  size_t desired_word_size,
                                                                  size_t* actual_word_size) {

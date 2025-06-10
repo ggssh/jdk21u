@@ -52,7 +52,7 @@ public:
 
     if (SafepointSynchronize::is_at_safepoint()) {
       guarantee(Thread::current()->is_VM_thread() ||
-                FreeList_lock->owned_by_self(), "master free list MT safety protocol at a safepoint");
+                FreeList_lock->owned_by_self() || (G1UseSTWMarking && Heap_lock->owned_by_self()), "master free list MT safety protocol at a safepoint");
     } else {
       guarantee(Heap_lock->owned_by_self(), "master free list MT safety protocol outside a safepoint");
     }

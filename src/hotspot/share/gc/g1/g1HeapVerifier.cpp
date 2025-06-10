@@ -422,7 +422,7 @@ public:
 };
 
 void G1HeapVerifier::verify_region_sets() {
-  assert_heap_locked_or_at_safepoint(true /* should_be_vm_thread */);
+  assert_heap_locked_or_at_safepoint(!G1UseSTWMarking);
 
   // First, check the explicit lists.
   _g1h->_hrm.verify();

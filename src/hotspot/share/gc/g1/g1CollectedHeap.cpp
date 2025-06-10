@@ -2510,7 +2510,6 @@ bool G1CollectedHeap::do_collection_pause_at_safepoint() {
   if (GCLocker::check_active_before_gc()) {
     return false;
   }
-
   do_collection_pause_at_safepoint_helper();
   return true;
 }
@@ -2606,16 +2605,35 @@ void G1CollectedHeap::do_collection_pause_at_safepoint_helper() {
     // after this point does not assume that we are the only GC thread running.
     // Note: of course, the actual marking work will not start until the safepoint
     // itself is released in SuspendibleThreadSet::desynchronize().
-    start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
-    ConcurrentGCBreakpoints::notify_idle_to_active();
+    // start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
+    // ConcurrentGCBreakpoints::notify_idle_to_active();
 
     if (G1UseSTWMarking) {
-      MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
-      while(_cm_thread->in_progress()){
-        G1MarkFinished_lock->wait();
-      }
+      DisableIsGCActiveMark disable_gc_active_mark;
+      start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
+      ConcurrentGCBreakpoints::notify_idle_to_active();
 
+      {
+        MonitorLocker ml(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+        // MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+        while(_cm_thread->in_progress()){
+          ml.wait();
+          // G1MarkFinished_lock->wait();
+        }
+      }
+    } else {
+      start_concurrent_cycle(collector.concurrent_operation_is_full_mark());
+      ConcurrentGCBreakpoints::notify_idle_to_active();
     }
+
+    // if (G1UseSTWMarking) {
+    //   MonitorLocker ml(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+    //   // MutexLocker x(G1MarkFinished_lock, Mutex::_no_safepoint_check_flag);
+    //   while(_cm_thread->in_progress()){
+    //     ml.wait();
+    //     // G1MarkFinished_lock->wait();
+    //   }
+    // }
 
   }
 }
