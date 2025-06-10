@@ -55,9 +55,10 @@ inline bool G1CMIsAliveClosure::do_object_b(oop obj) {
   if (hr->obj_allocated_since_marking_start(obj)) {
     return true;
   }
-
-  if(hr->data_structure() != nullptr && hr->data_structure()->is_alive()){
-    return true;
+  if(!should_do_detailed_concurrent_gc()) {
+    if (hr->data_structure() != nullptr && hr->data_structure()->is_alive()) {
+      return true;
+    }
   }
 
   // All objects that are marked are live.
@@ -90,6 +91,10 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
     if(G1CollectRegionClass){
       task(worker_id)->region_class_hash_map()->add_or_inc(hr, obj->klass()->name(), 1, obj->size());
     }
+  }
+
+  if(should_do_detailed_concurrent_gc()){
+    return success;
   }
 
   if(!success) {
@@ -191,6 +196,9 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
     if (task_entry.is_array_slice()) {
       _words_scanned += _objArray_processor.process_slice(task_entry.slice());
     } else if (task_entry.is_data_structure_instance()){
+      if(should_do_detailed_concurrent_gc()){
+        ShouldNotReachHere();
+      }
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
       log_info(gc)("handle data structure instance %u", data_structure_instance->id());
       data_structure_instance->scan_cards([&](HeapRegion* hr, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
@@ -292,7 +300,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   // be pushed on the stack. So, some duplicate work, but no
   // correctness problems.
   // if (is_below_finger(obj, global_finger)) {
-  if (is_below_finger(obj, global_finger) && data_structure_instance == nullptr) {
+  if (is_below_finger(obj, global_finger) && (should_do_detailed_concurrent_gc() || data_structure_instance == nullptr)) {
 
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_oop(obj);
     if (obj->is_typeArray()) {
@@ -311,7 +319,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
       push(entry);
     }
   // }
-  } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
+  } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack && !should_do_detailed_concurrent_gc()){
   // if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
     //hua: todo
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_data_structure_instance(data_structure_instance);

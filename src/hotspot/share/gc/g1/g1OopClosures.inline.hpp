@@ -195,6 +195,9 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 
 template <class T>
 inline void G1ScanDataStructureOutCardClosure::do_oop_work(T* p) {
+  if(should_do_detailed_concurrent_gc()){
+    ShouldNotReachHere();
+  }
   _cm_task->deal_with_reference(p);
   // static uint x = 0;
   // T o = RawAccess<>::oop_load(p);

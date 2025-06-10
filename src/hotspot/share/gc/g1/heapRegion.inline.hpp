@@ -304,7 +304,7 @@ inline void HeapRegion::note_start_of_marking() {
 
 inline void HeapRegion::note_end_of_marking(size_t marked_bytes) {
   assert_at_safepoint();
-  if(data_structure() != nullptr) {
+  if(data_structure() != nullptr && !should_do_detailed_concurrent_gc()) {
     if(!data_structure()->is_alive()){
       assert(top() == top_at_mark_start(), "TAMS must be at top for dead regions");
       _garbage_bytes = used();

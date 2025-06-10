@@ -414,7 +414,8 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
 
   _region_mark_stats(NEW_C_HEAP_ARRAY(G1RegionMarkStats, _g1h->max_reserved_regions(), mtGC)),
   _top_at_rebuild_starts(NEW_C_HEAP_ARRAY(HeapWord*, _g1h->max_reserved_regions(), mtGC)),
-  _needs_remembered_set_rebuild(false)
+  _needs_remembered_set_rebuild(false),
+  _should_do_detailed_concurrent_gc(false)
 {
   assert(CGC_lock != nullptr, "CGC_lock must be initialized");
 
@@ -1273,7 +1274,7 @@ void G1ConcurrentMark::remark() {
 
   verify_during_pause(G1HeapVerifier::G1VerifyRemark, VerifyLocation::RemarkBefore);
 
-  {
+  if(!should_do_detailed_concurrent_gc()){
 
     uint active_workers = _g1h->workers()->active_workers();
     set_concurrency_and_phase(active_workers, false /* concurrent */);
@@ -1303,7 +1304,7 @@ void G1ConcurrentMark::remark() {
     _g1h->print_region_types();
   }
 
-  {
+  if(!should_do_detailed_concurrent_gc()){
     log_info(gc)("before build reverse remset");
     BuildReverseRemsetClosure cl(_g1h);
     _g1h->heap_region_iterate(&cl);
@@ -1317,12 +1318,12 @@ void G1ConcurrentMark::remark() {
     finalize_marking();
   }
 
-  {
+  if(!should_do_detailed_concurrent_gc()){
     UpdateDataStructureLiveSize cl;
     _g1h->heap_region_iterate(&cl);
   }
 
-  {
+  if(!should_do_detailed_concurrent_gc()){
     finalize_data_structure_marking();
   }
 
@@ -1347,7 +1348,6 @@ void G1ConcurrentMark::remark() {
     // All marking completed. Check bitmap now as we will start to reset TAMSes
     // in parallel below so that we can not do this in the After-Remark verification.
     _g1h->verifier()->verify_bitmap_clear(true /* above_tams_only */);
-
 
     {
       GCTraceTime(Debug, gc, phases) debug("Update Remembered Set Tracking Before Rebuild", _gc_timer_cm);
@@ -1398,8 +1398,6 @@ void G1ConcurrentMark::remark() {
       G1ObjectCountIsAliveClosure is_alive(_g1h);
       _gc_tracer_cm->report_object_count_after_gc(&is_alive, _g1h->workers());
     }
-
-    
   } else {
     ShouldNotReachHere();
     // We overflowed.  Restart concurrent marking.
@@ -1412,8 +1410,9 @@ void G1ConcurrentMark::remark() {
     reset_marking_for_restart();
   }
 
-  _g1h->data_structure_manager()->clear_all_out_cards();
-
+  if(!should_do_detailed_concurrent_gc()) {
+    _g1h->data_structure_manager()->clear_all_out_cards();
+  }
   // Statistics
   double now = os::elapsedTime();
   _remark_mark_times.add((mark_work_end - start) * 1000.0);
@@ -1452,9 +1451,7 @@ class G1ReclaimEmptyRegionsTask : public WorkerTask {
         _freed_bytes += hr->used();
         hr->set_containing_set(nullptr);
         if (hr->is_humongous()) {
-          // ResourceMark rm;
           _humongous_regions_removed++;
-          // log_info(gc)("free humongous region %u %s", hr->hrm_index(), cast_to_oop(hr->bottom())->klass()->name()->as_C_string());
           _g1h->free_humongous_region(hr, _local_cleanup_list);
         } else {
           _old_regions_removed++;
@@ -2849,7 +2846,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // that is left.
       // If the iteration is successful, give up the region.
       G1DataStructureRegionSet* data_structure_instance = _curr_region->data_structure();
-      if(data_structure_instance != nullptr) {
+      if(data_structure_instance != nullptr && !should_do_detailed_concurrent_gc()) {
         giveup_current_region();
         abort_marking_if_regular_check_fail();
       } else if (mr.is_empty()) {

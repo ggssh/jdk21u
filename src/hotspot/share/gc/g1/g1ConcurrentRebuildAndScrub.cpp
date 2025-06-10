@@ -213,12 +213,12 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
     // Scan the given region from bottom to parsable_bottom. Returns whether marking has
     // been aborted.
     bool scan_and_scrub_to_pb(HeapRegion* hr, HeapWord* start, HeapWord* const limit) {
-      bool all_alive = hr->data_structure() != nullptr && hr->data_structure()->is_alive();
+      bool all_alive = hr->data_structure() != nullptr && hr->data_structure()->is_alive() && !should_do_detailed_concurrent_gc();
       // bool all_alive = false;
       while (start < limit) {
         if (all_alive || _bitmap->is_marked(start)) {
           //  Live object, need to scan to rebuild remembered sets for this object.
-          _bitmap->mark(start);
+//          _bitmap->mark(start);
           start += scan_object(hr, start);
         } else {
           // Found dead object (which klass has potentially been unloaded). Scrub to next
@@ -239,7 +239,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
     bool scan_from_pb_to_tars(HeapRegion* hr, HeapWord* start, HeapWord* const limit) {
 
       while (start < limit) {
-        start += scan_object(hr, start); 
+        start += scan_object(hr, start);
         // Avoid stalling safepoints and stop iteration if mark cycle has been aborted.
         bool mark_aborted = yield_if_necessary();
         if (mark_aborted) {
@@ -257,8 +257,8 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       log_trace(gc, marking)("Scrub and rebuild region: " HR_FORMAT " pb: " PTR_FORMAT " TARS: " PTR_FORMAT,
                              HR_FORMAT_PARAMS(hr), p2i(pb), p2i(_cm->top_at_rebuild_start(hr->hrm_index())));
 
-      // bool no_need_to_scrub = hr->data_structure() != nullptr && hr->data_structure()->is_alive();
-      bool no_need_to_scrub = false;
+      bool no_need_to_scrub = hr->data_structure() != nullptr && hr->data_structure()->is_alive() && !should_do_detailed_concurrent_gc();
+//      bool no_need_to_scrub = false;
 
       // if(hr->data_structure() != nullptr && hr->data_structure()->is_alive()){
       //   return false;
