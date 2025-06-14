@@ -415,7 +415,8 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
   _region_mark_stats(NEW_C_HEAP_ARRAY(G1RegionMarkStats, _g1h->max_reserved_regions(), mtGC)),
   _top_at_rebuild_starts(NEW_C_HEAP_ARRAY(HeapWord*, _g1h->max_reserved_regions(), mtGC)),
   _needs_remembered_set_rebuild(false),
-  _should_do_detailed_concurrent_gc(false)
+  _should_do_detailed_concurrent_gc(false),
+  _full_gc_just_now(false)
 {
   assert(CGC_lock != nullptr, "CGC_lock must be initialized");
 
@@ -1698,6 +1699,7 @@ public:
   void work(uint worker_id) override {
     assert(worker_id < _max_workers, "sanity");
     G1CMIsAliveClosure is_alive(&_g1h);
+    is_alive.set_cm(_g1h.concurrent_mark());
     uint index = (_tm == RefProcThreadModel::Single) ? 0 : worker_id;
     G1CMKeepAliveAndDrainClosure keep_alive(&_cm, _cm.task(index), _tm == RefProcThreadModel::Single);
     BarrierEnqueueDiscoveredFieldClosure enqueue;
@@ -1719,6 +1721,8 @@ void G1ConcurrentMark::weak_refs_work() {
 
   // Is alive closure.
   G1CMIsAliveClosure g1_is_alive(_g1h);
+  g1_is_alive.set_cm(_g1h->concurrent_mark());
+
 
   {
     GCTraceTime(Debug, gc, phases) debug("Reference Processing", _gc_timer_cm);
@@ -3340,6 +3344,6 @@ void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
   // _cl->do_incoming_region(region_idx);
 }
 
-G1CMIsAliveClosure::G1CMIsAliveClosure(G1CollectedHeap* g1h) : _g1h(g1h), _cm(g1h->concurrent_mark()) { 
+G1CMIsAliveClosure::G1CMIsAliveClosure(G1CollectedHeap* g1h) : _g1h(g1h) { 
   
 }

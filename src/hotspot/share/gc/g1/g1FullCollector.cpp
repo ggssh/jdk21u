@@ -240,6 +240,9 @@ void G1FullCollector::collect() {
     // _g1h->print_region_types();
   }
 
+  _heap->concurrent_mark()->set_full_gc_just_now(true);
+
+
 
   G1CollectedHeap::finish_codecache_marking_cycle();
 }

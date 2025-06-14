@@ -308,7 +308,14 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   //   _cm->set_should_do_detailed_concurrent_gc(false);
   // }
 
-  _cm->set_should_do_detailed_concurrent_gc(true);
+  // _cm->set_should_do_detailed_concurrent_gc(false);
+  if(_cm->full_gc_just_now()){
+    _cm->set_should_do_detailed_concurrent_gc(true);
+  } else {
+    _cm->set_should_do_detailed_concurrent_gc(false);
+  }
+  // _cm->set_should_do_detailed_concurrent_gc(true);
+
 
 
   g1h->region_class_hash_map()->clear();
@@ -343,6 +350,9 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   if(G1CollectRegionClass){
     g1h->region_class_hash_map()->print_all();
   }
+
+  _cm->set_full_gc_just_now(false);
+
 
 }
 

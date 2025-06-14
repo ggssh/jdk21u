@@ -1486,6 +1486,8 @@ jint G1CollectedHeap::initialize() {
   // (Must do this late, so that "max_[reserved_]regions" is defined.)
   _cm = new G1ConcurrentMark(this, bitmap_storage);
   _cm_thread = _cm->cm_thread();
+  _is_alive_closure_cm.set_cm(_cm);
+
 
   // Now expand into the initial heap size.
   if (!expand(init_byte_size, _workers)) {
