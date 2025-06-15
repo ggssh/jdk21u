@@ -264,6 +264,10 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       //   return false;
       // }
 
+      if(no_need_to_scrub) {
+        log_info(gc)("no need to scrub region %u", hr->hrm_index());
+      }
+
       if (!no_need_to_scrub && scan_and_scrub_to_pb(hr, hr->bottom(), pb)) {
         log_trace(gc, marking)("Scan and scrub aborted for region: %u", hr->hrm_index());
         return true;

@@ -186,70 +186,86 @@ bool G1DataStructureManager::is_retained_old_region(HeapRegion* hr) {
 // }
 
 void G1DataStructureManager::initialize_predefined_data_structures() {
-
-    // scala/Tuple3 -> [D: 37.45%
-    // scala/Tuple3 -> [I: 20.10%
-    // org/apache/spark/mllib/linalg/DenseVector -> [D: 10.44%
-    // org/apache/spark/mllib/linalg/SparseVector -> [D: 7.59%
-    // [Lscala/Tuple3; -> scala/Tuple3: 6.29%
-    // org/apache/spark/mllib/linalg/SparseVector -> [I: 4.07%
-    // [Lorg/apache/spark/mllib/clustering/VectorWithNorm; -> org/apache/spark/mllib/clustering/VectorWithNorm: 2.93%
-    // scala/Tuple3 -> java/lang/Double: 2.74%
-    // org/apache/spark/mllib/clustering/VectorWithNorm -> org/apache/spark/mllib/linalg/SparseVector: 1.84%
-    // org/apache/spark/util/collection/SizeTrackingVector -> [Lscala/Tuple3;: 1.38%
-    // org/apache/spark/storage/memory/DeserializedMemoryEntry -> [Lscala/Tuple3;: 0.89%
-    // org/apache/spark/storage/memory/DeserializedValuesHolder -> [Lscala/Tuple3;: 0.84%
-    // org/apache/spark/storage/memory/DeserializedMemoryEntry -> [D: 0.71%
-    // [Ljava/lang/Object; -> [D: 0.50%
-    // org/apache/spark/storage/memory/DeserializedMemoryEntry -> [Lorg/apache/spark/mllib/clustering/VectorWithNorm;: 0.48%
-    // scala/collection/ArrayOps$ArrayIterator -> [Lscala/Tuple3;: 0.36%
-    // org/apache/spark/util/collection/SizeTrackingVector -> [Lorg/apache/spark/mllib/clustering/VectorWithNorm;: 0.28%
-    // org/apache/spark/storage/memory/DeserializedValuesHolder -> [Lorg/apache/spark/mllib/clustering/VectorWithNorm;: 0.17%
-    // org/apache/spark/memory/TaskMemoryManager -> [Lorg/apache/spark/unsafe/memory/MemoryBlock;: 0.15%
-    // org/apache/hadoop/mapreduce/lib/input/UncompressedSplitLineReader -> [B: 0.12%
-    // org/apache/hadoop/fs/BufferedFSInputStream -> [B: 0.12%
-
-    // Symbol* DeserializedMemoryEntry = SymbolTable::new_symbol("org/apache/spark/storage/memory/DeserializedMemoryEntry");
-    // Symbol* DeserializedValuesHolder = SymbolTable::new_symbol("org/apache/spark/storage/memory/DeserializedValuesHolder");
-    // Symbol* SizeTrackingVector = SymbolTable::new_symbol("org/apache/spark/util/collection/SizeTrackingVector");
-    Symbol* l_tuple3 = SymbolTable::new_symbol("[Lscala/Tuple3;");
-    Symbol* tuple3 = SymbolTable::new_symbol("scala/Tuple3");
-    Symbol* l_d = SymbolTable::new_symbol("[D");
+    Symbol* payload = SymbolTable::new_symbol("org/example/gctest/DataStructureTest$MyPayload");
     Symbol* l_i = SymbolTable::new_symbol("[I");
-    Symbol* d = SymbolTable::new_symbol("java/lang/Double");
-    // Symbol* DenseVector = SymbolTable::new_symbol("org/apache/spark/mllib/linalg/DenseVector");
-    // Symbol* SparseVector = SymbolTable::new_symbol("org/apache/spark/mllib/linalg/SparseVector");
-    // Symbol* VectorWithNorm = SymbolTable::new_symbol("org/apache/spark/mllib/clustering/VectorWithNorm");
-    // Symbol* l_VectorWithNorm = SymbolTable::new_symbol("[Lorg/apache/spark/mllib/clustering/VectorWithNorm;");
+    Symbol* l_payload = SymbolTable::new_symbol("[Lorg/example/gctest/DataStructureTest$MyPayload;");
+    Symbol* my_ds = SymbolTable::new_symbol("org/example/gctest/DataStructureTest$MyDS");
 
     G1DataStructure* data_structure = new G1DataStructure();
-    // data_structure->add_root(DeserializedValuesHolder);
-    // data_structure->add_root(DeserializedMemoryEntry);
-    // data_structure->add_root(SizeTrackingVector);
-    data_structure->add_root(l_tuple3);
-    // data_structure->add_root(SparseVector);
-    // data_structure->add_root(DenseVector);
-    // data_structure->add_root(l_VectorWithNorm);
-    // data_structure->add_root(VectorWithNorm);
+    data_structure->add_root(my_ds);
 
-    // data_structure->add_edge(DeserializedMemoryEntry, l_tuple3);
-    // data_structure->add_edge(DeserializedValuesHolder, l_tuple3);
-    // data_structure->add_edge(SizeTrackingVector, l_tuple3);
-    data_structure->add_edge(l_tuple3, tuple3);
-    data_structure->add_edge(tuple3, l_d);
-    data_structure->add_edge(tuple3, l_i);
-    data_structure->add_edge(tuple3, d);
+    data_structure->add_edge(my_ds, l_payload);
+    data_structure->add_edge(l_payload, payload);
+    data_structure->add_edge(payload, l_i);
 
-    
-    // data_structure->add_edge(DenseVector, l_d);
-    // data_structure->add_edge(SparseVector, l_d);
-    // data_structure->add_edge(SparseVector, l_i);
-
-    // G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
-    // _data_structures.add(data_structure_region_set);
     _data_structure_types.add(data_structure);
-    
 }
+
+// void G1DataStructureManager::initialize_predefined_data_structures() {
+
+//     // scala/Tuple3 -> [D: 37.45%
+//     // scala/Tuple3 -> [I: 20.10%
+//     // org/apache/spark/mllib/linalg/DenseVector -> [D: 10.44%
+//     // org/apache/spark/mllib/linalg/SparseVector -> [D: 7.59%
+//     // [Lscala/Tuple3; -> scala/Tuple3: 6.29%
+//     // org/apache/spark/mllib/linalg/SparseVector -> [I: 4.07%
+//     // [Lorg/apache/spark/mllib/clustering/VectorWithNorm; -> org/apache/spark/mllib/clustering/VectorWithNorm: 2.93%
+//     // scala/Tuple3 -> java/lang/Double: 2.74%
+//     // org/apache/spark/mllib/clustering/VectorWithNorm -> org/apache/spark/mllib/linalg/SparseVector: 1.84%
+//     // org/apache/spark/util/collection/SizeTrackingVector -> [Lscala/Tuple3;: 1.38%
+//     // org/apache/spark/storage/memory/DeserializedMemoryEntry -> [Lscala/Tuple3;: 0.89%
+//     // org/apache/spark/storage/memory/DeserializedValuesHolder -> [Lscala/Tuple3;: 0.84%
+//     // org/apache/spark/storage/memory/DeserializedMemoryEntry -> [D: 0.71%
+//     // [Ljava/lang/Object; -> [D: 0.50%
+//     // org/apache/spark/storage/memory/DeserializedMemoryEntry -> [Lorg/apache/spark/mllib/clustering/VectorWithNorm;: 0.48%
+//     // scala/collection/ArrayOps$ArrayIterator -> [Lscala/Tuple3;: 0.36%
+//     // org/apache/spark/util/collection/SizeTrackingVector -> [Lorg/apache/spark/mllib/clustering/VectorWithNorm;: 0.28%
+//     // org/apache/spark/storage/memory/DeserializedValuesHolder -> [Lorg/apache/spark/mllib/clustering/VectorWithNorm;: 0.17%
+//     // org/apache/spark/memory/TaskMemoryManager -> [Lorg/apache/spark/unsafe/memory/MemoryBlock;: 0.15%
+//     // org/apache/hadoop/mapreduce/lib/input/UncompressedSplitLineReader -> [B: 0.12%
+//     // org/apache/hadoop/fs/BufferedFSInputStream -> [B: 0.12%
+
+//     // Symbol* DeserializedMemoryEntry = SymbolTable::new_symbol("org/apache/spark/storage/memory/DeserializedMemoryEntry");
+//     // Symbol* DeserializedValuesHolder = SymbolTable::new_symbol("org/apache/spark/storage/memory/DeserializedValuesHolder");
+//     // Symbol* SizeTrackingVector = SymbolTable::new_symbol("org/apache/spark/util/collection/SizeTrackingVector");
+//     Symbol* l_tuple3 = SymbolTable::new_symbol("[Lscala/Tuple3;");
+//     Symbol* tuple3 = SymbolTable::new_symbol("scala/Tuple3");
+//     Symbol* l_d = SymbolTable::new_symbol("[D");
+//     Symbol* l_i = SymbolTable::new_symbol("[I");
+//     Symbol* d = SymbolTable::new_symbol("java/lang/Double");
+//     // Symbol* DenseVector = SymbolTable::new_symbol("org/apache/spark/mllib/linalg/DenseVector");
+//     // Symbol* SparseVector = SymbolTable::new_symbol("org/apache/spark/mllib/linalg/SparseVector");
+//     // Symbol* VectorWithNorm = SymbolTable::new_symbol("org/apache/spark/mllib/clustering/VectorWithNorm");
+//     // Symbol* l_VectorWithNorm = SymbolTable::new_symbol("[Lorg/apache/spark/mllib/clustering/VectorWithNorm;");
+
+//     G1DataStructure* data_structure = new G1DataStructure();
+//     // data_structure->add_root(DeserializedValuesHolder);
+//     // data_structure->add_root(DeserializedMemoryEntry);
+//     // data_structure->add_root(SizeTrackingVector);
+//     data_structure->add_root(l_tuple3);
+//     // data_structure->add_root(SparseVector);
+//     // data_structure->add_root(DenseVector);
+//     // data_structure->add_root(l_VectorWithNorm);
+//     // data_structure->add_root(VectorWithNorm);
+
+//     // data_structure->add_edge(DeserializedMemoryEntry, l_tuple3);
+//     // data_structure->add_edge(DeserializedValuesHolder, l_tuple3);
+//     // data_structure->add_edge(SizeTrackingVector, l_tuple3);
+//     data_structure->add_edge(l_tuple3, tuple3);
+//     data_structure->add_edge(tuple3, l_d);
+//     data_structure->add_edge(tuple3, l_i);
+//     data_structure->add_edge(tuple3, d);
+
+    
+//     // data_structure->add_edge(DenseVector, l_d);
+//     // data_structure->add_edge(SparseVector, l_d);
+//     // data_structure->add_edge(SparseVector, l_i);
+
+//     // G1DataStructureRegionSet* data_structure_region_set = new G1DataStructureRegionSet(G1CollectedHeap::heap(), data_structure);
+//     // _data_structures.add(data_structure_region_set);
+//     _data_structure_types.add(data_structure);
+    
+// }
 
 // void G1DataStructureManager::initialize_predefined_data_structures() {
 

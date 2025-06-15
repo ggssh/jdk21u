@@ -1361,7 +1361,7 @@ void G1ConcurrentMark::remark() {
       log_debug(gc,ergo)("Running %s using %u workers for %u regions in heap", cl.name(), num_workers, _g1h->num_regions());
       _g1h->workers()->run_task(&cl, num_workers);
 
-      log_debug(gc, remset, tracking)("Remembered Set Tracking update regions total %u, selected %u",
+      log_info(gc, remset, tracking)("Remembered Set Tracking update regions total %u, selected %u",
                                       _g1h->num_regions(), cl.total_selected_for_rebuild());
 
       _needs_remembered_set_rebuild = (cl.total_selected_for_rebuild() > 0);

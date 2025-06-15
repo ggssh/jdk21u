@@ -311,8 +311,10 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   // _cm->set_should_do_detailed_concurrent_gc(false);
   if(_cm->full_gc_just_now()){
     _cm->set_should_do_detailed_concurrent_gc(true);
+    log_info(gc)("do detailed");
   } else {
     _cm->set_should_do_detailed_concurrent_gc(false);
+    log_info(gc)("do summary");
   }
   // _cm->set_should_do_detailed_concurrent_gc(true);
 
