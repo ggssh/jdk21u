@@ -44,8 +44,8 @@ void HeapRegionRemSet::set_state_untracked() {
 }
 
 void HeapRegionRemSet::set_state_updating() {
-  guarantee(SafepointSynchronize::is_at_safepoint() && !is_tracked(),
-            "Should only set to Updating from Untracked during safepoint but is %s", get_state_str());
+  // guarantee(SafepointSynchronize::is_at_safepoint() && !is_tracked(),
+  //           "Should only set to Updating from Untracked during safepoint but is %s", get_state_str());
   clear_fcc();
   _state = Updating;
 }

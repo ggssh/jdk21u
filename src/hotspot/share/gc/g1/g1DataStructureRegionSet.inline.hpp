@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_G1_G1DATASTRUCTUREREGIONSET_INLINE_HPP
 #define SHARE_GC_G1_G1DATASTRUCTUREREGIONSET_INLINE_HPP
 
+#include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/g1Allocator.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
@@ -48,11 +49,13 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
         right = *p->data();
         present_region = g1h->heap_region_containing(ct->addr_for(left));
         assert(present_region->data_structure() == this, "must be");
+        // log_info(gc)("card is %p to %p", ct->addr_for(*p->data()), ct->addr_for(*p->data() + 1));
     } else {
         return;
     }
     
     while (p != nullptr) {
+        // log_info(gc)("card is %p to %p", ct->addr_for(*p->data()), ct->addr_for(*p->data() + 1));
         G1CardTable::CardValue* present = *p->data();
         HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
         assert(region->data_structure() == this, "must be");
@@ -72,5 +75,5 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
     f(present_region, left, right + 1);
 }
 
-#endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP
+#endif // SHARE_GC_G1_G1DATASTRUCTUREREGIONSET_INLINE_HPP
  

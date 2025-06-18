@@ -87,7 +87,14 @@ bool G1RemSetTrackingPolicy::update_humongous_before_rebuild(HeapRegion* r, bool
   // For humongous regions, to be of interest for rebuilding the remembered set the following must apply:
   // - We always try to update the remembered sets of humongous regions containing
   // type arrays as they might have been reset after full gc.
+
+  G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
+  if(is_live && cm->should_do_detailed_concurrent_gc()){
+    r->rem_set()->set_state_updating();
+    selected_for_rebuild = true;
+  }
   if (is_live && cast_to_oop(r->humongous_start_region()->bottom())->is_typeArray() && !r->rem_set()->is_tracked()) {
+    log_info(gc)("select for rebuild %u", r->hrm_index());
     r->rem_set()->set_state_updating();
     selected_for_rebuild = true;
   }
@@ -118,6 +125,12 @@ bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_by
   // - Only need to rebuild non-complete remembered sets.
   // - Otherwise only add those old gen regions which occupancy is low enough that there
   // is a chance that we will ever evacuate them in the mixed gcs.
+  G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
+  if((total_live_bytes > 0) && cm->should_do_detailed_concurrent_gc()){
+    log_info(gc)("select for rebuild %u", r->hrm_index());
+    r->rem_set()->set_state_updating();
+    selected_for_rebuild = true;
+  }
   if ((total_live_bytes > 0) &&
       G1CollectionSetChooser::region_occupancy_low_enough_for_evac(total_live_bytes) &&
       !r->rem_set()->is_tracked()) {

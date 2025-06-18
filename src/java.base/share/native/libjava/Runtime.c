@@ -65,6 +65,18 @@ Java_java_lang_Runtime_gc(JNIEnv *env, jobject this)
     JVM_GC();
 }
 
+JNIEXPORT void JNICALL
+Java_java_lang_Runtime_gcFull(JNIEnv *env, jobject this)
+{
+    JVM_GCFull();
+}
+
+JNIEXPORT jlong JNICALL
+Java_java_lang_Runtime_objAddr(JNIEnv *env, jobject this, jobject obj)
+{
+    return JVM_ObjAddr(env, this, obj);
+}
+
 JNIEXPORT jint JNICALL
 Java_java_lang_Runtime_availableProcessors(JNIEnv *env, jobject this)
 {

@@ -578,6 +578,8 @@ bool G1CollectedHeap::alloc_archive_regions(MemRegion range) {
     r->set_top(top);
 
     r->set_old();
+    log_info(gc)("archive old %u", r->hrm_index());
+    r->rem_set()->set_state_complete();
     _hr_printer.alloc(r);
     _old_set.add(r);
   };
@@ -1569,6 +1571,9 @@ void G1CollectedHeap::post_initialize() {
   CollectedHeap::post_initialize();
   ref_processing_init();
   _data_structure_manager.initialize_predefined_data_structures();
+  // if(G1LogRemset){
+  //   print_region_types();
+  // }
 }
 
 void G1CollectedHeap::ref_processing_init() {
@@ -3185,9 +3190,10 @@ class PrintHeapRegionTypeClosure: public HeapRegionClosure {
 public:
   bool do_heap_region(HeapRegion* r) {
     ResourceMark rm;
+    const char* tracking_state = r->rem_set()->is_tracked() ? "tracked" : "not tracked";
     if(r->data_structure() != nullptr){
       if(r->is_humongous()){
-        log_info(gc)("Region %u : Humongous Data (%u)", r->hrm_index(), r->data_structure()->id());
+        log_info(gc)("Region %u : Humongous Data (%u) %s", r->hrm_index(), r->data_structure()->id(), tracking_state);
         // log_info(gc)("Region %u : Humongous Data (%u) %s", r->hrm_index(), r->data_structure()->id(), cast_to_oop(r->bottom())->klass()->name()->as_C_string());
         // if(r->is_starts_humongous()){
         //   log_info(gc)("%s", cast_to_oop(r->bottom())->klass()->name()->as_C_string());
@@ -3195,11 +3201,11 @@ public:
         //   log_info(gc)("continue humongous");
         // }
       } else if(r->is_old()){
-        log_info(gc)("Region %u : Old Data (%u)", r->hrm_index(), r->data_structure()->id());
+        log_info(gc)("Region %u : Old Data (%u) %s", r->hrm_index(), r->data_structure()->id(), tracking_state);
       }
     } else {
       if(r->is_humongous()){
-        log_info(gc)("Region %u : Humongous", r->hrm_index());
+        log_info(gc)("Region %u : Humongous %s", r->hrm_index(), tracking_state);
         // log_info(gc)("Region %u : Humongous %s", r->hrm_index(), cast_to_oop(r->bottom())->klass()->name()->as_C_string());
         // if(r->is_starts_humongous()){
         //   log_info(gc)("%s", cast_to_oop(r->bottom())->klass()->name()->as_C_string());
@@ -3208,9 +3214,9 @@ public:
         // }
 
       } else if(r->is_old()){
-        log_info(gc)("Region %u : Old", r->hrm_index());
+        log_info(gc)("Region %u : Old %s", r->hrm_index(), tracking_state);
       } else if(r->is_young()){
-        log_info(gc)("Region %u : Young", r->hrm_index());
+        log_info(gc)("Region %u : Young %s", r->hrm_index(), tracking_state);
       }
       else {
         // log_info(gc)("Region %u : Free", r->hrm_index());

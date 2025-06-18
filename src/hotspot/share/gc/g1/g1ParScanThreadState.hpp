@@ -149,6 +149,8 @@ public:
   // Assumes that a significant amount of pre-filtering (like done by
   // write_ref_field_post() above) has already been performed.
   template <class T> void enqueue_card_if_tracked(G1HeapRegionAttr region_attr, T* p, oop o);
+  template <class T> void enqueue_card_force(G1HeapRegionAttr region_attr, T* p, oop o);
+
 
   G1EvacuationRootClosures* closures() { return _closures; }
   uint worker_id() { return _worker_id; }

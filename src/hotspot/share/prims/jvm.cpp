@@ -450,6 +450,25 @@ JVM_ENTRY_NO_ENV(void, JVM_GC(void))
   }
 JVM_END
 
+JVM_ENTRY_NO_ENV(void, JVM_GCFull(void))
+  if (!DisableExplicitGC) {
+    bool old = ExplicitGCInvokesConcurrent;
+    ExplicitGCInvokesConcurrent = false; // Disable concurrent GC
+    EventSystemGC event;
+    event.set_invokedConcurrent(ExplicitGCInvokesConcurrent);
+    Universe::heap()->collect(GCCause::_java_lang_system_gc);
+    event.commit();
+    ExplicitGCInvokesConcurrent = old; // Disable concurrent GC
+  }
+JVM_END
+
+JVM_ENTRY(jlong, JVM_ObjAddr(JNIEnv *env, jobject self, jobject obj))
+  // This is a no-op in the VM, but we need to provide a definition
+  // so that the native method can be linked.
+  oop oop_obj = JNIHandles::resolve_non_null(obj);
+  return (jlong)oop_obj;
+JVM_END
+
 
 JVM_LEAF(jlong, JVM_MaxObjectInspectionAge(void))
   return Universe::heap()->millis_since_last_whole_heap_examined();

@@ -31,6 +31,8 @@
 #include "gc/g1/g1_globals.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionManager.inline.hpp"
+// #include "gc/g1/g1DataStructureRegionSet.hpp"
+// #include "gc/g1/g1DataStructureRegionSet.inline.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/shared/workerThread.hpp"
 #include "logging/log.hpp"
@@ -83,9 +85,30 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         return;
       }
       HeapRegion* hr = _g1h->heap_region_containing(obj);
+      HeapRegion* from_hr = _g1h->heap_region_containing(_from_oop);
+
+      if(from_hr == nullptr){
+        log_info(gc)("from_hr is null, from pointer %p", p);
+        ShouldNotReachHere();
+      }
+
       HeapWord* const pb = hr->parsable_bottom_acquire();
       if(hr->data_structure() == nullptr){
         if(!_bitmap->is_marked(obj) && cast_from_oop<HeapWord*>(obj) < pb){
+          log_info(gc)("obj not alive, from hr %u to hr %u, pointer %p", 
+                       from_hr->hrm_index(), hr->hrm_index(), p);
+          if(from_hr->data_structure() != nullptr){
+            from_hr->data_structure()->find_out_card((HeapWord*)p);
+          }
+          ShouldNotReachHere();
+        }
+      } else {
+        if(!hr->data_structure()->is_alive()){
+          log_info(gc)("data structure %u not alive , from hr %u to hr %u, pointer %p", hr->data_structure()->id(),
+            from_hr->hrm_index(), hr->hrm_index(), p);
+          if(from_hr->data_structure() != nullptr){
+            from_hr->data_structure()->find_out_card((HeapWord*)p);
+          }
           ShouldNotReachHere();
         }
       }
@@ -148,8 +171,14 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       HeapWord* limit = scan_range.end();
       do {
         MemRegion mr(start, MIN2(start + ProcessingYieldLimitInWords, limit));
+        // log_info(gc)("scan and scrub humongous");
         obj->oop_iterate(&_rebuild_closure, mr);
-        // obj->oop_iterate(&_verify_closure);
+
+        if(!_cm->should_do_detailed_concurrent_gc()){
+          _verify_closure.set_from_oop(obj);
+          obj->oop_iterate(&_verify_closure);
+          _verify_closure.set_from_oop(nullptr);
+        }
 
         // Update processed words and yield, for humongous objects we will yield
         // after each chunk.
@@ -189,7 +218,12 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       } else {
         // Object smaller than yield limit, process it fully.
         obj->oop_iterate(&_rebuild_closure);
-        // obj->oop_iterate(&_verify_closure);
+
+        if(!_cm->should_do_detailed_concurrent_gc()){
+          _verify_closure.set_from_oop(obj);
+          obj->oop_iterate(&_verify_closure);
+          _verify_closure.set_from_oop(nullptr);
+        }
         // Update how much we have processed. Yield check in main loop
         // will handle this case.
         add_processed_words(obj_size);
@@ -258,7 +292,7 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
                              HR_FORMAT_PARAMS(hr), p2i(pb), p2i(_cm->top_at_rebuild_start(hr->hrm_index())));
 
       bool no_need_to_scrub = hr->data_structure() != nullptr && hr->data_structure()->is_alive() && !_cm->should_do_detailed_concurrent_gc();
-//      bool no_need_to_scrub = false;
+      // bool no_need_to_scrub = false;
 
       // if(hr->data_structure() != nullptr && hr->data_structure()->is_alive()){
       //   return false;

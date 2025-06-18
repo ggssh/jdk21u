@@ -199,6 +199,9 @@ inline void G1ScanDataStructureOutCardClosure::do_oop_work(T* p) {
   if(cm->should_do_detailed_concurrent_gc()){
     ShouldNotReachHere();
   }
+  // oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
+  // log_info(gc)("scan oop %p", obj);
+  // log_info(gc)("deal with reference %p", p);
   _cm_task->deal_with_reference(p);
   // static uint x = 0;
   // T o = RawAccess<>::oop_load(p);

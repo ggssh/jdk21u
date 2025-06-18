@@ -85,6 +85,7 @@ public:
     void clear_all_instances();
     void remove_instance(G1DataStructureRegionSet* data_structure_instance);
     void remove_dead_instances();
+    void verify_all();
 };
 
 #endif // SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP

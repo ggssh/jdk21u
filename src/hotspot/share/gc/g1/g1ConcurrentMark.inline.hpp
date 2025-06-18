@@ -96,12 +96,21 @@ inline bool G1ConcurrentMark::mark_in_bitmap(uint const worker_id, oop const obj
   }
 
   if(!success) {
+    G1DataStructureRegionSet* data_structure_instance = hr->data_structure();
+    if(data_structure_instance != nullptr) {
+      // log_info(gc)("set data structure alive %u", data_structure_instance->id());
+      // log_info(gc)("par mark ds %u", data_structure_instance->id());
+      return data_structure_instance->set_alive_par();
+      // data_structure_instance->set_alive_par();
+      // log_info(gc)("set data structure alive");
+    }
     return success;
   }
 
   G1DataStructureRegionSet* data_structure_instance = hr->data_structure();
   if(data_structure_instance != nullptr) {
     // log_info(gc)("set data structure alive %u", data_structure_instance->id());
+    // log_info(gc)("par mark ds %u", data_structure_instance->id());
     return data_structure_instance->set_alive_par();
     // data_structure_instance->set_alive_par();
     // log_info(gc)("set data structure alive");
@@ -198,7 +207,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 //        ShouldNotReachHere();
 //      }
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
-//      log_info(gc)("handle data structure instance %u", data_structure_instance->id());
+      log_info(gc)("handle data structure instance %u", data_structure_instance->id());
       data_structure_instance->scan_cards([&](HeapRegion* hr, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
         size_t num_cards = right - left;
         HeapWord* const card_start = _ct->addr_for(left);
@@ -209,6 +218,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
         HeapWord* scan_end = MIN2(card_end, hr->top());
         if(card_start < scan_end){
           MemRegion mr(card_start, MIN2(scan_end, hr->top()));
+          // log_info(gc)("scan card %p to %p", card_start, MIN2(scan_end, hr->top()));
           process_data_structure_out_cards(hr->hrm_index(), mr);
         }
       });
@@ -271,8 +281,24 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   G1DataStructureRegionSet* data_structure_instance = r->data_structure();
 
   if (!_cm->mark_in_bitmap(_worker_id, obj)) {
+    // if (data_structure_instance != nullptr) {
+    //   // if(!data_structure_instance->is_alive()){
+    //   //   log_info(gc)("data structure %u not alive", data_structure_instance->id());
+    //   //   ShouldNotReachHere();
+    //   // }
+    //   // log_info(gc)("make grey: data structure %u is alive", data_structure_instance->id());
+    // }
     return false;
-  }
+  } 
+  // else {
+  //   if (data_structure_instance != nullptr) {
+  //     if(!data_structure_instance->is_alive()){
+  //       log_info(gc)("data structure %u not alive", data_structure_instance->id());
+  //       ShouldNotReachHere();
+  //     }
+  //     // log_info(gc)("make grey: first make data structure %u alive", data_structure_instance->id());
+  //   }
+  // }
 
   // No OrderAccess:store_load() is needed. It is implicit in the
   // CAS done in G1CMBitMap::parMark() call in the routine above.
@@ -314,6 +340,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
   } else if (data_structure_instance != nullptr && _data_structure_to_mark_stack && !_cm->should_do_detailed_concurrent_gc()){
   // if (data_structure_instance != nullptr && _data_structure_to_mark_stack){
     //hua: todo
+    // log_info(gc)("make grey: push data structure %u", data_structure_instance->id());
     G1TaskQueueEntry entry = G1TaskQueueEntry::from_data_structure_instance(data_structure_instance);
     push(entry);
   }
@@ -334,7 +361,12 @@ inline bool G1CMTask::deal_with_reference(T* p) {
 }
 
 inline void G1ConcurrentMark::raw_mark_in_bitmap(oop obj) {
+  HeapRegion* const hr = _g1h->heap_region_containing(obj);
   _mark_bitmap.par_mark(obj);
+  G1DataStructureRegionSet* data_structure_instance = hr->data_structure();
+  if(data_structure_instance != nullptr) {
+    data_structure_instance->set_alive_par();
+  }
 }
 
 bool G1ConcurrentMark::is_marked_in_bitmap(oop p) const {

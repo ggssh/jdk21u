@@ -757,6 +757,58 @@ public class Runtime {
      */
     public native void gc();
 
+
+    /**
+     * Runs the garbage collector in the Java Virtual Machine.
+     * <p>
+     * Calling this method suggests that the Java Virtual Machine
+     * expend effort toward recycling unused objects in order to
+     * make the memory they currently occupy available for reuse
+     * by the Java Virtual Machine.
+     * When control returns from the method call, the Java Virtual Machine
+     * has made a best effort to reclaim space from all unused objects.
+     * There is no guarantee that this effort will recycle any particular
+     * number of unused objects, reclaim any particular amount of space, or
+     * complete at any particular time, if at all, before the method returns or ever.
+     * There is also no guarantee that this effort will determine
+     * the change of reachability in any particular number of objects,
+     * or that any particular number of {@link java.lang.ref.Reference Reference}
+     * objects will be cleared and enqueued.
+     * <p>
+     * The name {@code gc} stands for "garbage
+     * collector". The Java Virtual Machine performs this recycling
+     * process automatically as needed, in a separate thread, even if the
+     * {@code gc} method is not invoked explicitly.
+     * <p>
+     * The method {@link System#gc()} is the conventional and convenient
+     * means of invoking this method.
+     */
+    public native void gcFull();
+
+    /**
+     * Returns the address of the given object.
+     * <p>
+     * This method is intended for use by native code that needs to
+     * access the address of a Java object. The address returned is
+     * the address of the object in the Java heap, and is not guaranteed
+     * to be stable across garbage collections or other operations that
+     * may move objects in memory.
+     * <p>
+     * The address returned is not a pointer in the C/C++ sense, and
+     * should not be dereferenced directly. Instead, it should be used
+     * with JNI functions that accept object addresses, such as
+     * {@code GetObjectField} or {@code SetObjectField}.
+     * <p>
+     * Note that this method is not part of the public Java API and is
+     * intended for use by native code only. It may not be available in all
+     * Java Virtual Machine implementations, and its behavior may vary
+     * between different implementations.
+     * @param obj joasigjsiogjoigjasiogj
+     * @return asjodigjasiojgasojhioasjghoi
+     */ 
+
+    public native long objAddr(Object obj);
+
     /**
      * Runs the finalization methods of any objects pending finalization.
      * Calling this method suggests that the Java virtual machine expend

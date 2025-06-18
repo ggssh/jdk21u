@@ -308,6 +308,7 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   friend class G1CMRefProcProxyTask;
   friend class G1CMRemarkTask;
   friend class G1CMRemarkDataStructureTask;
+  friend class G1CMPushLiveDataStructureTask;
   friend class G1CMRootRegionScanTask;
   friend class G1CMTask;
   friend class G1ConcurrentMarkThread;

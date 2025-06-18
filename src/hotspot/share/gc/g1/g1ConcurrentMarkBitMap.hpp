@@ -71,6 +71,7 @@ public:
 
   // Apply the closure to the addresses that correspond to marked bits in the bitmap.
   inline bool iterate(G1CMBitMapClosure* cl, MemRegion mr);
+  inline bool has_marked(MemRegion mr);
 };
 
 #endif // SHARE_GC_G1_G1CONCURRENTMARKBITMAP_HPP

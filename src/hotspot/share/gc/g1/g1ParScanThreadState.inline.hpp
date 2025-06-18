@@ -112,11 +112,14 @@ template <class T> void G1ParScanThreadState::write_ref_field_post(T* p, oop obj
   // evacuation. Currently these regions are always relabelled as old without
   // remembered sets, so skip them.
   if (dest_attr.is_in_cset()) {
-    assert(obj->is_forwarded(), "evac-failed but not forwarded: " PTR_FORMAT, p2i(obj));
-    assert(obj->forwardee() == obj, "evac-failed but not self-forwarded: " PTR_FORMAT, p2i(obj));
+    enqueue_card_force(dest_attr, p, obj);
     return;
+  //   assert(obj->is_forwarded(), "evac-failed but not forwarded: " PTR_FORMAT, p2i(obj));
+  //   assert(obj->forwardee() == obj, "evac-failed but not self-forwarded: " PTR_FORMAT, p2i(obj));
+  //   return;
   }
   enqueue_card_if_tracked(dest_attr, p, obj);
+
 }
 
 template <class T> void G1ParScanThreadState::enqueue_card_if_tracked(G1HeapRegionAttr region_attr, T* p, oop o) {
@@ -143,6 +146,32 @@ template <class T> void G1ParScanThreadState::enqueue_card_if_tracked(G1HeapRegi
     _rdc_local_qset.enqueue(ct()->byte_for_index(card_index));
     _last_enqueued_card = card_index;
   }
+}
+
+template <class T> void G1ParScanThreadState::enqueue_card_force(G1HeapRegionAttr region_attr, T* p, oop o) {
+  assert(!HeapRegion::is_in_same_region(p, o), "Should have filtered out cross-region references already.");
+  assert(!_g1h->heap_region_containing(p)->is_survivor(), "Should have filtered out from-newly allocated survivor references already.");
+  // We relabel all regions that failed evacuation as old gen without remembered,
+  // and so pre-filter them out in the caller.
+  assert(!_g1h->heap_region_containing(o)->in_collection_set(), "Should not try to enqueue reference into collection set region");
+
+#ifdef ASSERT
+  HeapRegion* const hr_obj = _g1h->heap_region_containing(o);
+  assert(region_attr.remset_is_tracked() == hr_obj->rem_set()->is_tracked(),
+         "State flag indicating remset tracking disagrees (%s) with actual remembered set (%s) for region %u",
+         BOOL_TO_STR(region_attr.remset_is_tracked()),
+         BOOL_TO_STR(hr_obj->rem_set()->is_tracked()),
+         hr_obj->hrm_index());
+#endif
+  // if (!region_attr.remset_is_tracked()) {
+  //   return;
+  // }
+  size_t card_index = ct()->index_for(p);
+  // If the card hasn't been added to the buffer, do it.
+  // if (_last_enqueued_card != card_index) {
+  _rdc_local_qset.enqueue(ct()->byte_for_index(card_index));
+  _last_enqueued_card = card_index;
+  // }
 }
 
 #endif // SHARE_GC_G1_G1PARSCANTHREADSTATE_INLINE_HPP

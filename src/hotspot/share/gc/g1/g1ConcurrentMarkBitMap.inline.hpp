@@ -52,4 +52,19 @@ inline bool G1CMBitMap::iterate(G1CMBitMapClosure* cl, MemRegion mr) {
   return true;
 }
 
+inline bool G1CMBitMap::has_marked(MemRegion mr) {
+  assert(!mr.is_empty(), "Does not support empty memregion to iterate over");
+  assert(_covered.contains(mr),
+         "Given MemRegion from " PTR_FORMAT " to " PTR_FORMAT " not contained in heap area",
+         p2i(mr.start()), p2i(mr.end()));
+
+  BitMap::idx_t const end_offset = addr_to_offset(mr.end());
+  BitMap::idx_t offset = _bm.find_first_set_bit(addr_to_offset(mr.start()), end_offset);
+
+  if(offset < end_offset){
+    return true;
+  }
+  return false;
+}
+
 #endif // SHARE_GC_G1_G1CONCURRENTMARKBITMAP_INLINE_HPP

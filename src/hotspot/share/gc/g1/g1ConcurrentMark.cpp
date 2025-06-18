@@ -600,6 +600,7 @@ private:
       // live_words data are current wrt to the _mark_bitmap. We use this information
       // to only clear ranges of the bitmap that require clearing.
       if (is_clear_concurrent_undo()) {
+        log_info(gc)("in undo mark");
         // No need to clear bitmaps for empty regions (which includes regions we
         // did not mark through).
         if (!_cm->contains_live_object(r->hrm_index())) {
@@ -691,9 +692,9 @@ void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
   log_debug(gc, ergo)("Running %s with %u workers for " SIZE_FORMAT " work units.", cl.name(), num_workers, num_chunks);
   workers->run_task(&cl, num_workers);
   _g1h->data_structure_manager()->initialize_at_conc_start();
-//  log_info(gc)("before clear all out cards");
+ log_info(gc)("before clear all out cards");
   _g1h->data_structure_manager()->clear_all_out_cards();
-//  log_info(gc)("after clear all out cards");
+ log_info(gc)("after clear all out cards");
   guarantee(may_yield || cl.is_complete(), "Must have completed iteration when not yielding.");
 }
 
@@ -1124,9 +1125,11 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public WorkerTask {
       if (hr->is_humongous()) {
         bool const is_live = _cm->contains_live_object(hr->humongous_start_region()->hrm_index());
         selected_for_rebuild = tracking_policy->update_humongous_before_rebuild(hr, is_live);
+        if(selected_for_rebuild) log_info(gc)("region %u selected for rebuild", hr->hrm_index());
       } else {
         size_t const live_bytes = _cm->live_bytes(hr->hrm_index());
         selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes);
+        if(selected_for_rebuild) log_info(gc)("region %u selected for rebuild", hr->hrm_index());
       }
       if (selected_for_rebuild) {
         _num_regions_selected_for_rebuild++;
@@ -1301,8 +1304,8 @@ void G1ConcurrentMark::remark() {
   }
 
   if(G1LogRemset){
-    // _g1h->rem_set()->log_remset();
-    // _g1h->print_region_types();
+    _g1h->rem_set()->log_remset();
+    _g1h->print_region_types();
   }
 
   if(!should_do_detailed_concurrent_gc()){
@@ -1344,6 +1347,10 @@ void G1ConcurrentMark::remark() {
     {
       GCTraceTime(Debug, gc, phases) debug("Flush Task Caches", _gc_timer_cm);
       flush_all_task_caches();
+    }
+
+    if(!should_do_detailed_concurrent_gc()){
+      _g1h->data_structure_manager()->verify_all();
     }
 
     // All marking completed. Check bitmap now as we will start to reset TAMSes
@@ -1411,9 +1418,14 @@ void G1ConcurrentMark::remark() {
     reset_marking_for_restart();
   }
 
-  if(!should_do_detailed_concurrent_gc()) {
-    _g1h->data_structure_manager()->clear_all_out_cards();
+  if(G1LogRemset){
+    // _g1h->rem_set()->log_remset();
+    // _g1h->print_region_types();
   }
+
+  // if(!should_do_detailed_concurrent_gc()) {
+  //   _g1h->data_structure_manager()->clear_all_out_cards();
+  // }
   // Statistics
   double now = os::elapsedTime();
   _remark_mark_times.add((mark_work_end - start) * 1000.0);
@@ -1946,12 +1958,39 @@ public:
 
   void do_data_structure_instance(G1DataStructureRegionSet* data_structure_instance) {
     if(data_structure_instance->is_alive()){
+      // log_info(gc)("worker %u: pushing: data structure %u is alive, present %u, belong to %u, total %u", _worker_id, data_structure_instance->id(), _present, _present % _active_workers, _active_workers);
       if(_present % _active_workers == _worker_id){
         _task->push(G1TaskQueueEntry::from_data_structure_instance(data_structure_instance));
-//        log_info(gc)("push data structure instance %u", data_structure_instance->id());
+        // log_info(gc)("push data structure instance %u", data_structure_instance->id());
       }
       _present += 1;
+    } else {
+      // log_info(gc)("pushing: data structure %u is not alive", data_structure_instance->id());
     }
+  }
+};
+
+class G1CMPushLiveDataStructureTask : public WorkerTask {
+  G1ConcurrentMark* _cm;
+  uint _active_workers;
+public:
+  void work(uint worker_id) {
+    G1CollectedHeap* g1h = G1CollectedHeap::heap();
+    G1CMTask* task = _cm->task(worker_id);
+    task->record_start_time();
+    // task->set_data_structure_to_mark_stack(true);
+
+    {
+      PushLiveDataStructures cl(worker_id, _active_workers, task);
+      g1h->data_structure_manager()->data_structures_instances_iterate(&cl);
+    }
+
+    task->record_end_time();
+  }
+
+  G1CMPushLiveDataStructureTask(G1ConcurrentMark* cm, uint active_workers) :
+    WorkerTask("Par Remark"), _cm(cm), _active_workers(active_workers) {
+    _cm->terminator()->reset_for_reuse(active_workers);
   }
 };
 
@@ -1972,10 +2011,10 @@ public:
       Threads::possibly_parallel_threads_do(true /* is_par */, &threads_f);
     }
 
-    {
-      PushLiveDataStructures cl(worker_id, _active_workers, task);
-      g1h->data_structure_manager()->data_structures_instances_iterate(&cl);
-    }
+    // {
+    //   PushLiveDataStructures cl(worker_id, _active_workers, task);
+    //   g1h->data_structure_manager()->data_structures_instances_iterate(&cl);
+    // }
 
     do {
       task->do_marking_step(1000000000.0 /* something very large */,
@@ -2010,10 +2049,26 @@ void G1ConcurrentMark::finalize_data_structure_marking() {
   {
     StrongRootsScope srs(active_workers);
 
+
+    G1CMPushLiveDataStructureTask pushTask(this, active_workers);
+    // G1CMRemarkDataStructureTask remarkTask(this, active_workers);
+    // We will start all available threads, even if we decide that the
+    // active_workers will be fewer. The extra ones will just bail out
+    // immediately.
+    _g1h->workers()->run_task(&pushTask);
+    // _g1h->workers()->run_task(&remarkTask);
+  }
+
+  {
+    StrongRootsScope srs(active_workers);
+
+
+    // G1CMPushLiveDataStructureTask pushTask(this, active_workers);
     G1CMRemarkDataStructureTask remarkTask(this, active_workers);
     // We will start all available threads, even if we decide that the
     // active_workers will be fewer. The extra ones will just bail out
     // immediately.
+    // _g1h->workers()->run_task(&pushTask);
     _g1h->workers()->run_task(&remarkTask);
   }
 
@@ -3332,8 +3387,19 @@ void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
   }
 
   size_t region_base_idx = (size_t)region_idx << HeapRegion::LogCardsPerRegion;
+  // if(_ct->addr_for(_ct->byte_for_index(region_base_idx)) != region->bottom()){
+  //   ShouldNotReachHere();
+  // }
   size_t card_global_idx = region_base_idx + card_idx;
+  // if(_ct->addr_for(_ct->byte_for_index(card_global_idx)) >= region->end()){
+  //   ShouldNotReachHere();
+  // }
+  // if(_ct->addr_for(_ct->byte_for_index(card_global_idx)) < region->bottom()){
+  //   ShouldNotReachHere();
+  // }
   G1CardTable::CardValue* cv = _ct->byte_for_index(card_global_idx);
+  // log_info(gc)("build reverse card is %p to %p", _ct->addr_for(cv), _ct->addr_for(cv + 1));
+
   // log_info(gc)("add card of region %u to region %u", region->hrm_index(), _to_region->hrm_index());
   assert((HeapWord*)_ct->byte_for_index(card_global_idx) < region->top(), "card must be smaller than top");
   data_structure_instance->add_out_card(cv);

@@ -118,6 +118,12 @@ JVM_Halt(jint code);
 JNIEXPORT void JNICALL
 JVM_GC(void);
 
+JNIEXPORT void JNICALL
+JVM_GCFull(void);
+
+JNIEXPORT jlong JNICALL
+JVM_ObjAddr(JNIEnv *env, jobject self, jobject obj);
+
 /* Returns the number of real-time milliseconds that have elapsed since the
  * least-recently-inspected heap object was last inspected by the garbage
  * collector.

@@ -234,6 +234,10 @@ public:
     //     f(present_region->hrm_index(), left, right + 1);
     // }
 
+    void verify();
+
+    void find_out_card(HeapWord* addr);
+
 };
 
 class G1DataStructureRegionSetClosure : public Closure {

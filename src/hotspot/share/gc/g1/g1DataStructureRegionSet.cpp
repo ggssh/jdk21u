@@ -3,6 +3,9 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1AllocRegion.hpp"
 #include "gc/g1/g1AllocRegion.inline.hpp"
+#include "gc/g1/g1ConcurrentMarkBitMap.hpp"
+#include "gc/g1/g1ConcurrentMarkBitMap.inline.hpp"
+
 
 
 G1DataStructureEdge* G1DataStructure::find_edge(Symbol* from, Symbol* to) {
@@ -166,4 +169,54 @@ G1DataStructureRegionSet::~G1DataStructureRegionSet(){
     // if(released != nullptr){
     //     log_info(gc)("released %s", released->data_structure() == nullptr ? "ds" : "normal");
     // }
+}
+
+void G1DataStructureRegionSet::verify() {
+    if(is_alive()) {
+        return;
+    }
+    G1CollectedHeap* heap = G1CollectedHeap::heap();
+    G1CMBitMap* bitmap = heap->concurrent_mark()->mark_bitmap();
+    MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
+    LinkedListNode<HeapRegion*>* p = _regions.head();
+    while (p != nullptr) {
+        HeapRegion* region = *p->data();
+        if(bitmap->has_marked(MemRegion(region->bottom(), region->end()))){
+            log_info(gc)("region %u of ds %u has marked but not alive",
+                         region->hrm_index(), id());
+            ShouldNotReachHere();
+        }
+        p = p->next();
+    }
+}
+
+// void G1DataStructureRegionSet::find_out_card(HeapWord* addr){
+//     LinkedListNode<G1CardTable::CardValue*>* p = _out_cards.head();
+//     while( p != nullptr) {
+//         G1CardTable::CardValue* card = *p->data();
+//         if(G1CardTable::byte_for_index(addr) == card){
+//             log_info(gc)("found card %p for address %p in data structure %u", card, addr, id());
+//             return;
+//         }
+//         p = p->next();
+//     }
+// }
+
+void G1DataStructureRegionSet::find_out_card(HeapWord* addr){
+    G1CollectedHeap* g1h = G1CollectedHeap::heap();
+    G1CardTable* ct = g1h->card_table();
+    LinkedListNode<G1CardTable::CardValue*>* p = _out_cards.head();
+    while( p != nullptr) {
+        G1CardTable::CardValue* card = *p->data();
+        if(ct->byte_for(addr) == card){
+            log_info(gc)("found card %p for address %p in data structure %u", card, addr, id());
+            return;
+        } else {
+            HeapWord* const card_start = ct->addr_for(card);
+            HeapWord* card_end = card_start + (1 << BOTConstants::log_card_size_in_words());
+            log_info(gc)("out card %p to %p", card_start, card_end);
+        }
+        p = p->next();
+    }
+    log_info(gc)("not found for %p", addr);
 }
