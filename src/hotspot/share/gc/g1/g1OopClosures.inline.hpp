@@ -194,6 +194,32 @@ inline void G1ScanCardClosure::do_oop_work(T* p) {
 }
 
 template <class T>
+inline void G1ScanDataStructureOutCardClosure::rebuild_remset(T* p) {
+  oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
+  if (obj == nullptr) {
+    return;
+  }
+
+  if (HeapRegion::is_in_same_region(p, obj)) {
+    return;
+  }
+
+  HeapRegion* to = _g1h->heap_region_containing(obj);
+  HeapRegionRemSet* rem_set = to->rem_set();
+
+  if(to->data_structure() != nullptr){
+    return;
+  }
+
+  if (rem_set->is_tracked()) {
+    rem_set->add_reference(p, _cm_task->worker_id());
+  } 
+  // else {
+  //   ShouldNotReachHere();
+  // }
+}
+
+template <class T>
 inline void G1ScanDataStructureOutCardClosure::do_oop_work(T* p) {
   G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
   if(cm->should_do_detailed_concurrent_gc()){
@@ -202,6 +228,9 @@ inline void G1ScanDataStructureOutCardClosure::do_oop_work(T* p) {
   // oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
   // log_info(gc)("scan oop %p", obj);
   // log_info(gc)("deal with reference %p", p);
+
+  // rebuild_remset(p);
+
   _cm_task->deal_with_reference(p);
   // static uint x = 0;
   // T o = RawAccess<>::oop_load(p);

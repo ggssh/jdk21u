@@ -337,6 +337,10 @@
           "related prediction sample. That sample must involve the same or "\
           "more than that number of cards to be used.")                     \
                                                                             \
+  product(double, G1DetailedRatio, 0.25,                                    \
+        "The percentage of free card set memory that G1 should keep as "    \
+        "percentage of the currently used memory.")                         \
+        range(0.0, 1.0)                                                     \
   GC_G1_EVACUATION_FAILURE_FLAGS(develop,                                   \
                     develop_pd,                                             \
                     product,                                                \

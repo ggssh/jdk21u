@@ -723,7 +723,9 @@ bool G1Policy::need_to_start_conc_mark(const char* source, size_t alloc_word_siz
                               cur_used_bytes, alloc_byte_size, marking_initiating_used_threshold, (double) marking_initiating_used_threshold / _g1h->capacity() * 100, source);
   }
   // x += 1;
-  // if(x > 10 || _g1h->capacity() * 0.8 < _g1h->used_unlocked()){
+  // // log_info(gc)("region free: %u, region max: %u", _g1h->num_free_regions(), _g1h->max_regions());
+  // // if(x > 4 || _g1h->capacity() * 0.8 < _g1h->used_unlocked() || _g1h->num_free_regions() <_g1h->max_regions() * G1DetailedRatio){
+  // if(x > 4){
   //   x = 0;
   //   return result;
   // } else {

@@ -98,6 +98,7 @@ public:
 };
 
 class G1ScanDataStructureOutCardClosure : public OopIterateClosure {
+  G1CollectedHeap* _g1h;
   G1CMTask* _cm_task;
   oop _from_oop;
   Klass* _from_klass;
@@ -107,11 +108,12 @@ class G1ScanDataStructureOutCardClosure : public OopIterateClosure {
   // Symbol* _from_klass_name;
 public:
   G1ScanDataStructureOutCardClosure(G1CollectedHeap* g1h, G1CMTask* cm_task) :
-        OopIterateClosure(), _cm_task(cm_task) { }
+        OopIterateClosure(), _g1h(g1h), _cm_task(cm_task) { }
 
   template <class T> void do_oop_work(T* p);
   virtual void do_oop(narrowOop* p) { do_oop_work(p); }
   virtual void do_oop(oop* p)       { do_oop_work(p); }
+  template <class T> void inline rebuild_remset(T* p);
   // void set_from_oop(oop from_oop) {
   //   _from_oop = from_oop;
   //   if( from_oop != nullptr && from_oop->klass() != nullptr){

@@ -692,9 +692,9 @@ void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
   log_debug(gc, ergo)("Running %s with %u workers for " SIZE_FORMAT " work units.", cl.name(), num_workers, num_chunks);
   workers->run_task(&cl, num_workers);
   _g1h->data_structure_manager()->initialize_at_conc_start();
-//  log_info(gc)("before clear all out cards");
+ log_info(gc)("before clear all out cards");
   _g1h->data_structure_manager()->clear_all_out_cards();
-//  log_info(gc)("after clear all out cards");
+ log_info(gc)("after clear all out cards");
   guarantee(may_yield || cl.is_complete(), "Must have completed iteration when not yielding.");
 }
 
@@ -1277,6 +1277,8 @@ void G1ConcurrentMark::remark() {
   double start = os::elapsedTime();
 
   verify_during_pause(G1HeapVerifier::G1VerifyRemark, VerifyLocation::RemarkBefore);
+
+  _g1h->allocator()->abandon_gc_alloc_regions();
 
   if(!should_do_detailed_concurrent_gc()){
 
@@ -3361,6 +3363,9 @@ bool BuildReverseRemsetClosure::do_heap_region(HeapRegion* r){
   //   _ls.print("into Region %u", r->hrm_index());
   //   _ls.print_cr("");
   // }
+  // if(r->data_structure() == nullptr){
+  //   r->rem_set()->clear(true);
+  // }
   return false;
 }
 
@@ -3402,9 +3407,12 @@ void BuildRegionReverseRemsetClosure::do_card(uint region_idx, uint card_idx){
 
   // log_info(gc)("add card of region %u to region %u", region->hrm_index(), _to_region->hrm_index());
   assert((HeapWord*)_ct->byte_for_index(card_global_idx) < region->top(), "card must be smaller than top");
-  data_structure_instance->add_out_card(cv);
   if(_to_region->data_structure()!= nullptr) {
-    data_structure_instance->add_out_card_data(cv);
+    data_structure_instance->add_out_instance(_to_region->data_structure());
+    // data_structure_instance->add_out_card_data(cv);
+    // data_structure_instance->add_out_card(cv);
+  } else {
+    data_structure_instance->add_out_card(cv);
   }
 
   // _cl->do_incoming_region(region_idx);

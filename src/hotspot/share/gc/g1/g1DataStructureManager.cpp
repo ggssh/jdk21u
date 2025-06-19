@@ -151,6 +151,7 @@ void G1DataStructureManager::abandon_data_structure_alloc_regions() {
     while (p != nullptr) {
         G1DataStructureRegionSet* data_structure = *p->data();
         data_structure->abandon_alloc_region();
+        p = p->next();
     }
 }
 

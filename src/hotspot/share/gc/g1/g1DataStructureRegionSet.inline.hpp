@@ -59,6 +59,10 @@ void G1DataStructureRegionSet::scan_cards(Func&& f){
         G1CardTable::CardValue* present = *p->data();
         HeapRegion* region = g1h->heap_region_containing(ct->addr_for(present));
         assert(region->data_structure() == this, "must be");
+        if(present == right){
+            p = p->next();
+            continue;
+        }
         if(region != present_region || present - right != 1){
             f(present_region, left, right + 1);
             left = present;

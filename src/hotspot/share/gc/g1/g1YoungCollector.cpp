@@ -1066,14 +1066,20 @@ void G1YoungCollector::collect() {
 
     G1ConcurrentMark* cm = _g1h->concurrent_mark();
 
+    static int x = 5;
+
+    // log_info(gc)("region free: %u, region max: %u", _g1h->num_free_regions(), _g1h->max_regions());
     if (_g1h->collector_state()->in_concurrent_start_gc()){
       // _g1h->data_structure_manager()->initialize_at_conc_start();
-      if(cm->full_gc_just_now()){
+      // if(cm->full_gc_just_now() || x == 5 || _g1h->num_free_regions() <_g1h->max_regions() * G1DetailedRatio){
+      if(cm->full_gc_just_now() || x == 5 ){
         cm->set_should_do_detailed_concurrent_gc(true);
         log_info(gc)("do detailed");
+        x = 0;
       } else {
         cm->set_should_do_detailed_concurrent_gc(false);
         log_info(gc)("do summary");
+        x += 1;
       }
     }
 

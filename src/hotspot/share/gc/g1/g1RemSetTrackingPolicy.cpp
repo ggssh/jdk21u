@@ -91,6 +91,7 @@ bool G1RemSetTrackingPolicy::update_humongous_before_rebuild(HeapRegion* r, bool
   G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
   if(is_live && cm->should_do_detailed_concurrent_gc()){
     r->rem_set()->set_state_updating();
+    // r->rem_set()->clear(true);
     selected_for_rebuild = true;
   }
   if (is_live && cast_to_oop(r->humongous_start_region()->bottom())->is_typeArray() && !r->rem_set()->is_tracked()) {
@@ -129,6 +130,7 @@ bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_by
   if((total_live_bytes > 0) && cm->should_do_detailed_concurrent_gc()){
     // log_info(gc)("select for rebuild %u", r->hrm_index());
     r->rem_set()->set_state_updating();
+    // r->rem_set()->clear(true);
     selected_for_rebuild = true;
   }
   if ((total_live_bytes > 0) &&
