@@ -181,36 +181,36 @@ bool G1ConcurrentMarkThread::phase_mark_loop() {
   for (uint iter = 1; true; ++iter) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
 
-    log_info(gc)("before mark from roots");
-    if(!_cm->should_do_detailed_concurrent_gc()){
-      g1h->data_structure_manager()->verify_all();
-    }
+    // log_info(gc)("before mark from roots");
+    // if(!_cm->should_do_detailed_concurrent_gc()){
+    //   g1h->data_structure_manager()->verify_all();
+    // }
 
     // Subphase 1: Mark From Roots.
     if (subphase_mark_from_roots()) return true;
 
-    log_info(gc)("before preclean");
-    if(!_cm->should_do_detailed_concurrent_gc()){
-      g1h->data_structure_manager()->verify_all();
-    }
+    // log_info(gc)("before preclean");
+    // if(!_cm->should_do_detailed_concurrent_gc()){
+    //   g1h->data_structure_manager()->verify_all();
+    // }
 
     // Subphase 2: Preclean (optional)
     if (G1UseReferencePrecleaning) {
       if (subphase_preclean()) return true;
     }
 
-    log_info(gc)("before delay");
-    if(!_cm->should_do_detailed_concurrent_gc()){
-      g1h->data_structure_manager()->verify_all();
-    }
+    // log_info(gc)("before delay");
+    // if(!_cm->should_do_detailed_concurrent_gc()){
+    //   g1h->data_structure_manager()->verify_all();
+    // }
 
     // Subphase 3: Wait for Remark.
     if (subphase_delay_to_keep_mmu_before_remark()) return true;
 
-    log_info(gc)("before remark");
-    if(!_cm->should_do_detailed_concurrent_gc()){
-      g1h->data_structure_manager()->verify_all();
-    }
+    // log_info(gc)("before remark");
+    // if(!_cm->should_do_detailed_concurrent_gc()){
+    //   g1h->data_structure_manager()->verify_all();
+    // }
 
     // Subphase 4: Remark pause
     // [gc breakdown]
@@ -344,18 +344,18 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
 
   g1h->region_class_hash_map()->clear();
 
-  log_info(gc)("before scan root regions");
-  if(!_cm->should_do_detailed_concurrent_gc()){
-    g1h->data_structure_manager()->verify_all();
-  }
+  // log_info(gc)("before scan root regions");
+  // if(!_cm->should_do_detailed_concurrent_gc()){
+  //   g1h->data_structure_manager()->verify_all();
+  // }
 
   // Phase 1: Scan root regions.
   if (phase_scan_root_regions()) return;
 
-  log_info(gc)("before mark loop");
-  if(!_cm->should_do_detailed_concurrent_gc()){
-    g1h->data_structure_manager()->verify_all();
-  }
+  // log_info(gc)("before mark loop");
+  // if(!_cm->should_do_detailed_concurrent_gc()){
+  //   g1h->data_structure_manager()->verify_all();
+  // }
 
   // Phase 2: Actual mark loop.
   if (phase_mark_loop()) return;
@@ -369,8 +369,8 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   if (phase_rebuild_and_scrub()) return;
 
   if(G1LogRemset){
-    g1h->rem_set()->log_remset();
-    g1h->print_region_types();
+    // g1h->rem_set()->log_remset();
+    // g1h->print_region_types();
   }
 
   // Phase 4: Wait for Cleanup.
@@ -398,8 +398,8 @@ void G1ConcurrentMarkThread::concurrent_mark_cycle_do() {
   _cm->set_full_gc_just_now(false);
 
   if(G1LogRemset){
-    g1h->rem_set()->log_remset();
-    g1h->print_region_types();
+    // g1h->rem_set()->log_remset();
+    // g1h->print_region_types();
   }
 
 

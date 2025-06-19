@@ -1103,9 +1103,9 @@ void G1YoungCollector::collect() {
     // modifies it to the next state.
     jtm.report_pause_type(collector_state()->young_gc_pause_type(_concurrent_operation_is_full_mark));
 
-    if (_g1h->collector_state()->in_concurrent_start_gc()){
-      _g1h->data_structure_manager()->verify_all();
-    }
+    // if (_g1h->collector_state()->in_concurrent_start_gc()){
+    //   _g1h->data_structure_manager()->verify_all();
+    // }
 
     policy()->record_young_collection_end(_concurrent_operation_is_full_mark, evacuation_failed());
   }

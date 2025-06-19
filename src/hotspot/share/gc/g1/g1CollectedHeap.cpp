@@ -578,7 +578,7 @@ bool G1CollectedHeap::alloc_archive_regions(MemRegion range) {
     r->set_top(top);
 
     r->set_old();
-    log_info(gc)("archive old %u", r->hrm_index());
+    // log_info(gc)("archive old %u", r->hrm_index());
     r->rem_set()->set_state_complete();
     _hr_printer.alloc(r);
     _old_set.add(r);

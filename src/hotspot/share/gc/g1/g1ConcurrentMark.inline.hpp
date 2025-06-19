@@ -207,7 +207,7 @@ inline void G1CMTask::process_grey_task_entry(G1TaskQueueEntry task_entry) {
 //        ShouldNotReachHere();
 //      }
       G1DataStructureRegionSet* data_structure_instance = task_entry.data_structure_instance();
-      log_info(gc)("handle data structure instance %u", data_structure_instance->id());
+      // log_info(gc)("handle data structure instance %u", data_structure_instance->id());
       data_structure_instance->scan_cards([&](HeapRegion* hr, G1CardTable::CardValue* left, G1CardTable::CardValue* right){
         size_t num_cards = right - left;
         HeapWord* const card_start = _ct->addr_for(left);

@@ -87,10 +87,10 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       HeapRegion* hr = _g1h->heap_region_containing(obj);
       HeapRegion* from_hr = _g1h->heap_region_containing(_from_oop);
 
-      if(from_hr == nullptr){
-        log_info(gc)("from_hr is null, from pointer %p", p);
-        ShouldNotReachHere();
-      }
+      // if(from_hr == nullptr){
+      //   log_info(gc)("from_hr is null, from pointer %p", p);
+      //   ShouldNotReachHere();
+      // }
 
       HeapWord* const pb = hr->parsable_bottom_acquire();
       if(hr->data_structure() == nullptr){
@@ -174,11 +174,11 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         // log_info(gc)("scan and scrub humongous");
         obj->oop_iterate(&_rebuild_closure, mr);
 
-        if(!_cm->should_do_detailed_concurrent_gc()){
-          _verify_closure.set_from_oop(obj);
-          obj->oop_iterate(&_verify_closure);
-          _verify_closure.set_from_oop(nullptr);
-        }
+        // if(!_cm->should_do_detailed_concurrent_gc()){
+        //   _verify_closure.set_from_oop(obj);
+        //   obj->oop_iterate(&_verify_closure);
+        //   _verify_closure.set_from_oop(nullptr);
+        // }
 
         // Update processed words and yield, for humongous objects we will yield
         // after each chunk.
@@ -219,11 +219,11 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
         // Object smaller than yield limit, process it fully.
         obj->oop_iterate(&_rebuild_closure);
 
-        if(!_cm->should_do_detailed_concurrent_gc()){
-          _verify_closure.set_from_oop(obj);
-          obj->oop_iterate(&_verify_closure);
-          _verify_closure.set_from_oop(nullptr);
-        }
+        // if(!_cm->should_do_detailed_concurrent_gc()){
+        //   _verify_closure.set_from_oop(obj);
+        //   obj->oop_iterate(&_verify_closure);
+        //   _verify_closure.set_from_oop(nullptr);
+        // }
         // Update how much we have processed. Yield check in main loop
         // will handle this case.
         add_processed_words(obj_size);
@@ -298,9 +298,9 @@ class G1RebuildRSAndScrubTask : public WorkerTask {
       //   return false;
       // }
 
-      if(no_need_to_scrub) {
-        log_info(gc)("no need to scrub region %u", hr->hrm_index());
-      }
+      // if(no_need_to_scrub) {
+      //   log_info(gc)("no need to scrub region %u", hr->hrm_index());
+      // }
 
       if (!no_need_to_scrub && scan_and_scrub_to_pb(hr, hr->bottom(), pb)) {
         log_trace(gc, marking)("Scan and scrub aborted for region: %u", hr->hrm_index());

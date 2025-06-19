@@ -692,9 +692,9 @@ void G1ConcurrentMark::clear_bitmap(WorkerThreads* workers, bool may_yield) {
   log_debug(gc, ergo)("Running %s with %u workers for " SIZE_FORMAT " work units.", cl.name(), num_workers, num_chunks);
   workers->run_task(&cl, num_workers);
   _g1h->data_structure_manager()->initialize_at_conc_start();
- log_info(gc)("before clear all out cards");
+//  log_info(gc)("before clear all out cards");
   _g1h->data_structure_manager()->clear_all_out_cards();
- log_info(gc)("after clear all out cards");
+//  log_info(gc)("after clear all out cards");
   guarantee(may_yield || cl.is_complete(), "Must have completed iteration when not yielding.");
 }
 
@@ -1125,11 +1125,11 @@ class G1UpdateRemSetTrackingBeforeRebuildTask : public WorkerTask {
       if (hr->is_humongous()) {
         bool const is_live = _cm->contains_live_object(hr->humongous_start_region()->hrm_index());
         selected_for_rebuild = tracking_policy->update_humongous_before_rebuild(hr, is_live);
-        if(selected_for_rebuild) log_info(gc)("region %u selected for rebuild", hr->hrm_index());
+        // if(selected_for_rebuild) log_info(gc)("region %u selected for rebuild", hr->hrm_index());
       } else {
         size_t const live_bytes = _cm->live_bytes(hr->hrm_index());
         selected_for_rebuild = tracking_policy->update_before_rebuild(hr, live_bytes);
-        if(selected_for_rebuild) log_info(gc)("region %u selected for rebuild", hr->hrm_index());
+        // if(selected_for_rebuild) log_info(gc)("region %u selected for rebuild", hr->hrm_index());
       }
       if (selected_for_rebuild) {
         _num_regions_selected_for_rebuild++;
@@ -1304,8 +1304,8 @@ void G1ConcurrentMark::remark() {
   }
 
   if(G1LogRemset){
-    _g1h->rem_set()->log_remset();
-    _g1h->print_region_types();
+    // _g1h->rem_set()->log_remset();
+    // _g1h->print_region_types();
   }
 
   if(!should_do_detailed_concurrent_gc()){
@@ -1349,9 +1349,9 @@ void G1ConcurrentMark::remark() {
       flush_all_task_caches();
     }
 
-    if(!should_do_detailed_concurrent_gc()){
-      _g1h->data_structure_manager()->verify_all();
-    }
+    // if(!should_do_detailed_concurrent_gc()){
+    //   _g1h->data_structure_manager()->verify_all();
+    // }
 
     // All marking completed. Check bitmap now as we will start to reset TAMSes
     // in parallel below so that we can not do this in the After-Remark verification.
@@ -1368,7 +1368,7 @@ void G1ConcurrentMark::remark() {
       log_debug(gc,ergo)("Running %s using %u workers for %u regions in heap", cl.name(), num_workers, _g1h->num_regions());
       _g1h->workers()->run_task(&cl, num_workers);
 
-      log_info(gc, remset, tracking)("Remembered Set Tracking update regions total %u, selected %u",
+      log_debug(gc, remset, tracking)("Remembered Set Tracking update regions total %u, selected %u",
                                       _g1h->num_regions(), cl.total_selected_for_rebuild());
 
       _needs_remembered_set_rebuild = (cl.total_selected_for_rebuild() > 0);

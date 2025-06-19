@@ -161,7 +161,7 @@ public:
     }
 
     void clear_out_cards(){
-        // log_info(gc)("out cards %lu, out cards data %lu", _out_cards.size(), _out_cards_data.size());
+        log_info(gc)("out cards %lu, out cards data %lu", _out_cards.size(), _out_cards_data.size());
         _out_cards.clear();
         _out_cards_data.clear();
     }

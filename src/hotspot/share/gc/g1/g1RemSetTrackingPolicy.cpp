@@ -94,7 +94,7 @@ bool G1RemSetTrackingPolicy::update_humongous_before_rebuild(HeapRegion* r, bool
     selected_for_rebuild = true;
   }
   if (is_live && cast_to_oop(r->humongous_start_region()->bottom())->is_typeArray() && !r->rem_set()->is_tracked()) {
-    log_info(gc)("select for rebuild %u", r->hrm_index());
+    // log_info(gc)("select for rebuild %u", r->hrm_index());
     r->rem_set()->set_state_updating();
     selected_for_rebuild = true;
   }
@@ -127,7 +127,7 @@ bool G1RemSetTrackingPolicy::update_before_rebuild(HeapRegion* r, size_t live_by
   // is a chance that we will ever evacuate them in the mixed gcs.
   G1ConcurrentMark* cm = G1CollectedHeap::heap()->concurrent_mark();
   if((total_live_bytes > 0) && cm->should_do_detailed_concurrent_gc()){
-    log_info(gc)("select for rebuild %u", r->hrm_index());
+    // log_info(gc)("select for rebuild %u", r->hrm_index());
     r->rem_set()->set_state_updating();
     selected_for_rebuild = true;
   }
