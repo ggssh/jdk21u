@@ -32,7 +32,7 @@
 #include "oops/symbolHandle.hpp"
 
 class PLAB;
-
+class BlockPLAB;
 
 class DataStructureConfig : public AllStatic {
 public:
@@ -43,7 +43,7 @@ public:
 };
 
 typedef HashMap<G1DataStructureRegionSet*, G1PLABAllocator::PLABData*, DataStructureConfig, mtGC> DataPLABMap;
-
+typedef HashMap<G1DataStructureRegionSet*, G1PLABAllocator::BlockPLABData*, DataStructureConfig, mtGC> DataBlockPLABMap;
 
 class G1DataStructureManager : public CHeapObj<mtGC> {
 private:
@@ -70,6 +70,7 @@ public:
     void initialize_predefined_data_structures();
 
     DataPLABMap* create_and_initialize_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills);
+    DataBlockPLABMap* create_and_initialize_block_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills);
 
     class DeleteClosure : public StackObj {
     public:
@@ -78,7 +79,15 @@ public:
         }
     };
 
+    class DeleteBlockPLABClosure : public StackObj {
+    public:
+        void work(G1DataStructureRegionSet*& key, G1PLABAllocator::BlockPLABData*& value){
+            delete value;
+        }
+    };
+
     void delete_plab_map(DataPLABMap* plab_map);
+    void delete_block_plab_map(DataBlockPLABMap* block_plab_map);
     void initialize_at_conc_start();
     void data_structures_instances_iterate(G1DataStructureRegionSetClosure* closure);
     void clear_all_out_cards();

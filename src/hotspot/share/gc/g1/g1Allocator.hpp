@@ -27,8 +27,10 @@
 
 #include "gc/g1/g1AllocRegion.hpp"
 #include "gc/g1/g1HeapRegionAttr.hpp"
-#include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/plab.hpp"
+#include "gc/shared/block_plab.hpp"
+#include "memory/allocation.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/hashMap.hpp"
 
 class G1DataStructureManager;
@@ -203,9 +205,43 @@ public:
 
   } _dest_data[G1HeapRegionAttr::Num];
 
+  class BlockPLABData : public CHeapObj<mtGC> {
+  public:
+    BlockPLAB** _alloc_buffer;
+
+    size_t _direct_allocated;             // Number of words allocated directly (not counting PLAB allocation).
+    size_t _num_plab_fills;               // Number of PLAB refills experienced so far.
+    size_t _num_direct_allocations;       // Number of direct allocations experienced so far.
+
+    size_t _plab_fill_counter;            // How many PLAB refills left until boosting.
+    size_t _cur_desired_plab_size;        // Current desired PLAB size incorporating eventual boosting.
+
+    uint _num_alloc_buffers;              // The number of PLABs for this destination.
+
+    BlockPLABData();
+    ~BlockPLABData();
+
+    void initialize(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills);
+
+    // Should we actually boost the PLAB size?
+    // The _plab_refill_counter reset value encodes the ResizePLAB flag value already, so no
+    // need to check here.
+    /*
+      yizhe:
+      "should_boost" and "notify_plab_refill" will not be used in the block plab map, because the size of BlockPLAB is fixed.
+    */
+    bool should_boost() const { return _plab_fill_counter == 0; }
+
+    void notify_plab_refill(size_t tolerated_refills, size_t next_plab_size);
+
+  } _dest_block_data[G1HeapRegionAttr::Num];
+
 
   typedef HashMap<G1DataStructureRegionSet*, PLABData*, DataStructureConfig, mtGC> DataPLABMap;
   DataPLABMap* _data_structure_plab_map;
+
+  typedef HashMap<G1DataStructureRegionSet*, BlockPLABData*, DataStructureConfig, mtGC> DataBlockPLABMap;
+  DataBlockPLABMap* _data_structure_block_plab_map;
 
   G1DataStructureManager* _data_structure_manager;
 
@@ -220,6 +256,9 @@ private:
   // inline PLAB* alloc_buffer(region_type_t dest, uint node_index) const;
   inline PLAB* alloc_buffer(G1HeapRegionAttr dest, uint node_index, G1DataStructureRegionSet* data_structure) const;
   inline PLAB* alloc_buffer(region_type_t dest, uint node_index, G1DataStructureRegionSet* data_structure) const;
+
+  inline BlockPLAB* alloc_block_buffer(G1HeapRegionAttr dest, uint node_index, G1DataStructureRegionSet* data_structure) const;
+  inline BlockPLAB* alloc_block_buffer(region_type_t dest, uint node_index, G1DataStructureRegionSet* data_structure) const;
   inline G1DataStructureRegionSet* data_structure_region_set(oop from_oop, oop to_oop) const;
 
   // Returns the number of allocation buffers for the given dest.

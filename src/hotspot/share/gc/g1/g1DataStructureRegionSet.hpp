@@ -27,6 +27,7 @@
 
 #include "gc/g1/heapRegion.hpp"
 #include "gc/g1/g1Allocator.hpp"
+#include "gc/shared/block_plab.hpp"
 // #include "gc/g1/g1CollectedHeap.hpp"
 // #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1CardTable.hpp"
@@ -102,6 +103,9 @@ private:
     // G1PLABAllocator::PLABData _plab_data;
     HeapRegion* _retained_old_region;
     Mutex _regions_lock;
+    Mutex _block_plab_lock;
+    LinkedListImpl<BlockPLAB*> _block_plabs;
+    BlockPLAB* _cur_alloc_block_plab;
     uint _id;
     volatile bool _is_alive;
 
@@ -129,6 +133,16 @@ public:
         _regions.remove(region);
     }
 
+    void add_block_plab(BlockPLAB* block_plab) {
+        MutexLocker ml(&_block_plab_lock, Mutex::_no_safepoint_check_flag);
+        _block_plabs.add(block_plab);
+    }
+
+    void remove_block_plab(BlockPLAB* block_plab) {
+        MutexLocker ml(&_block_plab_lock, Mutex::_no_safepoint_check_flag);
+        _block_plabs.remove(block_plab);
+    }
+
     bool is_data_structure_root_symbol(Symbol* symbol) {
         return _data_structure->symbol_in_roots(symbol) != nullptr;
     }
@@ -136,6 +150,11 @@ public:
     bool region_in(HeapRegion* region){
         MutexLocker ml(&_regions_lock, Mutex::_no_safepoint_check_flag);
         return _regions.find(region) != nullptr;
+    }
+
+    bool block_plab_in(BlockPLAB* block_plab) {
+        MutexLocker ml(&_block_plab_lock, Mutex::_no_safepoint_check_flag);
+        return _block_plabs.find(block_plab) != nullptr;
     }
 
     OldDataStructureGCAllocRegion* alloc_region() {
@@ -159,6 +178,14 @@ public:
 
     uint id() const {
         return _id;
+    }
+
+    void set_alloc_block_plab(BlockPLAB* block_plab) {
+        _cur_alloc_block_plab = block_plab;
+    }
+
+    BlockPLAB* alloc_block_plab() {
+        return _cur_alloc_block_plab;
     }
 
     void clear_out_cards(){
@@ -252,6 +279,19 @@ public:
     void verify();
 
     void find_out_card(HeapWord* addr);
+
+    BlockPLAB* find_block_plab_containing(HeapWord* obj) {
+        MutexLocker ml(&_block_plab_lock, Mutex::_no_safepoint_check_flag);
+        LinkedListNode<BlockPLAB*>* p = _block_plabs.head();
+        while (p != nullptr) {
+            BlockPLAB* block_plab = *p->data();
+            if (block_plab->contains(obj)) {
+                return block_plab;
+            }
+            p = p->next();
+        }
+        return nullptr;
+    }
 
 };
 

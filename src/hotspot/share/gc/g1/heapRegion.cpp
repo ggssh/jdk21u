@@ -186,6 +186,7 @@ void HeapRegion::set_old() {
   _type.set_old();
 }
 
+// yizhe: this function is used to set the starts humongous region
 void HeapRegion::set_starts_humongous(HeapWord* obj_top, size_t fill_size) {
   assert(!is_humongous(), "sanity / pre-condition");
   assert(top() == bottom(), "should be empty");

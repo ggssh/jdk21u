@@ -325,10 +325,35 @@ DataPLABMap* G1DataStructureManager::create_and_initialize_plab_map(uint num_all
     // return nullptr;
 }
 
+/*
+    yizhe:
+    In fact, "desired_plab_size" and "tolerated_refills" are not used in the block plab map, because the size of BlockPLAB is fixed.
+*/
+DataBlockPLABMap* G1DataStructureManager::create_and_initialize_block_plab_map(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills){
+    MutexLocker ml(&_data_structures_lock, Mutex::_no_safepoint_check_flag);
+    DataBlockPLABMap* block_plab_map = new DataBlockPLABMap();
+    LinkedListNode<G1DataStructureRegionSet*>* p = _data_structures.head();
+    while (p != nullptr) {
+        G1DataStructureRegionSet* data_structure = *p->data();
+        G1PLABAllocator::BlockPLABData* block_plab_data = new G1PLABAllocator::BlockPLABData();
+        block_plab_data->initialize(num_alloc_buffers, desired_plab_size, tolerated_refills);
+        block_plab_map->insert(data_structure, block_plab_data);
+        p = p->next();
+    }
+    return block_plab_map;
+}
+
 void G1DataStructureManager::delete_plab_map(DataPLABMap* plab_map) {
     DeleteClosure cl;
     plab_map->forEachClosure(&cl);
     delete plab_map;
+}
+
+// yizhe: todo
+void G1DataStructureManager::delete_block_plab_map(DataBlockPLABMap* block_plab_map) {
+    DeleteBlockPLABClosure cl;
+    block_plab_map->forEachClosure(&cl);
+    delete block_plab_map;
 }
 
 void G1DataStructureManager::initialize_at_conc_start(){

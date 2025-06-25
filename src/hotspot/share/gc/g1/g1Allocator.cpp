@@ -22,6 +22,9 @@
  *
  */
 
+#include "gc/g1/g1HeapRegionAttr.hpp"
+#include "gc/shared/block_plab.hpp"
+#include "logging/log.hpp"
 #include "precompiled.hpp"
 #include "gc/g1/g1Allocator.inline.hpp"
 #include "gc/g1/g1AllocRegion.inline.hpp"
@@ -36,6 +39,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/align.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 G1Allocator::G1Allocator(G1CollectedHeap* heap) :
   _g1h(heap),
@@ -244,7 +248,6 @@ size_t G1Allocator::used_in_alloc_regions() {
   return used;
 }
 
-
 HeapWord* G1Allocator::par_allocate_during_gc(G1HeapRegionAttr dest,
                                               size_t word_size,
                                               uint node_index,
@@ -403,6 +406,47 @@ void G1PLABAllocator::PLABData::notify_plab_refill(size_t tolerated_refills, siz
   }
 }
 
+G1PLABAllocator::BlockPLABData::BlockPLABData() :
+  _alloc_buffer(nullptr),
+  _direct_allocated(0),
+  _num_plab_fills(0),
+  _num_direct_allocations(0),
+  _plab_fill_counter(0),
+  _cur_desired_plab_size(0),
+  _num_alloc_buffers(0) { }
+
+G1PLABAllocator::BlockPLABData::~BlockPLABData() {
+  if (_alloc_buffer == nullptr) {
+    return;
+  }
+  for (uint node_index = 0; node_index < _num_alloc_buffers; node_index++) {
+    delete _alloc_buffer[node_index];
+  }
+  FREE_C_HEAP_ARRAY(BlockPLAB*, _alloc_buffer);
+}
+
+void G1PLABAllocator::BlockPLABData::initialize(uint num_alloc_buffers, size_t desired_plab_size, size_t tolerated_refills) {
+  _num_alloc_buffers = num_alloc_buffers;
+  _alloc_buffer = NEW_C_HEAP_ARRAY(BlockPLAB*, _num_alloc_buffers, mtGC);
+
+  for (uint node_index = 0; node_index < _num_alloc_buffers; node_index++) {
+    _alloc_buffer[node_index] = new BlockPLAB();
+  }
+
+  _plab_fill_counter = tolerated_refills;
+  _cur_desired_plab_size = desired_plab_size;
+}
+
+void G1PLABAllocator::BlockPLABData::notify_plab_refill(size_t tolerated_refills, size_t next_plab_size) {
+  _num_plab_fills++;
+  if (should_boost()) {
+    _plab_fill_counter = tolerated_refills;
+    _cur_desired_plab_size = next_plab_size;
+  } else {
+    _plab_fill_counter--;
+  }
+}
+
 G1PLABAllocator::G1PLABAllocator(G1Allocator* allocator) :
   _g1h(G1CollectedHeap::heap()),
   _allocator(allocator),
@@ -428,11 +472,17 @@ G1PLABAllocator::G1PLABAllocator(G1Allocator* allocator) :
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     _dest_data[state].initialize(alloc_buffers_length(state), _g1h->desired_plab_sz(state), initial_tolerated_refills);
   }
+  for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
+    _dest_block_data[state].initialize(alloc_buffers_length(state), _g1h->desired_plab_sz(state), initial_tolerated_refills);
+  }
+  
   _data_structure_plab_map = _data_structure_manager->create_and_initialize_plab_map(alloc_buffers_length(G1HeapRegionAttr::Old), _g1h->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
+  _data_structure_block_plab_map = _data_structure_manager->create_and_initialize_block_plab_map(alloc_buffers_length(G1HeapRegionAttr::Old), _g1h->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
 }
 
 G1PLABAllocator::~G1PLABAllocator() {
   _data_structure_manager->delete_plab_map(_data_structure_plab_map);
+  _data_structure_manager->delete_block_plab_map(_data_structure_block_plab_map);
 }
 
 bool G1PLABAllocator::may_throw_away_buffer(size_t const allocation_word_sz, size_t const buffer_size) const {
@@ -445,72 +495,190 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
                                                        uint node_index,
                                                        G1DataStructureRegionSet* data_structure) {
   size_t plab_word_size = plab_size(dest.type());
-  size_t next_plab_word_size = plab_word_size;
+  
+  size_t block_plab_word_size = BlockPLAB::size();
+  size_t next_plab_word_size = block_plab_word_size;
 
   PLABData* plab_data = &_dest_data[dest.type()];
+  BlockPLABData* block_plab_data = &_dest_block_data[dest.type()];
+  
   if(dest.type() == G1HeapRegionAttr::Old && data_structure != nullptr) {
     // plab_data = data_structure->plab_data();
-    bool success = _data_structure_plab_map->get(data_structure, plab_data);
-    assert(success, "PLABData not found for data structure");
-    plab_word_size = plab_data->_cur_desired_plab_size;
-    next_plab_word_size = plab_word_size;
+    // bool success = _data_structure_plab_map->get(data_structure, plab_data);
+    // assert(success, "PLABData not found for data structure");
+    bool success = _data_structure_block_plab_map->get(data_structure, block_plab_data);
+    assert(success, "BlockPLABData not found for data structure");
+    // plab_word_size = plab_data->_cur_desired_plab_size;
+    // next_plab_word_size = block_plab_word_size;
   }
 
-  if (plab_data->should_boost()) {
-    next_plab_word_size = _g1h->clamp_plab_size(next_plab_word_size * 2);
-  }
+  // if (plab_data->should_boost()) {
+  //   next_plab_word_size = _g1h->clamp_plab_size(next_plab_word_size * 2);
+  // }
 
+  // yizhe: required_in_plab can be used to calculate the number of block_plabs
   size_t required_in_plab = PLAB::size_required_for_allocation(word_sz);
 
   // Only get a new PLAB if the allocation fits into the to-be-allocated PLAB and
   // it would not waste more than ParallelGCBufferWastePct in the current PLAB.
   // Boosting the PLAB also increasingly allows more waste to occur.
-  if ((required_in_plab <= next_plab_word_size) &&
-    may_throw_away_buffer(required_in_plab, plab_word_size)) {
 
-    PLAB* alloc_buf = alloc_buffer(dest, node_index, data_structure);
-    guarantee(alloc_buf->words_remaining() <= required_in_plab, "must be");
+  if(dest.type() == G1HeapRegionAttr::Old && data_structure != nullptr) {
+    // if ((required_in_plab <= next_plab_word_size) && may_throw_away_buffer(required_in_plab, block_plab_word_size)) {
+    if ((required_in_plab <= next_plab_word_size)) {
 
-    alloc_buf->retire();
+      // PLAB* alloc_buf = alloc_buffer(dest, node_index, data_structure);
+      BlockPLAB* alloc_block_buf = alloc_block_buffer(dest, node_index, data_structure);
+      // guarantee(alloc_buf->words_remaining() <= required_in_plab, "must be");
+      guarantee(alloc_block_buf->words_remaining() <= required_in_plab, "must be");
 
-    plab_data->notify_plab_refill(_tolerated_refills, next_plab_word_size);
-    plab_word_size = next_plab_word_size;
+      // alloc_buf->retire();
+      alloc_block_buf->retire();
 
-    size_t actual_plab_size = 0;
-    HeapWord* buf = _allocator->par_allocate_during_gc(dest,
-                                                       required_in_plab,
-                                                       plab_word_size,
-                                                       &actual_plab_size,
-                                                       node_index,
-                                                       data_structure);
+      // plab_data->notify_plab_refill(_tolerated_refills, next_plab_word_size);
+      // plab_word_size = next_plab_word_size;
 
-    assert(buf == nullptr || ((actual_plab_size >= required_in_plab) && (actual_plab_size <= plab_word_size)),
-           "Requested at minimum %zu, desired %zu words, but got %zu at " PTR_FORMAT,
-           required_in_plab, plab_word_size, actual_plab_size, p2i(buf));
+      /*
+        |bp1|bp2|bp3|...|bp15|bp16|
+        ---------------------------
+                  region
+        1. 
+      */
+      size_t actual_plab_size = 0;
+      HeapWord* buf = _allocator->par_allocate_during_gc(dest,
+                                                        //  required_in_plab,
+                                                        block_plab_word_size,
+                                                         block_plab_word_size,
+                                                         &actual_plab_size,
+                                                         node_index,
+                                                         data_structure);
 
-    if (buf != nullptr) {
-      alloc_buf->set_buf(buf, actual_plab_size);
+      assert(buf == nullptr || ((actual_plab_size >= required_in_plab) && (actual_plab_size <= block_plab_word_size)),
+             "Requested at minimum %zu, desired %zu words, but got %zu at " PTR_FORMAT,
+             required_in_plab, plab_word_size, actual_plab_size, p2i(buf));
 
-      HeapWord* const obj = alloc_buf->allocate(word_sz);
-      assert(obj != nullptr, "PLAB should have been big enough, tried to allocate "
-                          "%zu requiring %zu PLAB size %zu",
-                          word_sz, required_in_plab, plab_word_size);
-      return obj;
+      if (buf != nullptr) {
+        // alloc_buf->set_buf(buf, actual_plab_size);
+        alloc_block_buf->set_buf(buf);
+        /*
+          yizhe:
+          todo: add this buf into data_structure's _block_plabs;
+        */
+        // BlockPLAB* new_block_plab = new BlockPLAB(actual_plab_size);
+        // new_block_plab->set_buf(buf, actual_plab_size);
+        // // alloc_block_buf->set_buf(buf, actual_plab_size);
+        // data_structure->add_block_plab(new_block_plab);
+        // data_structure->set_alloc_block_plab(new_block_plab);
+        // new_block_plab->set_normal();
+
+        // HeapWord* const obj = alloc_buf->allocate(word_sz);
+        // log_info(gc) ("alloc in a new block_plab");
+        HeapWord* const obj = alloc_block_buf->allocate(word_sz);
+        // HeapWord* const obj = new_block_plab->allocate(word_sz);
+        assert(obj != nullptr, "PLAB should have been big enough, tried to allocate "
+                            "%zu requiring %zu PLAB size %zu",
+                            word_sz, required_in_plab, block_plab_word_size);
+        return obj;
+      }
+      // Otherwise.
+      *plab_refill_failed = true;
     }
-    // Otherwise.
-    *plab_refill_failed = true;
+    // Try direct allocation. 
+    // yizhe: if word_sz > block_plab_size, how can we do ?
+    // size_t block_plab_count = required_in_plab / plab_word_size;
+    size_t real_size = ((required_in_plab + block_plab_word_size - 1) / block_plab_word_size) * block_plab_word_size;
+    size_t num_blocks = real_size / block_plab_word_size;
+    // HeapWord* result = _allocator->par_allocate_during_gc(dest, word_sz, node_index, data_structure);
+    HeapWord* result = _allocator->par_allocate_during_gc(dest, real_size, node_index, data_structure);
+    if (result != nullptr) {
+      // plab_data->_direct_allocated += word_sz;
+      // plab_data->_num_direct_allocations++;
+      // log_info(gc) ("alloc directly in region");
+      block_plab_data->_direct_allocated += word_sz;
+      block_plab_data->_num_direct_allocations++;
+
+      BlockPLAB* alloc_block_buf = alloc_block_buffer(dest, node_index, data_structure);
+
+      HeapWord* cur_block_start = result;
+        for (size_t i = 0; i < num_blocks - 1; i++) {
+          BlockPLAB* block_plab = new BlockPLAB();
+          block_plab->set_buf(cur_block_start);
+          block_plab->set_full(true);
+          cur_block_start += block_plab_word_size;
+          data_structure->add_block_plab(block_plab);
+        }
+        BlockPLAB* last_block_plab = new BlockPLAB();
+        last_block_plab->set_buf(cur_block_start);
+        last_block_plab->set_full(false);
+        data_structure->add_block_plab(last_block_plab);
+        alloc_block_buf->set_buf(cur_block_start);
+
+        // last_block_plab->set_top(cur_block_start + (word_sz % block_plab_word_size));
+        alloc_block_buf->allocate(word_sz % block_plab_word_size);
+      }
+      return result;
+    } else {
+      if ((required_in_plab <= plab_word_size) &&
+      may_throw_away_buffer(required_in_plab, plab_word_size)) {
+      // if ((required_in_plab <= next_plab_word_size) && may_throw_away_buffer(required_in_plab, block_plab_word_size))  {
+
+      PLAB* alloc_buf = alloc_buffer(dest, node_index, data_structure);
+      // BlockPLAB* alloc_block_buf = alloc_block_buffer(dest, node_index, data_structure);
+      guarantee(alloc_buf->words_remaining() <= required_in_plab, "must be");
+      // guarantee(alloc_block_buf->words_remaining() <= required_in_plab, "must be");
+
+      alloc_buf->retire();
+      // alloc_block_buf->retire();
+
+      // plab_data->notify_plab_refill(_tolerated_refills, next_plab_word_size);
+      // plab_word_size = next_plab_word_size;
+
+      /*
+        |bp1|bp2|bp3|...|bp15|bp16|
+        ---------------------------
+                  region
+        1. 
+      */
+      size_t actual_plab_size = 0;
+      HeapWord* buf = _allocator->par_allocate_during_gc(dest,
+                                                         required_in_plab,
+                                                         plab_word_size,
+                                                         &actual_plab_size,
+                                                         node_index,
+                                                         data_structure);
+
+      assert(buf == nullptr || ((actual_plab_size >= required_in_plab) && (actual_plab_size <= plab_word_size)),
+             "Requested at minimum %zu, desired %zu words, but got %zu at " PTR_FORMAT,
+             required_in_plab, plab_word_size, actual_plab_size, p2i(buf));
+
+      if (buf != nullptr) {
+        alloc_buf->set_buf(buf, actual_plab_size);
+
+        HeapWord* const obj = alloc_buf->allocate(word_sz);
+        assert(obj != nullptr, "PLAB should have been big enough, tried to allocate "
+                            "%zu requiring %zu PLAB size %zu",
+                            word_sz, required_in_plab, plab_word_size);
+        return obj;
+      }
+      // Otherwise.
+      *plab_refill_failed = true;
+    }
+    // Try direct allocation. 
+    HeapWord* result = _allocator->par_allocate_during_gc(dest, word_sz, node_index, data_structure);
+    if (result != nullptr) {
+      plab_data->_direct_allocated += word_sz;
+      plab_data->_num_direct_allocations++;
+    }
+    return result;
   }
-  // Try direct allocation.
-  HeapWord* result = _allocator->par_allocate_during_gc(dest, word_sz, node_index, data_structure);
-  if (result != nullptr) {
-    plab_data->_direct_allocated += word_sz;
-    plab_data->_num_direct_allocations++;
-  }
-  return result;
 }
 
 void G1PLABAllocator::undo_allocation(G1HeapRegionAttr dest, HeapWord* obj, size_t word_sz, uint node_index, G1DataStructureRegionSet* data_structure) {
-  alloc_buffer(dest, node_index, data_structure)->undo_allocation(obj, word_sz);
+  if (dest.type() == G1HeapRegionAttr::Old && data_structure != nullptr) {
+    alloc_block_buffer(dest, node_index, data_structure)->undo_allocation(obj, word_sz);
+  } else {
+    alloc_buffer(dest, node_index, data_structure)->undo_allocation(obj, word_sz);
+  }
 }
 
 class FlushClosure : public StackObj {
@@ -525,6 +693,18 @@ public:
   }
 };
 
+class FlushBlockPLABClosure : public StackObj {
+  // G1EvacStats* _stats;
+public:
+  // FlushBlockPLABClosure(G1EvacStats* stats) : _stats(stats) { }
+  void work(G1DataStructureRegionSet*& key, G1PLABAllocator::BlockPLABData*& value){
+    value->_alloc_buffer[0]->flush_and_retire_stats(nullptr);
+    // _stats->add_num_plab_filled(value->_num_plab_fills);
+    // _stats->add_direct_allocated(value->_direct_allocated);
+    // _stats->add_num_direct_allocated(value->_num_direct_allocations);
+  }
+};
+
 void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
   for (region_type_t state = 0; state < G1HeapRegionAttr::Num; state++) {
     G1EvacStats* stats = _g1h->alloc_buffer_stats(state);
@@ -532,6 +712,12 @@ void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
       PLAB* const buf = alloc_buffer(state, node_index, nullptr);
       if (buf != nullptr) {
         buf->flush_and_retire_stats(stats);
+      }
+      if (state == G1HeapRegionAttr::Old) {
+        BlockPLAB* const block_buf = alloc_block_buffer(state, node_index, nullptr);
+        if (block_buf != nullptr) {
+          block_buf->flush_and_retire_stats(nullptr);
+        }
       }
     }
     PLABData* plab_data = &_dest_data[state];
@@ -543,6 +729,9 @@ void G1PLABAllocator::flush_and_retire_stats(uint num_workers) {
 
   FlushClosure flush_closure(_g1h->alloc_buffer_stats(G1HeapRegionAttr::Old));
   _data_structure_plab_map->forEachClosure(&flush_closure);
+
+  FlushBlockPLABClosure flush_block_plab_closure;
+  _data_structure_block_plab_map->forEachClosure(&flush_block_plab_closure);
 
   log_trace(gc, plab)("PLAB boost: Young %zu -> %zu refills %zu (tolerated %zu) Old %zu -> %zu refills %zu (tolerated %zu)",
                       _g1h->alloc_buffer_stats(G1HeapRegionAttr::Young)->desired_plab_size(num_workers),

@@ -229,6 +229,7 @@ void G1CollectedHeap::set_humongous_metadata(HeapRegion* first_hr,
   // that there is a single object that starts at the bottom of the
   // first region.
   first_hr->hr_clear(false /* clear_space */);
+  // yizhe: I think I can set the metadata for the block_plab in a similar way, such as the first block_plab in a series of block_plab, we will set the metadata for the regions
   first_hr->set_starts_humongous(obj_top, words_fillable);
 
   if (update_remsets) {
@@ -319,6 +320,7 @@ G1CollectedHeap::humongous_obj_allocate_initialize_regions(HeapRegion* first_hr,
   Copy::fill_to_words(new_obj, oopDesc::header_size(), 0);
 
   // Next, update the metadata for the regions.
+  // yizhe: so, for the first block_plab in a series of block_plab, we will set the metadata for the regions
   set_humongous_metadata(first_hr, num_regions, word_size, true);
 
   HeapRegion* last_hr = region_at(last);
@@ -335,6 +337,7 @@ G1CollectedHeap::humongous_obj_allocate_initialize_regions(HeapRegion* first_hr,
   return new_obj;
 }
 
+// yizhe: this function is used to calculate the number of regions required for a humongous object
 size_t G1CollectedHeap::humongous_obj_size_in_regions(size_t word_size) {
   assert(is_humongous(word_size), "Object of size " SIZE_FORMAT " must be humongous here", word_size);
   return align_up(word_size, HeapRegion::GrainWords) / HeapRegion::GrainWords;
@@ -397,6 +400,7 @@ G1CollectedHeap::mem_allocate(size_t word_size,
                               bool*  gc_overhead_limit_was_exceeded) {
   assert_heap_not_locked_and_not_at_safepoint();
 
+  // yizhe: if word_size > region size / 2, we will allocate humongous object
   if (is_humongous(word_size)) {
     return attempt_allocation_humongous(word_size);
   }
@@ -1527,6 +1531,7 @@ jint G1CollectedHeap::initialize() {
   // BOT updates. So we'll tag the dummy region as eden to avoid that.
   dummy_region->set_eden();
   // Make sure it's full.
+  // yizhe: regions[0] is a dummy_region, which is full, so that any allocation will return false
   dummy_region->set_top(dummy_region->end());
   G1AllocRegion::setup(this, dummy_region);
 

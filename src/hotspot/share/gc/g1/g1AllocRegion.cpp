@@ -130,6 +130,7 @@ size_t G1AllocRegion::retire(bool fill_up) {
   return waste;
 }
 
+// yizhe: in this function, _alloc_region is set to the new_alloc_region
 HeapWord* G1AllocRegion::new_alloc_region_and_allocate(size_t word_size,
                                                        bool force) {
   assert_alloc_region(_alloc_region == _dummy_region, "pre-condition");

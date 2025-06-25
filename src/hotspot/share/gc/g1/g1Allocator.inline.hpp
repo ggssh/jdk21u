@@ -28,8 +28,11 @@
 #include "gc/g1/g1Allocator.hpp"
 
 #include "gc/g1/g1AllocRegion.inline.hpp"
+#include "gc/shared/block_plab.hpp"
 #include "gc/shared/plab.inline.hpp"
+#include "logging/log.hpp"
 #include "memory/universe.hpp"
+#include "utilities/debug.hpp"
 
 inline uint G1Allocator::current_node_index() const {
   return _numa->index_of_current_thread();
@@ -131,6 +134,65 @@ inline PLAB* G1PLABAllocator::alloc_buffer(region_type_t dest, uint node_index, 
   }
 }
 
+inline BlockPLAB* G1PLABAllocator::alloc_block_buffer(G1HeapRegionAttr dest, uint node_index, G1DataStructureRegionSet* data_structure) const {
+  assert(dest.is_valid(),
+         "Allocation buffer index out of bounds: %s", dest.get_type_str());
+  assert(_dest_data[dest.type()]._alloc_buffer != nullptr,
+         "Allocation buffer is null: %s", dest.get_type_str());
+  return alloc_block_buffer(dest.type(), node_index, data_structure);
+}
+
+// /*
+//   yizhe:
+//   this function is used to allocate a block plab for data structure objects
+// */
+inline BlockPLAB* G1PLABAllocator::alloc_block_buffer(region_type_t dest, uint node_index, G1DataStructureRegionSet* data_structure) const {
+  assert(dest < G1HeapRegionAttr::Num,
+         "Allocation buffer index out of bounds: %u", dest);
+
+  if (dest == G1HeapRegionAttr::Young) {
+    ShouldNotReachHere();
+    assert(node_index < alloc_buffers_length(dest),
+           "Allocation buffer index out of bounds: %u, %u", dest, node_index);
+    
+    return nullptr;
+  } else {
+    if (data_structure != nullptr) {
+      // PLABData* plab_data = nullptr;
+      // bool success = _data_structure_plab_map->get(data_structure, plab_data);
+      // assert(success, "PLABData not found for data structure");
+      // if(!success){
+      //   size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;
+      //   plab_data = new G1PLABAllocator::PLABData();
+      //   // yizhe:
+      //   plab_data->initialize(alloc_buffers_length(G1HeapRegionAttr::Old), _g1h->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
+      //   _data_structure_plab_map->insert(data_structure, plab_data);
+      //   ShouldNotReachHere();
+      // }
+
+      // yizhe: todo check if the data structure has a block plab
+      BlockPLABData* block_plab_data = nullptr;
+      bool success = _data_structure_block_plab_map->get(data_structure, block_plab_data);
+      assert(success, "BlockPLABData not found for data structure");
+      if(!success){
+        // yizhe: note that the desired_plab_sz is not used in the block plab map, because the size of BlockPLAB is fixed.
+        size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;
+        block_plab_data = new G1PLABAllocator::BlockPLABData();
+        block_plab_data->initialize(alloc_buffers_length(G1HeapRegionAttr::Old), _g1h->desired_plab_sz(G1HeapRegionAttr::Old), initial_tolerated_refills);
+        _data_structure_block_plab_map->insert(data_structure, block_plab_data);
+        // ShouldNotReachHere();
+      }
+      // BlockPLAB* block_plab = data_structure->alloc_block_plab();
+      // assert(block_plab != nullptr, "BlockPLAB is null");
+      // return block_plab;
+      return block_plab_data->_alloc_buffer[0];
+    }
+    // yizhe: data_structure is null, which means this is a normal object allocation not related to data structure
+    // ShouldNotReachHere();
+    return nullptr;
+  }
+}
+
 inline G1DataStructureRegionSet* G1PLABAllocator::data_structure_region_set(oop from_oop, oop to_oop) const {
   return _data_structure_manager->get_data_structure(from_oop, to_oop);
 }
@@ -154,8 +216,38 @@ inline HeapWord* G1PLABAllocator::plab_allocate(G1HeapRegionAttr dest,
                                                                 size_t word_sz,
                                                                 uint node_index,
                                                                 G1DataStructureRegionSet* data_structure){
-  PLAB* buffer = alloc_buffer(dest, node_index, data_structure);
-  return buffer->allocate(word_sz);
+  // PLAB* buffer = alloc_buffer(dest, node_index, data_structure);
+  // BlockPLAB* block_buffer = alloc_block_buffer(dest, node_index, data_structure);
+  // return buffer->allocate(word_sz);
+  // return block_buffer->allocate(word_sz);
+
+  assert(dest.type() < G1HeapRegionAttr::Num,
+         "Allocation buffer index out of bounds: %u", dest.type());
+  if (dest.type() == G1HeapRegionAttr::Young) {
+    assert(node_index < alloc_buffers_length(dest.type()),
+           "Allocation buffer index out of bounds: %u, %u", dest.type(), node_index);
+    PLAB* buffer = alloc_buffer(dest, node_index, data_structure);
+    return buffer->allocate(word_sz);
+  } else {
+    // assert(data_structure != nullptr, "Data structure is null");
+    if (data_structure != nullptr) {
+      // BlockPLAB* block_plab = data_structure->alloc_block_plab();
+      BlockPLAB* block_plab = alloc_block_buffer(dest, node_index, data_structure);
+      // assert(block_plab != nullptr, "BlockPLAB is null");
+      // if (block_plab == nullptr) {
+      //   // yizhe: this is a normal object allocation not related to data structure
+      //   PLAB* buffer = alloc_buffer(dest, node_index, data_structure);
+      //   return buffer->allocate(word_sz);
+      // } else {
+      //   return block_plab->allocate(word_sz);
+      // }
+      // log_info(gc) ("block_plab allocate: " PTR_FORMAT, p2i(block_plab));
+      return block_plab->allocate(word_sz);
+    }
+    // log_info(gc) ("data structure is null");
+    PLAB* buffer = alloc_buffer(dest, node_index, data_structure);
+    return buffer->allocate(word_sz);
+  }
 }
 
 inline HeapWord* G1PLABAllocator::allocate(G1HeapRegionAttr dest,

@@ -68,6 +68,7 @@ inline HeapWord* HeapRegion::par_allocate_impl(size_t min_word_size,
     HeapWord* obj = top();
     size_t available = pointer_delta(end(), obj);
     size_t want_to_allocate = MIN2(available, desired_word_size);
+    // yizhe: once the want_to_allocate is greater than min_word_size, we can allocate
     if (want_to_allocate >= min_word_size) {
       HeapWord* new_top = obj + want_to_allocate;
       HeapWord* result = Atomic::cmpxchg(&_top, obj, new_top);
@@ -80,6 +81,7 @@ inline HeapWord* HeapRegion::par_allocate_impl(size_t min_word_size,
         return obj;
       }
     } else {
+      // yizhe: if the want_to_allocate is less than min_word_size, we can't allocate
       return nullptr;
     }
   } while (true);

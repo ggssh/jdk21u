@@ -103,6 +103,9 @@ G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1Data
     // _plab_data(),
     _retained_old_region(nullptr),
     _regions_lock(Mutex::service-2, "regions lock"),
+    _block_plab_lock(Mutex::nosafepoint, "block_plab lock"),
+    _block_plabs(),
+    _cur_alloc_block_plab(nullptr),
     _id(id),
     _is_alive(false) { 
     
@@ -130,6 +133,10 @@ G1DataStructureRegionSet::G1DataStructureRegionSet(G1CollectedHeap* heap, G1Data
 
 void G1DataStructureRegionSet::init_data_structure_alloc_region(G1Allocator* allocator, G1EvacInfo* evacuation_info) {
     _alloc_region.init();
+    /*
+        yizhe: todo: 
+        1. when should we set the _cur_alloc_block_plab
+    */
     allocator->reuse_retained_old_region(evacuation_info,
                                     &_alloc_region,
                                     &_retained_old_region);
@@ -166,6 +173,13 @@ G1DataStructureRegionSet::~G1DataStructureRegionSet(){
     //     log_info(gc)("no alloc region to release");
     // }
     clear_regions();
+    LinkedListNode<BlockPLAB*>* p = _block_plabs.head();
+    while (p != nullptr) {
+        BlockPLAB* block_plab = *p->data();
+        delete block_plab;
+        p = p->next();
+    }
+    _block_plabs.clear();
     // if(released != nullptr){
     //     log_info(gc)("released %s", released->data_structure() == nullptr ? "ds" : "normal");
     // }
