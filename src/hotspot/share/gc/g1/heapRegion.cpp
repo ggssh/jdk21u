@@ -130,7 +130,8 @@ void HeapRegion::hr_clear(bool clear_space) {
   init_top_at_mark_start();
   if(_data_structure_region_set != nullptr) {
     _data_structure_region_set->remove_region(this);
-
+    // yizhe todo: remove all block_plabs belonging to this region
+    
   }
   _data_structure_region_set = nullptr;
   _region_alive = false;
@@ -141,6 +142,9 @@ void HeapRegion::hr_clear(bool clear_space) {
 void HeapRegion::clear_cardtable() {
   G1CardTable* ct = G1CollectedHeap::heap()->card_table();
   ct->clear_MemRegion(MemRegion(bottom(), end()));
+
+  BlockCardTable* bct = G1CollectedHeap::heap()->block_card_table();
+  bct->clear_MemRegion(MemRegion(bottom(), end()));
 }
 
 double HeapRegion::calc_gc_efficiency() {

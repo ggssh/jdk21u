@@ -516,7 +516,7 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
   //   next_plab_word_size = _g1h->clamp_plab_size(next_plab_word_size * 2);
   // }
 
-  // yizhe: required_in_plab can be used to calculate the number of block_plabs
+  // yizhe: required_in_plab contains the lab_alignment_reserve
   size_t required_in_plab = PLAB::size_required_for_allocation(word_sz);
 
   // Only get a new PLAB if the allocation fits into the to-be-allocated PLAB and
@@ -547,8 +547,8 @@ HeapWord* G1PLABAllocator::allocate_direct_or_new_plab(G1HeapRegionAttr dest,
       size_t actual_plab_size = 0;
       HeapWord* buf = _allocator->par_allocate_during_gc(dest,
                                                         //  required_in_plab,
-                                                        block_plab_word_size,
-                                                         block_plab_word_size,
+                                                        next_plab_word_size,
+                                                         next_plab_word_size,
                                                          &actual_plab_size,
                                                          node_index,
                                                          data_structure);

@@ -150,6 +150,8 @@ void G1PageBasedVirtualSpace::commit_tail() {
 }
 
 void G1PageBasedVirtualSpace::commit_internal(size_t start_page, size_t end_page) {
+  // log_error(gc) ("commit_internal: start_page: %zu, end_page: %zu", start_page, end_page);
+  // log_error(gc) ("committed size: %zu", _committed.size());
   guarantee(start_page < end_page,
             "Given start page " SIZE_FORMAT " is larger or equal to end page " SIZE_FORMAT, start_page, end_page);
   guarantee(end_page <= _committed.size(),

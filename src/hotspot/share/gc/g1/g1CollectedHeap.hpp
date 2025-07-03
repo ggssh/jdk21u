@@ -50,6 +50,7 @@
 #include "gc/g1/g1DataStructureManager.hpp"
 #include "gc/g1/g1DataStructureRegionSet.hpp"
 #include "gc/g1/regionClassHashMap.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "gc/shared/referenceHashMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
@@ -182,6 +183,7 @@ private:
 
   WorkerThreads* _workers;
   G1CardTable* _card_table;
+  BlockCardTable* _block_card_table;
 
   Ticks _collection_pause_end;
 
@@ -1127,6 +1129,10 @@ public:
 
   G1CardTable* card_table() const {
     return _card_table;
+  }
+
+  BlockCardTable* block_card_table() const {
+    return _block_card_table;
   }
 
   // Iteration functions.

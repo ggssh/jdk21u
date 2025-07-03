@@ -43,6 +43,7 @@ uint CardTable::_card_shift = 0;
 uint CardTable::_card_size = 0;
 uint CardTable::_card_size_in_words = 0;
 
+// yizhe: initialize card size(GCCardSizeInBytes)
 void CardTable::initialize_card_size() {
   assert(UseG1GC || UseParallelGC || UseSerialGC,
          "Initialize card size should only be called by card based collectors.");

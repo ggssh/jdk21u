@@ -44,9 +44,11 @@ class G1MappingChangedListener {
 // space.
 class G1RegionToSpaceMapper : public CHeapObj<mtGC> {
  private:
+ // yizhe: how can we set the _listener?
   G1MappingChangedListener* _listener;
  protected:
   // Backing storage.
+  // yizhe: debugging
   G1PageBasedVirtualSpace _storage;
 
   // Mapping management

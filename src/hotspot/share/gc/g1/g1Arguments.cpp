@@ -55,6 +55,7 @@ void G1Arguments::initialize_alignments() {
   // around this we use the unaligned values for the heap.
   HeapRegion::setup_heap_region_size(MaxHeapSize);
 
+  BlockCardTable::initialize_card_size();
   SpaceAlignment = HeapRegion::GrainBytes;
   HeapAlignment = calculate_heap_alignment(SpaceAlignment);
 

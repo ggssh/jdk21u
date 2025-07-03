@@ -98,6 +98,8 @@ public:
 
   static size_t size();
 
+  static size_t size_in_bytes() { return size() * HeapWordSize; }
+
   // If an allocation of the given "word_sz" can be satisfied within the
   // buffer, do the allocation, returning a pointer to the start of the
   // allocated block.  If the allocation request cannot be satisfied,

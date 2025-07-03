@@ -22,6 +22,8 @@
  *
  */
 
+#include "gc/g1/g1BlockOffsetTable.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/metadataOnStackMark.hpp"
@@ -1241,6 +1243,7 @@ G1CollectedHeap::G1CollectedHeap() :
   _free_arena_memory_task(nullptr),
   _workers(nullptr),
   _card_table(nullptr),
+  _block_card_table(nullptr),
   _collection_pause_end(Ticks::now()),
   _soft_ref_policy(),
   _old_set("Old Region Set", new OldRegionSetChecker()),
@@ -1398,11 +1401,16 @@ jint G1CollectedHeap::initialize() {
 
   // Create the barrier set for the entire reserved region.
   G1CardTable* ct = new G1CardTable(heap_rs.region());
+  // yizhe: create a block card table
+  BlockCardTable* bct = new BlockCardTable(heap_rs.region());
+
   G1BarrierSet* bs = new G1BarrierSet(ct);
   bs->initialize();
+  bs->set_block_card_table(bct);
   assert(bs->is_a(BarrierSet::G1BarrierSet), "sanity");
   BarrierSet::set_barrier_set(bs);
   _card_table = ct;
+  _block_card_table = bct;
 
   {
     G1SATBMarkQueueSet& satbqs = bs->satb_mark_queue_set();
@@ -1443,13 +1451,21 @@ jint G1CollectedHeap::initialize() {
                              G1CardTable::compute_size(heap_rs.size() / HeapWordSize),
                              G1CardTable::heap_map_factor());
 
+  // yizhe: create block card table mapper
+  G1RegionToSpaceMapper* block_cardtable_storage = 
+    create_aux_memory_mapper("Block Card Table",
+                             BlockCardTable::compute_size(heap_rs.size() / HeapWordSize),
+                             BlockCardTable::heap_map_factor());
+
   size_t bitmap_size = G1CMBitMap::compute_size(heap_rs.size());
   G1RegionToSpaceMapper* bitmap_storage =
     create_aux_memory_mapper("Mark Bitmap", bitmap_size, G1CMBitMap::heap_map_factor());
 
-  _hrm.initialize(heap_storage, bitmap_storage, bot_storage, cardtable_storage);
+  // yizhe: 
+  _hrm.initialize(heap_storage, bitmap_storage, bot_storage, cardtable_storage, block_cardtable_storage);
+  // yizhe: initialize the card table
   _card_table->initialize(cardtable_storage);
-
+  _block_card_table->initialize(block_cardtable_storage);
   // 6843694 - ensure that the maximum region index can fit
   // in the remembered set structures.
   const uint max_region_idx = (1U << (sizeof(RegionIdx_t)*BitsPerByte-1)) - 1;
