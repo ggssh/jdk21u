@@ -186,6 +186,7 @@ class IdealKit: public StackObj {
   Node* OrI(Node* l, Node* r)  { return transform(new OrINode(l, r));  }
   Node* MaxI(Node* l, Node* r) { return transform(new MaxINode(l, r)); }
   Node* LShiftI(Node* l, Node* r) { return transform(new LShiftINode(l, r)); }
+  Node* LShiftL(Node* l, Node* r) { return transform(new LShiftLNode(l, r)); }
   Node* CmpI(Node* l, Node* r) { return transform(new CmpINode(l, r)); }
   Node* Bool(Node* cmp, BoolTest::mask relop) { return transform(new BoolNode(cmp, relop)); }
   void  increment(IdealVariable& v, Node* j)  { set(v, AddI(value(v), j)); }

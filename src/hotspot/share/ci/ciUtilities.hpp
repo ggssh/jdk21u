@@ -26,6 +26,7 @@
 #define SHARE_CI_CIUTILITIES_HPP
 
 #include "ci/ciEnv.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -52,8 +53,13 @@ inline const char* bool_to_str(bool b) {
 const char* basictype_to_str(BasicType t);
 
 CardTable::CardValue* ci_card_table_address();
+BlockCardTable::CardValue* ci_block_card_table_address();
 template <typename T> T ci_card_table_address_as() {
   return reinterpret_cast<T>(ci_card_table_address());
+}
+
+template <typename T> T ci_block_card_table_address_as() {
+  return reinterpret_cast<T>(ci_block_card_table_address());
 }
 
 #endif // SHARE_CI_CIUTILITIES_HPP

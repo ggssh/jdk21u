@@ -61,3 +61,11 @@ JRT_LEAF(void, G1BarrierSetRuntime::write_ref_field_post_entry(volatile G1CardTa
   G1DirtyCardQueue& queue = G1ThreadLocalData::dirty_card_queue(thread);
   G1BarrierSet::dirty_card_queue_set().enqueue(queue, card_addr);
 JRT_END
+
+JRT_LEAF(void, G1BarrierSetRuntime::log_block_card_debug_info(void* store_block_card_addr, void* block_cardtable, size_t byte_map_size))
+  // log_error(gc)("store_block_card_addr: %p, block_cardtable: %p, byte_map_size: %zu", store_block_card_addr, block_cardtable, byte_map_size);
+JRT_END
+
+JRT_LEAF(void, G1BarrierSetRuntime::log_block_card_debug_info2(void* store_addr, void* new_val, void* whole_heap_start))
+  // log_error(gc)("store_addr: %p, new_val: %p, whole_heap_start: %p", store_addr, new_val, whole_heap_start);
+JRT_END

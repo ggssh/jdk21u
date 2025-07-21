@@ -66,6 +66,8 @@ void G1CardTable::initialize(G1RegionToSpaceMapper* mapper) {
   log_trace(gc, barrier)("    &_byte_map[0]: " PTR_FORMAT "  &_byte_map[last_valid_index()]: " PTR_FORMAT,
                          p2i(&_byte_map[0]), p2i(&_byte_map[last_valid_index()]));
   log_trace(gc, barrier)("    _byte_map_base: " PTR_FORMAT,  p2i(_byte_map_base));
+
+  log_info(gc, barrier)("_byte_map: " PTR_FORMAT " _byte_map_base: " PTR_FORMAT " _card_shift: %d, low_bound: " PTR_FORMAT " high_bound: " PTR_FORMAT "",  p2i(_byte_map), p2i(_byte_map_base), _card_shift, p2i(low_bound), p2i(high_bound));
 }
 
 bool G1CardTable::is_in_young(const void* p) const {

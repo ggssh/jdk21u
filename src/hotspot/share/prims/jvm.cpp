@@ -466,7 +466,7 @@ JVM_ENTRY(jlong, JVM_ObjAddr(JNIEnv *env, jobject self, jobject obj))
   // This is a no-op in the VM, but we need to provide a definition
   // so that the native method can be linked.
   oop oop_obj = JNIHandles::resolve_non_null(obj);
-  return (jlong)oop_obj;
+  return cast_from_oop<jlong>(oop_obj);
 JVM_END
 
 

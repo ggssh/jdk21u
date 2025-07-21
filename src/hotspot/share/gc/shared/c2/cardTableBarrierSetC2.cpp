@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "ci/ciUtilities.hpp"
 #include "gc/shared/cardTable.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/c2/cardTableBarrierSetC2.hpp"
 #include "gc/shared/gc_globals.hpp"
@@ -44,6 +45,16 @@ Node* CardTableBarrierSetC2::byte_map_base_node(GraphKit* kit) const {
    } else {
      return kit->null();
    }
+}
+
+Node* CardTableBarrierSetC2::block_byte_map_base_node(GraphKit* kit) const {
+  // Get base of card map
+  BlockCardTable::CardValue* card_table_base = ci_block_card_table_address();
+  if (card_table_base != nullptr) {
+    return kit->makecon(TypeRawPtr::make((address)card_table_base));
+  } else {
+    return kit->null();
+  }
 }
 
 // vanilla post barrier

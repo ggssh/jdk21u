@@ -1401,6 +1401,7 @@ jint G1CollectedHeap::initialize() {
 
   // Create the barrier set for the entire reserved region.
   G1CardTable* ct = new G1CardTable(heap_rs.region());
+  BlockCardTable::initialize_card_size();
   // yizhe: create a block card table
   BlockCardTable* bct = new BlockCardTable(heap_rs.region());
 

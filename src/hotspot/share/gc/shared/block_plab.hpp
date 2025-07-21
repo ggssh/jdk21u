@@ -18,7 +18,7 @@ class BlockPLABType {
   Tag _tag;
 
 public:
-  BlockPLABType(Tag t) : _tag(t) { assert(is_valid(_tag), "invalid block plab type: %u", (uint) (t)); }
+  BlockPLABType(Tag t) : _tag(t) { assert(is_valid(), "invalid block plab type: %u", (uint) (t)); }
 
   bool is_normal() const { return get() == NormalTag; }
 

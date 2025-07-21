@@ -38,7 +38,7 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure(oop from_oo
         }
 
         {
-            log_info(gc)("create data structure for obj %p, class %s, at %p, id %u", to_oop, to_symbol->as_C_string(), data_structure, _present_id);
+            log_info(gc)("create data structure for obj " PTR_FORMAT ", class %s, at %p, id %u", p2i(to_oop), to_symbol->as_C_string(), data_structure, _present_id);
             data_structure->init_data_structure_alloc_region(_allocator, _evacuation_info);
             _data_structures.add(data_structure);
             _present_id++;
@@ -68,7 +68,7 @@ G1DataStructureRegionSet* G1DataStructureManager::get_data_structure(oop from_oo
                     }
 
                     {
-                        log_info(gc)("create data structure for obj %p, class %s, at %p, id %u", to_oop, from_symbol->as_C_string(), data_structure, _present_id);
+                        log_info(gc)("create data structure for obj " PTR_FORMAT ", class %s, at %p, id %u", p2i(to_oop), from_symbol->as_C_string(), data_structure, _present_id);
                         // log_info(gc)("create data structure for obj %p, class %s", to_oop, from_symbol->as_C_string());
                         data_structure->init_data_structure_alloc_region(_allocator, _evacuation_info);
                         _data_structures.add(data_structure);

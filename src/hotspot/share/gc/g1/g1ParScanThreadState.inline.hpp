@@ -31,6 +31,7 @@
 #include "gc/g1/g1CollectedHeap.inline.hpp"
 #include "gc/g1/g1OopStarChunkedList.inline.hpp"
 #include "gc/g1/g1RemSet.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 
@@ -99,6 +100,27 @@ G1OopStarChunkedList* G1ParScanThreadState::oops_into_optional_region(const Heap
 template <class T> void G1ParScanThreadState::write_ref_field_post(T* p, oop obj) {
   assert(obj != nullptr, "Must be");
   if (HeapRegion::is_in_same_region(p, obj)) {
+    // check block card table if objs are in same region
+    BlockCardTable* block_ct = _g1h->block_card_table();
+    if (block_ct != nullptr) {
+      // log_info(gc)("[YYZ-DEBUG] Block card table is not null");
+      volatile BlockCardTable::CardValue* block_byte = block_ct->byte_for(p);
+      volatile BlockCardTable::CardValue* new_val_block_byte = block_ct->byte_for(obj);
+      // log_info(gc)("[YYZ-DEBUG] Block card table: %p (value: %p), new value: %p (value: %p)",
+      //              block_byte, (void*)(*block_byte), new_val_block_byte, (void*)(*new_val_block_byte));
+      
+      // Compare block card table values
+      if (*block_byte != *new_val_block_byte) {
+        // log_info(gc)("[YYZ-DEBUG] Block data structures are different, need to enqueue card");
+        // Block data structures are different, need to enqueue card
+        G1HeapRegionAttr dest_attr = _g1h->region_attr(obj);
+        if (dest_attr.is_in_cset()) {
+          enqueue_card_force(dest_attr, p, obj);
+        } else {
+          enqueue_card_if_tracked(dest_attr, p, obj);
+        }
+      }
+    }
     return;
   }
   G1HeapRegionAttr from_attr = _g1h->region_attr(p);
@@ -123,7 +145,7 @@ template <class T> void G1ParScanThreadState::write_ref_field_post(T* p, oop obj
 }
 
 template <class T> void G1ParScanThreadState::enqueue_card_if_tracked(G1HeapRegionAttr region_attr, T* p, oop o) {
-  assert(!HeapRegion::is_in_same_region(p, o), "Should have filtered out cross-region references already.");
+  // assert(!HeapRegion::is_in_same_region(p, o), "Should have filtered out cross-region references already.");
   assert(!_g1h->heap_region_containing(p)->is_survivor(), "Should have filtered out from-newly allocated survivor references already.");
   // We relabel all regions that failed evacuation as old gen without remembered,
   // and so pre-filter them out in the caller.
@@ -149,7 +171,7 @@ template <class T> void G1ParScanThreadState::enqueue_card_if_tracked(G1HeapRegi
 }
 
 template <class T> void G1ParScanThreadState::enqueue_card_force(G1HeapRegionAttr region_attr, T* p, oop o) {
-  assert(!HeapRegion::is_in_same_region(p, o), "Should have filtered out cross-region references already.");
+  // assert(!HeapRegion::is_in_same_region(p, o), "Should have filtered out cross-region references already.");
   assert(!_g1h->heap_region_containing(p)->is_survivor(), "Should have filtered out from-newly allocated survivor references already.");
   // We relabel all regions that failed evacuation as old gen without remembered,
   // and so pre-filter them out in the caller.

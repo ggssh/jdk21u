@@ -173,7 +173,7 @@ inline BlockPLAB* G1PLABAllocator::alloc_block_buffer(region_type_t dest, uint n
       // yizhe: todo check if the data structure has a block plab
       BlockPLABData* block_plab_data = nullptr;
       bool success = _data_structure_block_plab_map->get(data_structure, block_plab_data);
-      assert(success, "BlockPLABData not found for data structure");
+      // assert(success, "BlockPLABData not found for data structure");
       if(!success){
         // yizhe: note that the desired_plab_sz is not used in the block plab map, because the size of BlockPLAB is fixed.
         size_t initial_tolerated_refills = ResizePLAB ? _tolerated_refills + 1 : _tolerated_refills;

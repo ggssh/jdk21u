@@ -143,6 +143,8 @@ void HeapRegion::clear_cardtable() {
   G1CardTable* ct = G1CollectedHeap::heap()->card_table();
   ct->clear_MemRegion(MemRegion(bottom(), end()));
 
+  // log_info(gc)("HeapRegion::clear_cardtable: clearing card table for region [" PTR_FORMAT ", " PTR_FORMAT ")", 
+  //   p2i(bottom()), p2i(end()));
   BlockCardTable* bct = G1CollectedHeap::heap()->block_card_table();
   bct->clear_MemRegion(MemRegion(bottom(), end()));
 }

@@ -22,6 +22,9 @@
  *
  */
 
+#include "c1/c1_LIR.hpp"
+#include "gc/g1/g1BarrierSetAssembler_x86.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "precompiled.hpp"
 #include "c1/c1_LIRGenerator.hpp"
 #include "c1/c1_CodeStubs.hpp"
@@ -30,6 +33,7 @@
 #include "gc/g1/g1BarrierSetAssembler.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegion.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 #ifdef ASSERT
@@ -115,6 +119,7 @@ void G1BarrierSetC1::pre_barrier(LIRAccess& access, LIR_Opr addr_opr,
   __ branch_destination(slow->continuation());
 }
 
+// yizhe: todo : fix bug
 void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_Opr addr, LIR_Opr new_val) {
   LIRGenerator* gen = access.gen();
   DecoratorSet decorators = access.decorators();
@@ -172,7 +177,82 @@ void G1BarrierSetC1::post_barrier(LIRAccess& access, LIR_Opr addr, LIR_Opr new_v
   __ cmp(lir_cond_notEqual, xor_shift_res, LIR_OprFact::intptrConst(NULL_WORD));
 
   CodeStub* slow = new G1PostBarrierStub(addr, new_val);
-  __ branch(lir_cond_notEqual, slow);
+  // __ branch(lir_cond_notEqual, slow);
+  __ branch(lir_cond_always, slow);
+  // __ jump(slow);
+
+  // // check block's data structure is same?
+  // LIR_Opr tmp_addr = gen->new_pointer_register();
+  // LIR_Opr store_block_card_addr = gen->new_pointer_register();
+  // LIR_Opr new_val_block_card_addr = gen->new_pointer_register();
+
+  // // Calculate store address card index: (addr >> card_shift) * sizeof(CardValue)
+  // __ move(addr, tmp_addr);
+  // __ unsigned_shift_right(tmp_addr, 
+  //   LIR_OprFact::intConst(BlockCardTable::card_shift()),
+  //   store_block_card_addr,
+  //   LIR_Opr::illegalOpr());
+    
+  // __ shift_left(store_block_card_addr,
+  //   LIR_OprFact::intConst(3),  // sizeof(CardValue) = 8 = 2^3
+  //   store_block_card_addr,
+  //   LIR_Opr::illegalOpr());
+
+  // // Calculate new value address card index: (new_val >> card_shift) * sizeof(CardValue)
+  // __ move(new_val, tmp_addr);
+  // __ unsigned_shift_right(tmp_addr,
+  //   LIR_OprFact::intConst(BlockCardTable::card_shift()),
+  //   new_val_block_card_addr,
+  //   LIR_Opr::illegalOpr());
+
+  // __ shift_left(new_val_block_card_addr,
+  //   LIR_OprFact::intConst(3),  // sizeof(CardValue) = 8 = 2^3
+  //   new_val_block_card_addr,
+  //   LIR_Opr::illegalOpr());
+
+  // // load block card table base address
+  // CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
+  // // G1BarrierSetAssembler* bs = (G1BarrierSetAssembler*)BarrierSet::barrier_set()->barrier_set_assembler();
+  // // BlockCardTable* block_ct = bs->block_card_table();
+  // BlockCardTable* block_ct = ctbs->block_card_table();
+
+  // // if (block_ct == nullptr || block_ct->byte_map_base() == nullptr) {
+  // //   __ branch_destination(slow->continuation());
+  // //   return;
+  // // }
+  
+  // LIR_Opr block_cardtable_base = gen->new_pointer_register();
+  // __ move(LIR_OprFact::intptrConst((intptr_t)block_ct->byte_map_base()), block_cardtable_base);
+
+  // // // calculate final block card address
+  // // // LIR_Opr store_block_card_final = gen->new_pointer_register();
+  // // // LIR_Opr new_val_block_card_final = gen->new_pointer_register();
+  
+  // __ add(store_block_card_addr, block_cardtable_base, store_block_card_addr);
+  // __ add(new_val_block_card_addr, block_cardtable_base, new_val_block_card_addr);
+
+  // // // load and compare block card table values
+  // // // Create address objects for loading
+  // LIR_Address* store_block_addr = new LIR_Address(store_block_card_addr, T_LONG);
+  // LIR_Address* new_val_block_addr = new LIR_Address(new_val_block_card_addr, T_LONG);
+
+  // // // Load block card table values
+  // LIR_Opr store_block_data = gen->new_pointer_register();
+  // LIR_Opr new_val_block_data = gen->new_pointer_register();
+  // LIR_Opr temp_data1 = gen->new_pointer_register();
+  // LIR_Opr temp_data2 = gen->new_pointer_register();
+
+  // // yizhe: todo : fix bug
+  // __ load(store_block_addr, temp_data1);
+  // __ move(temp_data1, store_block_data);
+
+  // __ load(new_val_block_addr, temp_data2);
+  // __ move(temp_data2, new_val_block_data);
+
+  // // // // Compare block card table values
+  // __ cmp(lir_cond_notEqual, store_block_data, new_val_block_data);
+  // __ branch(lir_cond_notEqual, slow);
+
   __ branch_destination(slow->continuation());
 }
 

@@ -35,6 +35,7 @@
 #include "runtime/globals_extension.hpp"
 #include "utilities/align.hpp"
 #include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include <cstring>
 
 // size_t BlockPLAB::min_size() {
@@ -48,14 +49,17 @@
 
 size_t BlockPLAB::size() {
   // BlockPLAB size is 1/16 of region size, aligned to object size
-  size_t region_size_16th = HeapRegion::GrainBytes / 16;
+  // size_t region_size_16th = HeapRegion::GrainBytes / 16;
+
   // log_error(gc) ("HeapRegion::GrainBytes: %lu", HeapRegion::GrainBytes);
   // log_error(gc) ("region_size_16th: %lu", region_size_16th);
   // Convert to heap words and align to object size
-  size_t size_in_words = region_size_16th / HeapWordSize;
+  // size_t size_in_words = region_size_16th / HeapWordSize;
+
+  size_t size_in_words = 256 * K / HeapWordSize;
   // log_error(gc) ("size_in_words: %lu", size_in_words);
 
-  guarantee(size_in_words >= (size_t)oopDesc::header_size() + CollectedHeap::lab_alignment_reserve(), "size_in_words is too small");
+  guarantee(size_in_words >= (size_t)oopDesc::header_size() + 2, "size_in_words is too small");
   return size_in_words;
   // return align_object_size(MAX2(size_in_words, (size_t)oopDesc::header_size())) + CollectedHeap::lab_alignment_reserve();
   // size_t size_value = align_object_size(MAX2(size_in_words, (size_t)oopDesc::header_size())) + CollectedHeap::lab_alignment_reserve();

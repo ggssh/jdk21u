@@ -22,6 +22,8 @@
  *
  */
 
+#include "gc/shared/blockCardTable.hpp"
+#include "logging/log.hpp"
 #include "precompiled.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
@@ -268,7 +270,8 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
                                                   Register new_val,
                                                   Register thread,
                                                   Register tmp,
-                                                  Register tmp2) {
+                                                  Register tmp2
+                                                  ) {
   // Generated code assumes that buffer index is pointer sized.
   STATIC_ASSERT(in_bytes(SATBMarkQueue::byte_width_of_index()) == sizeof(intptr_t));
 #ifdef _LP64
@@ -278,23 +281,73 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   Address queue_index(thread, in_bytes(G1ThreadLocalData::dirty_card_queue_index_offset()));
   Address buffer(thread, in_bytes(G1ThreadLocalData::dirty_card_queue_buffer_offset()));
 
-  CardTableBarrierSet* ct =
-    barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
+  G1BarrierSet* g1_bs = barrier_set_cast<G1BarrierSet>(BarrierSet::barrier_set());
 
   Label done;
   Label runtime;
+  Label check_card;
+  Label check_block_data_structure;
+
+  // Check for null first (common case for both cross-region and same-region)
+  __ cmpptr(new_val, NULL_WORD);
+  __ jcc(Assembler::equal, done);
 
   // Does store cross heap regions?
 
   __ movptr(tmp, store_addr);
   __ xorptr(tmp, new_val);
   __ shrptr(tmp, HeapRegion::LogOfHRGrainBytes);
-  __ jcc(Assembler::equal, done);
+  // __ jcc(Assembler::equal, done);
+  __ jcc(Assembler::equal, check_block_data_structure);
 
   // crosses regions, storing null?
 
-  __ cmpptr(new_val, NULL_WORD);
+  // __ cmpptr(new_val, NULL_WORD);  // Already checked above
+  // __ jcc(Assembler::equal, done); // Already checked above
+
+  __ jmp(check_card);
+
+  __ bind(check_block_data_structure);
+
+  const Register store_block_card_addr = rscratch1;// r10
+  const Register new_val_block_addr = r12;
+  const Register block_data_tmp = r13;
+  const Register block_cardtable = r14;
+
+  __ push(rscratch1);
+  __ push(r12);
+  __ push(r13);
+  __ push(r14); 
+
+  // Check if BlockCardTable is properly initialized before accessing
+  __ movptr(block_cardtable, (intptr_t)g1_bs->block_card_table()->byte_map_base());
+  // __ testptr(block_cardtable, block_cardtable);
+  // __ jcc(Assembler::zero, done);  // Skip if byte_map_base is null
+
+  // Use byte_map with proper offset calculation for 8-byte CardValue alignment
+  // Calculate store address card index using same logic as cardtable
+  __ movptr(store_block_card_addr, store_addr);
+  __ shrptr(store_block_card_addr, BlockCardTable::card_shift());
+  __ shlptr(store_block_card_addr, 3);  // Multiply by 8 (sizeof(CardValue))
+  __ addptr(store_block_card_addr, block_cardtable);
+
+  // Calculate new value address card index using same logic as cardtable
+  __ movptr(new_val_block_addr, new_val);
+  __ shrptr(new_val_block_addr, BlockCardTable::card_shift());
+  __ shlptr(new_val_block_addr, 3);  // Multiply by 8 (sizeof(CardValue))
+  __ addptr(new_val_block_addr, block_cardtable);
+
+  __ movptr(block_data_tmp, Address(store_block_card_addr, 0));
+  __ cmpptr(block_data_tmp, Address(new_val_block_addr, 0));
+
+  __ pop(r14);
+  __ pop(r13);
+  __ pop(r12);
+  __ pop(rscratch1);
+
   __ jcc(Assembler::equal, done);
+
+  __ bind(check_card);
 
   // storing region crossing non-null, is card already dirty?
 
@@ -305,7 +358,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ shrptr(card_addr, CardTable::card_shift());
   // Do not use ExternalAddress to load 'byte_map_base', since 'byte_map_base' is NOT
   // a valid address and therefore is not properly handled by the relocation code.
-  __ movptr(cardtable, (intptr_t)ct->card_table()->byte_map_base());
+  __ movptr(cardtable, (intptr_t)g1_bs->card_table()->byte_map_base());
   __ addptr(card_addr, cardtable);
 
   __ cmpb(Address(card_addr, 0), G1CardTable::g1_young_card_val());
@@ -509,6 +562,7 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
   __ epilogue();
 }
 
+// yizhe: this function just marks card dirty, so we should do something before this function(G1BarrierSetAssembler::gen_post_barrier_stub())
 void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler* sasm) {
   __ prologue("g1_post_barrier", false);
 

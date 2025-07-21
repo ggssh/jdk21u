@@ -26,6 +26,7 @@
 #include "ci/ciUtilities.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/cardTable.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "gc/shared/collectedHeap.hpp"
 
 // ciUtilities
@@ -47,4 +48,11 @@ CardTable::CardValue* ci_card_table_address() {
   CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
   CardTable* ct = ctbs->card_table();
   return ct->byte_map_base();
+}
+
+BlockCardTable::CardValue* ci_block_card_table_address() {
+  BarrierSet* bs = BarrierSet::barrier_set();
+  CardTableBarrierSet* ctbs = barrier_set_cast<CardTableBarrierSet>(bs);
+  BlockCardTable* bct = ctbs->block_card_table();
+  return bct->byte_map_base();
 }

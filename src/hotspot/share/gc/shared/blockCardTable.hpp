@@ -33,6 +33,9 @@ class BlockCardTable : public CHeapObj<mtGC> {
 
   BlockCardTableChangedListener _listener;
 
+  // Special clean card value object that will never be used as a real data structure
+  static G1DataStructureRegionSet* _clean_card_value_obj;
+
 public:
   // typedef uint64_t CardValue;
   // yizhe: each card takes sizeof(G1DataStructureRegionSet*) bytes
@@ -44,7 +47,7 @@ public:
 protected:
   const MemRegion _whole_heap; // the region covered by the card table
   const size_t _page_size;     // page size used when mapping _byte_map
-  size_t _byte_map_size;       // in bytes
+  size_t _byte_map_size;       // in sizeof(CardValue)
   CardValue *_byte_map;        // the card marking array
   CardValue *_byte_map_base;
 
@@ -70,12 +73,15 @@ public:
   BlockCardTable(MemRegion whole_heap);
   ~BlockCardTable() = default;
 
-  static CardValue clean_card_value() { return nullptr; }
+  static CardValue clean_card_value() { return _clean_card_value_obj; }
+
+  // Initialize the clean card value object
+  static void initialize_clean_card_value();
 
   void initialize(G1RegionToSpaceMapper *mapper);
 
   inline size_t cards_required(size_t covered_words) const {
-    assert(is_aligned(covered_words, _card_size_in_words), "precondition");
+    guarantee(is_aligned(covered_words, _card_size_in_words), "precondition");
     return covered_words / _card_size_in_words;
   }
 
@@ -91,7 +97,7 @@ public:
   }
 
   HeapWord *addr_for(const CardValue *p) const {
-    assert(p >= _byte_map && p < _byte_map + _byte_map_size,
+    guarantee(p >= _byte_map && p < _byte_map + _byte_map_size,
            "out of bounds access to card marking array. p: " PTR_FORMAT
            " _byte_map: " PTR_FORMAT " _byte_map + _byte_map_size: " PTR_FORMAT,
            p2i(p), p2i(_byte_map), p2i(_byte_map + _byte_map_size));
@@ -117,6 +123,7 @@ public:
     // log_error(gc) ("sizeof(CardValue): %zu", sizeof(CardValue));
     // log_error(gc) ("heap_map_factor: %zu", heap_map_factor());
     size_t total_bytes = number_of_slots * sizeof(CardValue);
+    log_info(gc, init)("BlockCardTable: mem_region_size_in_words: %zu, number_of_slots: %zu, total_bytes: %zu", mem_region_size_in_words, number_of_slots, total_bytes);
     return ReservedSpace::allocation_align_size_up(total_bytes);
   }
 
@@ -128,8 +135,9 @@ public:
            ")",
            p2i(p), p2i(_whole_heap.start()), p2i(_whole_heap.end()));
     CardValue *result = &_byte_map_base[uintptr_t(p) >> _card_shift];
-    assert(result >= _byte_map && result < _byte_map + _byte_map_size,
+    guarantee(result >= _byte_map && result < _byte_map + _byte_map_size,
            "out of bounds accessor for card marking array");
+    assert(is_aligned((uintptr_t)result - (uintptr_t)_byte_map_base, sizeof(CardValue)), "result is not aligned");
     return result;
   }
 
@@ -178,11 +186,18 @@ public:
   // before the beginning of the actual _byte_map.
   CardValue *byte_map_base() const { return _byte_map_base; }
 
+  // Public accessors for assembly code
+  HeapWord* whole_heap_start() const { return _whole_heap.start(); }
+  CardValue* byte_map() const { return _byte_map; }
+
+  size_t byte_map_size() const { return _byte_map_size; }
+
   // Returns how many bytes of the heap a single byte of the Card Table
   // corresponds to.
   static size_t heap_map_factor() { 
     // log_error(gc) ("heap_map_factor: _card_size: %u, sizeof(CardValue): %zu", _card_size, sizeof(CardValue));
     // log_error(gc) ("region_size: %zu", HeapRegion::GrainBytes);
+    log_info(gc, init)("BlockCardTable: heap_map_factor: _card_size: %u, sizeof(CardValue): %zu, _card_size / sizeof(CardValue): %zu", _card_size, sizeof(CardValue), _card_size / sizeof(CardValue));
     return _card_size / sizeof(CardValue); 
   }
 

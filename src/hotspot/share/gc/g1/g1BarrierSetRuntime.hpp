@@ -46,6 +46,10 @@ public:
   // C2 slow-path runtime calls.
   static void write_ref_field_pre_entry(oopDesc* orig, JavaThread *thread);
   static void write_ref_field_post_entry(volatile CardValue* card_addr, JavaThread* thread);
+
+  static void log_block_card_debug_info(void* store_block_card_addr, void* block_cardtable, size_t byte_map_size);
+
+  static void log_block_card_debug_info2(void* store_addr, void* new_val, void* whole_heap_start);
 };
 
 #endif // SHARE_GC_G1_G1BARRIERSETRUNTIME_HPP

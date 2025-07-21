@@ -22,12 +22,15 @@
  *
  */
 
+// #include "jfrfiles/jfrTypes.hpp"
+#include "opto/opcodes.hpp"
 #include "precompiled.hpp"
 #include "classfile/javaClasses.hpp"
 #include "gc/g1/c2/g1BarrierSetC2.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
 #include "gc/g1/g1CardTable.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/g1/heapRegion.hpp"
 #include "opto/arraycopynode.hpp"
@@ -38,6 +41,8 @@
 #include "opto/macro.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/type.hpp"
+// #include "utilities/globalDefinitions.hpp"
+#include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 const TypeFunc *G1BarrierSetC2::write_ref_field_pre_entry_Type() {
@@ -478,6 +483,52 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
           } __ end_if();
         } __ end_if();
       } __ end_if();
+    } __ else_(); {
+      // Check block card table addresses if in same region
+      // Get block card table base
+        // Calculate block card addresses
+        Node* block_cast = __ CastPX(__ ctrl(), adr);
+        Node* tmp_store_block_card_offset = __ URShiftX(block_cast, __ ConI(BlockCardTable::card_shift()));
+        // yizhe: todo : check
+        Node* store_block_card_offset = __ LShiftL(tmp_store_block_card_offset, __ ConI(3));
+
+        Node* block_val_cast = __ CastPX(__ ctrl(), val);
+        Node* tmp_new_val_block_card_offset = __ URShiftX(block_val_cast, __ ConI(BlockCardTable::card_shift()));
+        Node* new_val_block_card_offset = __ LShiftL(tmp_new_val_block_card_offset, __ ConI(3));
+        
+      //   // Get block card table base address
+      //   // Node* block_cardtable_base = __ ConX((intptr_t)block_ct->byte_map_base());
+        Node* block_cardtable_base = block_byte_map_base_node(kit);
+        
+      // Calculate final block card addresses
+        // kit->sync_kit(ideal);
+        Node* store_block_card_addr = __ AddP(no_base, block_cardtable_base, store_block_card_offset);
+        Node* new_val_block_card_addr = __ AddP(no_base, block_cardtable_base, new_val_block_card_offset);
+        // __ sync_kit(kit);
+        
+      // Load and compare block card table values
+        Node* store_block_card_val = __ load(__ ctrl(), store_block_card_addr, TypeRawPtr::NOTNULL, T_ADDRESS, Compile::AliasIdxRaw);
+        Node* new_val_block_card_val = __ load(__ ctrl(), new_val_block_card_addr, TypeRawPtr::NOTNULL, T_ADDRESS, Compile::AliasIdxRaw);
+        
+        // Compare block card table values
+        __ if_then(store_block_card_val, BoolTest::ne, new_val_block_card_val, likely); {
+          // No barrier if we are storing a null.
+          __ if_then(val, BoolTest::ne, kit->null(), likely); {
+            // Ok must mark the card if not already dirty
+            Node* card_val = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+            
+            __ if_then(card_val, BoolTest::ne, young_card, unlikely); {
+              kit->sync_kit(ideal);
+              kit->insert_mem_bar(Op_MemBarVolatile, oop_store);
+              __ sync_kit(kit);
+              
+              Node* card_val_reload = __ load(__ ctrl(), card_adr, TypeInt::INT, T_BYTE, Compile::AliasIdxRaw);
+              __ if_then(card_val_reload, BoolTest::ne, dirty_card); {
+                g1_mark_card(kit, ideal, card_adr, oop_store, alias_idx, index, index_adr, buffer, tf);
+              } __ end_if();
+            } __ end_if();
+          } __ end_if();
+        } __ end_if();
     } __ end_if();
   } else {
     // The Object.clone() intrinsic uses this path if !ReduceInitialCardMarks.
@@ -731,6 +782,7 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
 
     // Remove G1 post barrier.
 
+    // yizhe: need to fix this
     // Search for CastP2X->Xor->URShift->Cmp path which
     // checks if the store done to a different from the value's region.
     // And replace Cmp with #0 (false) to collapse G1 post barrier.
@@ -772,25 +824,44 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
         }
       }
     } else {
-      assert(!use_ReduceInitialCardMarks(), "can only happen with card marking");
-      // This is a G1 post barrier emitted by the Object.clone() intrinsic.
-      // Search for the CastP2X->URShiftX->AddP->LoadB->Cmp path which checks if the card
-      // is marked as young_gen and replace the Cmp with 0 (false) to collapse the barrier.
       Node* shift = node->find_out_with(Op_URShiftX);
       assert(shift != nullptr, "missing G1 post barrier");
-      Node* addp = shift->unique_out();
-      Node* load = addp->find_out_with(Op_LoadB);
-      assert(load != nullptr, "missing G1 post barrier");
-      Node* cmpx = load->unique_out();
-      assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
-          cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
-          "missing card value check in G1 post barrier");
-      macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
-      // There is no G1 pre barrier in this case
+      Node* andl = shift->find_out_with(Op_AndL);
+      if (andl != nullptr) {
+        // This is a G1 post barrier emitted by the Object.clone() intrinsic.
+        // Search for the CastP2X->URShiftX->AddP->LoadB->Cmp path which checks if the card
+        // is marked as young_gen and replace the Cmp with 0 (false) to collapse the barrier.
+        
+        Node* addp = andl->unique_out();
+        // Node* load = addp->find_out_with(Op_LoadL);
+        Node* load = addp->unique_out();
+        assert(load != nullptr, "missing G1 post barrier");
+        Node* cmpx = load->unique_out();
+        assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
+            cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
+            "missing card value check in G1 post barrier");
+        macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+        // There is no G1 pre barrier in this case
+      } else {
+        assert(!use_ReduceInitialCardMarks(), "can only happen with card marking");
+        // This is a G1 post barrier emitted by the Object.clone() intrinsic.
+        // Search for the CastP2X->URShiftX->AddP->LoadB->Cmp path which checks if the card
+        // is marked as young_gen and replace the Cmp with 0 (false) to collapse the barrier.
+        
+        Node* addp = shift->unique_out();
+        Node* load = addp->find_out_with(Op_LoadB);
+        assert(load != nullptr, "missing G1 post barrier");
+        Node* cmpx = load->unique_out();
+        assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
+            cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
+            "missing card value check in G1 post barrier");
+        macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+        // There is no G1 pre barrier in this case
+      }
     }
     // Now CastP2X can be removed since it is used only on dead path
     // which currently still alive until igvn optimize it.
-    assert(node->outcnt() == 0 || node->unique_out()->Opcode() == Op_URShiftX, "");
+    assert(node->outcnt() == 0 || node->unique_out()->Opcode() == Op_URShiftX || node->unique_out()->Opcode() == Op_XorX, "");
     macro->replace_node(node, macro->top());
   }
 }

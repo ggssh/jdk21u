@@ -40,6 +40,7 @@ protected:
                             bool use_precise) const;
 
   Node* byte_map_base_node(GraphKit* kit) const;
+  Node* block_byte_map_base_node(GraphKit* kit) const;
 
 public:
   virtual void clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const;

@@ -30,6 +30,7 @@
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
 #include "gc/shared/accessBarrierSupport.inline.hpp"
+#include "gc/shared/blockCardTable.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/oop.hpp"
@@ -80,12 +81,33 @@ inline void G1BarrierSet::write_ref_array_work(MemRegion mr) {
   invalidate(mr);
 }
 
+// yizhe: todo
 template <DecoratorSet decorators, typename T>
 inline void G1BarrierSet::write_ref_field_post(T* field) {
+  oop new_value = RawAccess<>::oop_load(field);
+
   volatile CardValue* byte = _card_table->byte_for(field);
   if (*byte != G1CardTable::g1_young_card_val()) {
     // Take a slow path for cards in old
     write_ref_field_post_slow(byte);
+  }
+
+  if (new_value != nullptr) {
+    // log_info(gc)("[YYZ-DEBUG] Block card table is not null");
+    volatile BlockCardTable::CardValue* block_byte = _block_card_table->byte_for(field);
+    volatile BlockCardTable::CardValue* new_val_block_byte = _block_card_table->byte_for((T*)new_value);
+    // log_info(gc)("[YYZ-DEBUG] Block card table: %p (value: %p), new value: %p (value: %p)",
+    //              block_byte, (void*)(*block_byte), new_val_block_byte, (void*)(*new_val_block_byte));
+
+    // Compare block card table values
+    if (*block_byte != *new_val_block_byte) {
+      // log_info(gc)("[YYZ-DEBUG] Block data structures are different, need to mark the card");
+      // Block data structures are different, need to mark the card
+      // if (*byte != G1CardTable::g1_young_card_val()) {
+        // Take a slow path for cards in old
+        write_ref_field_post_slow(byte);
+      // }
+    }
   }
 }
 

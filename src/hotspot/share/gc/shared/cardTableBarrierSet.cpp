@@ -90,6 +90,7 @@ void CardTableBarrierSet::invalidate(MemRegion mr) {
 
 void CardTableBarrierSet::print_on(outputStream* st) const {
   _card_table->print_on(st);
+  _block_card_table->print_on(st);
 }
 
 // Helper for ReduceInitialCardMarks. For performance,

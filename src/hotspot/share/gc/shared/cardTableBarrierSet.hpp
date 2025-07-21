@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_SHARED_CARDTABLEBARRIERSET_HPP
 #define SHARE_GC_SHARED_CARDTABLEBARRIERSET_HPP
 
+#include "gc/shared/blockCardTable.hpp"
 #include "gc/shared/cardTable.hpp"
 #include "gc/shared/modRefBarrierSet.hpp"
 #include "utilities/align.hpp"
@@ -48,11 +49,13 @@ class CardTableBarrierSet: public ModRefBarrierSet {
 public:
 
   typedef CardTable::CardValue CardValue;
+  typedef BlockCardTable::CardValue BlockCardValue;
 protected:
   // Used in support of ReduceInitialCardMarks; only consulted if COMPILER2
   // or INCLUDE_JVMCI is being used
   bool       _defer_initial_card_mark;
   CardTable* _card_table;
+  BlockCardTable* _block_card_table = nullptr;
 
   CardTableBarrierSet(BarrierSetAssembler* barrier_set_assembler,
                       BarrierSetC1* barrier_set_c1,
@@ -65,6 +68,10 @@ public:
   virtual ~CardTableBarrierSet();
 
   CardTable* card_table() const { return _card_table; }
+
+  void set_block_card_table(BlockCardTable* block_card_table) { _block_card_table = block_card_table; }
+
+  BlockCardTable* block_card_table() const { return _block_card_table; }
 
   void initialize();
 
