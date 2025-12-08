@@ -69,7 +69,7 @@ class ArchiveHeapWriter : AllStatic {
   // depends on -Xmx, but can never be smaller than 1 * M.
   // (TODO: Perhaps change to 256K to be compatible with Shenandoah)
   // static constexpr int MIN_GC_REGION_ALIGNMENT = 1 * M;
-  static constexpr int MIN_GC_REGION_ALIGNMENT = 256 * K;
+  static constexpr int MIN_GC_REGION_ALIGNMENT = 32 * K;
 
   // "source" vs "buffered" vs "requested"
   //

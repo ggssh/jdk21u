@@ -133,7 +133,7 @@ private:
   //
   //           [bits 31 .. 14][ bits 13 .. 0  ]
   //            primary_index  secondary_index
-  const static int _secondary_array_index_bits = 14;
+  const static int _secondary_array_index_bits = 6;
   const static int _secondary_array_max_length = 1 << _secondary_array_index_bits;
   const static int _secondary_array_index_mask = _secondary_array_max_length - 1;
 

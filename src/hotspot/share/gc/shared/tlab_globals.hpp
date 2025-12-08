@@ -58,7 +58,7 @@
           "Starting TLAB size (in bytes); zero means set ergonomically")    \
           constraint(TLABSizeConstraintFunc,AfterMemoryInit)                \
                                                                             \
-  product(size_t, YoungPLABSize, 4096,                                      \
+  product(size_t, YoungPLABSize, 1024,                                      \
           "Size of young gen promotion LAB's (in HeapWords)")               \
           constraint(YoungPLABSizeConstraintFunc,AfterMemoryInit)           \
                                                                             \
